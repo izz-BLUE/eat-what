@@ -73,7 +73,7 @@
 
 ### 1. users - 用户表
 
-存储用户基本信息，通过微信 openid 唯一标识。
+存储用户基本信息，通过微信 openid 唯一标识。JWT token 的 subject 字段存放用户 id。
 
 ```sql
 CREATE TABLE `users` (
@@ -91,12 +91,17 @@ CREATE TABLE `users` (
 **字段说明**：
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| id | BIGINT | 是 | 主键，自增 |
+| id | BIGINT | 是 | 主键，自增，用于 JWT subject |
 | openid | VARCHAR(64) | 是 | 微信用户唯一标识，唯一索引 |
 | nickname | VARCHAR(64) | 否 | 用户昵称 |
 | avatar_url | VARCHAR(256) | 否 | 头像 URL |
 | created_at | DATETIME | 是 | 创建时间 |
 | updated_at | DATETIME | 是 | 更新时间 |
+
+**认证说明**：
+- openid 通过微信 code2Session 接口获取，不下发给前端
+- JWT token 包含 userId，有效期默认 7 天
+- 前端通过 `Authorization: Bearer {token}` 传递认证信息
 
 ---
 

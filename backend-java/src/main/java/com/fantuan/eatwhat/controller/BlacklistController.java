@@ -1,5 +1,7 @@
 package com.fantuan.eatwhat.controller;
 
+import com.fantuan.eatwhat.auth.RequireLogin;
+import com.fantuan.eatwhat.auth.UserContext;
 import com.fantuan.eatwhat.common.ApiResponse;
 import com.fantuan.eatwhat.dto.request.BlacklistAddRequest;
 import com.fantuan.eatwhat.dto.response.BlacklistResponse;
@@ -19,6 +21,7 @@ import java.util.List;
 @RequestMapping("/api/v1/blacklist")
 @RequiredArgsConstructor
 @Validated
+@RequireLogin
 public class BlacklistController {
 
     private final UserBlacklistService userBlacklistService;
@@ -29,27 +32,29 @@ public class BlacklistController {
      */
     @PostMapping("/add")
     public ApiResponse<BlacklistResponse> add(@Valid @RequestBody BlacklistAddRequest request) {
-        BlacklistResponse response = userBlacklistService.addToBlacklist(request);
+        Long userId = UserContext.getUserId();
+        BlacklistResponse response = userBlacklistService.addToBlacklist(userId, request);
         return ApiResponse.success(response);
     }
 
     /**
      * 查询黑名单列表
-     * GET /api/v1/blacklist/list?userId=1
+     * GET /api/v1/blacklist/list
      */
     @GetMapping("/list")
-    public ApiResponse<List<BlacklistResponse>> list(@RequestParam @Min(1) Long userId) {
+    public ApiResponse<List<BlacklistResponse>> list() {
+        Long userId = UserContext.getUserId();
         List<BlacklistResponse> list = userBlacklistService.listBlacklist(userId);
         return ApiResponse.success(list);
     }
 
     /**
      * 移出黑名单
-     * DELETE /api/v1/blacklist/{blacklistId}?userId=1
+     * DELETE /api/v1/blacklist/{blacklistId}
      */
     @DeleteMapping("/{blacklistId}")
-    public ApiResponse<Void> remove(@PathVariable @Min(1) Long blacklistId,
-                                     @RequestParam @Min(1) Long userId) {
+    public ApiResponse<Void> remove(@PathVariable @Min(1) Long blacklistId) {
+        Long userId = UserContext.getUserId();
         userBlacklistService.removeFromBlacklist(blacklistId, userId);
         return ApiResponse.success();
     }

@@ -1,5 +1,6 @@
 package com.fantuan.eatwhat.controller;
 
+import com.fantuan.eatwhat.auth.UserContext;
 import com.fantuan.eatwhat.common.ApiResponse;
 import com.fantuan.eatwhat.dto.request.RecommendRequest;
 import com.fantuan.eatwhat.dto.response.RecommendResponse;
@@ -16,7 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 推荐控制器
+ * 推荐控制器（可选登录）
  */
 @RestController
 @RequestMapping("/api/v1/recommend")
@@ -27,14 +28,18 @@ public class RecommendController {
 
     /**
      * 一键推荐
-     * GET /api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口&userId=1
+     * GET /api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口
+     *
+     * 有 token 时使用个性化过滤（黑名单 + 不想吃 + 最近吃过降权）
+     * 无 token 时使用基础推荐
      */
     @GetMapping
     public ApiResponse<RecommendResponse> recommend(
             @RequestParam(required = false) String mealType,
             @RequestParam(required = false) String priceLevel,
-            @RequestParam(required = false) String taste,
-            @RequestParam(required = false) Long userId) {
+            @RequestParam(required = false) String taste) {
+
+        Long userId = UserContext.getUserId(); // 可能为 null
 
         RecommendRequest request = new RecommendRequest();
         request.setMealType(mealType);
@@ -51,15 +56,19 @@ public class RecommendController {
 
     /**
      * 换一个
-     * GET /api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2,3&userId=1
+     * GET /api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2,3
+     *
+     * 有 token 时使用个性化过滤
+     * 无 token 时使用基础推荐
      */
     @GetMapping("/swap")
     public ApiResponse<RecommendResponse> swap(
             @RequestParam(required = false) String mealType,
             @RequestParam(required = false) String priceLevel,
             @RequestParam(required = false) String taste,
-            @RequestParam(required = false) String excludeFoodIds,
-            @RequestParam(required = false) Long userId) {
+            @RequestParam(required = false) String excludeFoodIds) {
+
+        Long userId = UserContext.getUserId(); // 可能为 null
 
         RecommendRequest request = new RecommendRequest();
         request.setMealType(mealType);

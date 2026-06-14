@@ -1,5 +1,7 @@
 package com.fantuan.eatwhat.controller;
 
+import com.fantuan.eatwhat.auth.RequireLogin;
+import com.fantuan.eatwhat.auth.UserContext;
 import com.fantuan.eatwhat.common.ApiResponse;
 import com.fantuan.eatwhat.dto.request.EatRecordRequest;
 import com.fantuan.eatwhat.dto.response.EatRecordResponse;
@@ -18,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/record")
 @RequiredArgsConstructor
+@RequireLogin
 public class RecordController {
 
     private final EatRecordService eatRecordService;
@@ -25,25 +28,22 @@ public class RecordController {
     /**
      * 我就吃它
      * POST /api/v1/record/eat
-     *
-     * 当前阶段临时使用 userId 参数，后续接入微信登录后从 token 获取
      */
     @PostMapping("/eat")
     public ApiResponse<EatRecordResponse> eat(@Valid @RequestBody EatRecordRequest request) {
-        EatRecordResponse response = eatRecordService.createRecord(request);
+        Long userId = UserContext.getUserId();
+        EatRecordResponse response = eatRecordService.createRecord(userId, request);
         return ApiResponse.success(response);
     }
 
     /**
      * 获取吃过记录列表
-     * GET /api/v1/record/list?userId=1&limit=20
-     *
-     * 当前阶段临时使用 userId 参数，后续接入微信登录后从 token 获取
+     * GET /api/v1/record/list?limit=20
      */
     @GetMapping("/list")
     public ApiResponse<List<EatRecordResponse>> list(
-            @RequestParam Long userId,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) Integer limit) {
+        Long userId = UserContext.getUserId();
         List<EatRecordResponse> records = eatRecordService.listRecords(userId, limit);
         return ApiResponse.success(records);
     }

@@ -41,8 +41,8 @@ class UserBlacklistServiceTest {
     @Test
     void addToBlacklist_success() {
         // Given
+        Long userId = 1L;
         BlacklistAddRequest request = new BlacklistAddRequest();
-        request.setUserId(1L);
         request.setFoodId(1L);
         request.setReason("不喜欢");
 
@@ -52,7 +52,7 @@ class UserBlacklistServiceTest {
         when(userBlacklistMapper.insert(any(UserBlacklist.class))).thenReturn(1);
 
         // When
-        BlacklistResponse response = userBlacklistService.addToBlacklist(request);
+        BlacklistResponse response = userBlacklistService.addToBlacklist(userId, request);
 
         // Then
         assertNotNull(response);
@@ -65,23 +65,23 @@ class UserBlacklistServiceTest {
     @Test
     void addToBlacklist_foodNotFound() {
         // Given
+        Long userId = 1L;
         BlacklistAddRequest request = new BlacklistAddRequest();
-        request.setUserId(1L);
         request.setFoodId(999L);
 
         when(foodMapper.selectById(999L)).thenReturn(null);
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> userBlacklistService.addToBlacklist(request));
+                () -> userBlacklistService.addToBlacklist(userId, request));
         assertEquals(ResultCode.FOOD_NOT_FOUND.getCode(), exception.getCode());
     }
 
     @Test
     void addToBlacklist_duplicateNoNewRecord() {
         // Given
+        Long userId = 1L;
         BlacklistAddRequest request = new BlacklistAddRequest();
-        request.setUserId(1L);
         request.setFoodId(1L);
         request.setReason("不喜欢");
 
@@ -97,7 +97,7 @@ class UserBlacklistServiceTest {
         when(userBlacklistMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(existing);
 
         // When
-        BlacklistResponse response = userBlacklistService.addToBlacklist(request);
+        BlacklistResponse response = userBlacklistService.addToBlacklist(userId, request);
 
         // Then
         assertNotNull(response);
@@ -108,8 +108,8 @@ class UserBlacklistServiceTest {
     @Test
     void addToBlacklist_duplicateUpdatesReason() {
         // Given
+        Long userId = 1L;
         BlacklistAddRequest request = new BlacklistAddRequest();
-        request.setUserId(1L);
         request.setFoodId(1L);
         request.setReason("新原因");
 
@@ -126,7 +126,7 @@ class UserBlacklistServiceTest {
         when(userBlacklistMapper.updateById(any(UserBlacklist.class))).thenReturn(1);
 
         // When
-        BlacklistResponse response = userBlacklistService.addToBlacklist(request);
+        BlacklistResponse response = userBlacklistService.addToBlacklist(userId, request);
 
         // Then
         assertNotNull(response);
@@ -137,8 +137,8 @@ class UserBlacklistServiceTest {
     @Test
     void addToBlacklist_concurrentDuplicateUpdatesReason() {
         // Given
+        Long userId = 1L;
         BlacklistAddRequest request = new BlacklistAddRequest();
-        request.setUserId(1L);
         request.setFoodId(1L);
         request.setReason("并发原因");
 
@@ -156,7 +156,7 @@ class UserBlacklistServiceTest {
         when(userBlacklistMapper.updateById(any(UserBlacklist.class))).thenReturn(1);
 
         // When
-        BlacklistResponse response = userBlacklistService.addToBlacklist(request);
+        BlacklistResponse response = userBlacklistService.addToBlacklist(userId, request);
 
         // Then
         assertNotNull(response);
