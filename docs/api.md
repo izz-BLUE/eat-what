@@ -40,24 +40,33 @@
 
 ---
 
-## 接口总览（MVP 共 12 个）
+## 接口总览
 
-| 序号 | 接口 | 方法 | 说明 |
-|------|------|------|------|
-| 1 | /user/login | POST | 微信登录 |
-| 2 | /recommend | GET | 一键推荐 |
-| 3 | /recommend/swap | GET | 换一个 |
-| 4 | /record/eat | POST | 我就吃它 |
-| 5 | /record/list | GET | 吃过记录列表 |
-| 6 | /blacklist/add | POST | 加入黑名单 |
-| 7 | /blacklist/list | GET | 黑名单列表 |
-| 8 | /blacklist/{id} | DELETE | 移出黑名单 |
-| 9 | /dislike/add | POST | 标记不想吃 |
-| 10 | /dislike/list | GET | 不想吃列表 |
-| 11 | /dislike/{id} | DELETE | 解除不想吃 |
-| 12 | /vote/create | POST | 发起投票 |
-| 13 | /vote/{id} | GET | 获取投票详情 |
-| 14 | /vote/{id}/vote | POST | 投票 |
+### 当前已实现（M0 推荐骨架）
+
+| 序号 | 接口 | 方法 | 认证 | 说明 |
+|------|------|------|------|------|
+| 1 | /api/v1/foods | GET | 无需登录 | 查询菜品列表 |
+| 2 | /api/v1/recommend | GET | 无需登录 | 一键推荐 |
+| 3 | /api/v1/recommend/swap | GET | 无需登录 | 换一个 |
+| 4 | /api/health | GET | 无需登录 | 健康检查 |
+
+### 后续阶段实现
+
+| 序号 | 接口 | 方法 | 认证 | 说明 | 阶段 |
+|------|------|------|------|------|------|
+| 5 | /user/login | POST | - | 微信登录 | M1 |
+| 6 | /record/eat | POST | 必需 | 我就吃它 | M1 |
+| 7 | /record/list | GET | 必需 | 吃过记录列表 | M1 |
+| 8 | /blacklist/add | POST | 必需 | 加入黑名单 | M1 |
+| 9 | /blacklist/list | GET | 必需 | 黑名单列表 | M1 |
+| 10 | /blacklist/{id} | DELETE | 必需 | 移出黑名单 | M1 |
+| 11 | /dislike/add | POST | 必需 | 标记不想吃 | M1 |
+| 12 | /dislike/list | GET | 必需 | 不想吃列表 | M1 |
+| 13 | /dislike/{id} | DELETE | 必需 | 解除不想吃 | M1 |
+| 14 | /vote/create | POST | 必需 | 发起投票 | M2 |
+| 15 | /vote/{id} | GET | 无需 | 获取投票详情 | M2 |
+| 16 | /vote/{id}/vote | POST | 必需 | 投票 | M2 |
 
 ---
 
@@ -98,18 +107,20 @@
 
 ---
 
-## 推荐相关
+## 推荐相关（M0 已实现）
 
 ### 2. 一键推荐
 
 **GET** `/api/v1/recommend`
 
-根据用户偏好推荐一道食物。
+根据参数推荐一道食物。**当前阶段无需登录**，只基于 foods 表和请求参数做简单规则打分。
 
-**请求头**：
-```
-Authorization: Bearer {token}
-```
+**请求参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| mealType | string | 否 | 餐段：早餐、午餐、晚餐、夜宵 |
+| priceLevel | string | 否 | 价格偏好：15以内、15-25、25-40、不限 |
+| taste | string | 否 | 口味偏好：清淡、重口、辣、不辣 |
 
 **响应数据**：
 ```json
@@ -117,23 +128,32 @@ Authorization: Bearer {token}
   "code": 0,
   "message": "success",
   "data": {
-    "food_id": 1,
-    "name": "猪脚饭",
-    "category": "快餐",
-    "taste_tags": "咸,香",
-    "price_level": 2,
-    "image_url": "https://xxx.jpg",
-    "score": 95,
-    "reason": "你喜欢快餐，而且现在吃正合适"
+    "food": {
+      "id": 1,
+      "name": "猪脚饭",
+      "category": "快餐",
+      "tasteTags": "咸,香",
+      "priceLevel": 2,
+      "imageUrl": ""
+    },
+    "score": 45,
+    "reasons": ["适合当前餐段", "符合预算"]
   }
 }
 ```
 
-**业务逻辑**：
-1. 获取用户偏好、黑名单、历史记录、不想吃分类
-2. 计算候选食物得分
+**当前业务逻辑**（M0）：
+1. 查询所有 enabled=true 的菜品
+2. 按 mealType、priceLevel、taste 打分
 3. 从 Top 5 中随机选一个
 4. 返回推荐结果
+
+**后续阶段**（M1）：
+- 接入用户登录
+- 读取用户偏好（user_prefs）
+- 排除黑名单（user_blacklist）
+- 排除不想吃（user_dislikes）
+- 读取吃过记录（eat_records）降权
 
 ---
 
@@ -141,19 +161,15 @@ Authorization: Bearer {token}
 
 **GET** `/api/v1/recommend/swap`
 
-排除已推荐的食物，重新推荐。
-
-**请求头**：
-```
-Authorization: Bearer {token}
-```
+排除已推荐的食物，重新推荐。**当前阶段无需登录**。
 
 **请求参数**：
-```json
-{
-  "exclude_ids": [1, 2, 3]
-}
-```
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| mealType | string | 否 | 餐段 |
+| priceLevel | string | 否 | 价格偏好 |
+| taste | string | 否 | 口味偏好 |
+| excludeFoodIds | string | 否 | 排除的菜品 ID，逗号分隔，如：1,2,3 |
 
 **响应数据**：
 ```json
@@ -161,17 +177,24 @@ Authorization: Bearer {token}
   "code": 0,
   "message": "success",
   "data": {
-    "food_id": 4,
-    "name": "火锅",
-    "category": "火锅",
-    "taste_tags": "辣,麻",
-    "price_level": 4,
-    "image_url": "https://xxx.jpg",
-    "score": 65,
-    "reason": "你喜欢火锅"
+    "food": {
+      "id": 4,
+      "name": "火锅",
+      "category": "火锅",
+      "tasteTags": "辣,麻",
+      "priceLevel": 4,
+      "imageUrl": ""
+    },
+    "score": 38,
+    "reasons": ["适合当前餐段"]
   }
 }
 ```
+
+**业务逻辑**：
+1. 查询所有 enabled=true 的菜品
+2. 排除 excludeFoodIds 中的菜品
+3. 按规则打分，从 Top 5 中随机选一个
 
 **业务逻辑**：
 1. 获取 exclude_ids
