@@ -37,23 +37,23 @@ public class WeChatAuthClientProd implements WeChatAuthClient {
                     .retrieve()
                     .body(WeChatSessionResponse.class);
         } catch (Exception e) {
-            log.error("微信接口请求失败: {}", e.getMessage());
-            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED, "微信接口请求失败");
+            log.error("微信接口请求失败: {}", e.getClass().getSimpleName());
+            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED);
         }
 
         if (response == null) {
             log.error("微信接口返回空响应");
-            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED, "微信接口返回空响应");
+            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED);
         }
 
         if (response.getErrcode() != null && response.getErrcode() != 0) {
             log.error("微信接口错误: errcode={}", response.getErrcode());
-            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED, "微信接口错误: " + response.getErrmsg());
+            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED);
         }
 
         if (response.getOpenid() == null || response.getOpenid().isEmpty()) {
             log.error("微信接口返回 openid 为空");
-            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED, "微信接口返回 openid 为空");
+            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED);
         }
 
         return response.getOpenid();

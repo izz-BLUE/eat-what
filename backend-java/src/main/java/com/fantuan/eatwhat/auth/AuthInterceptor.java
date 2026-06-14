@@ -24,6 +24,9 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // 防御性清理：线程复用时可能残留旧身份
+        UserContext.clear();
+
         // 只处理控制器方法
         if (!(handler instanceof HandlerMethod handlerMethod)) {
             return true;

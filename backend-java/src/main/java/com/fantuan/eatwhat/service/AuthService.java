@@ -36,9 +36,11 @@ public class AuthService {
         String openid;
         try {
             openid = weChatAuthClient.code2Session(request.getCode());
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("微信登录失败", e);
-            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED, "微信登录失败: " + e.getMessage());
+            log.error("微信登录异常: {}", e.getClass().getSimpleName());
+            throw new BusinessException(ResultCode.WECHAT_LOGIN_FAILED);
         }
 
         // 2. 查询或创建用户

@@ -62,12 +62,20 @@ public class JwtTokenService {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            return Long.parseLong(claims.getSubject());
+            String subject = claims.getSubject();
+            if (subject == null || subject.isEmpty()) {
+                log.debug("Token subject 为空");
+                return null;
+            }
+            return Long.parseLong(subject);
+        } catch (NumberFormatException e) {
+            log.debug("Token subject 非数字");
+            return null;
         } catch (ExpiredJwtException e) {
-            log.debug("Token 已过期: {}", e.getMessage());
+            log.debug("Token 已过期");
             return null;
         } catch (JwtException e) {
-            log.debug("Token 无效: {}", e.getMessage());
+            log.debug("Token 无效: {}", e.getClass().getSimpleName());
             return null;
         }
     }
