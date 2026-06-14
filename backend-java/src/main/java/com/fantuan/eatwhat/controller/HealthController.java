@@ -1,6 +1,6 @@
-package com.eatwhat.controller;
+package com.fantuan.eatwhat.controller;
 
-import com.eatwhat.common.ApiResponse;
+import com.fantuan.eatwhat.common.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 

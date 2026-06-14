@@ -32,9 +32,6 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
-# Ignore normal jar files, but keep Maven Wrapper jar
-*.jar
-!backend-java/.mvn/wrapper/maven-wrapper.jar
 
 # IDE
 .idea/
@@ -51,16 +48,5 @@ buildNumber.properties
 .DS_Store
 Thumbs.db
 
-# 环境配置（不提交真实密码、appid、appSecret）
+# 环境配置（不提交真实密码）
 application-local.yml
-.env
-.env.*
-!.env.example
-
-# Docker 数据卷
-mysql_data/
-
-# Keep Maven Wrapper jar
-!/.mvn/wrapper/
-!/.mvn/wrapper/maven-wrapper.jar
-!/.mvn/wrapper/maven-wrapper.properties

@@ -1,6 +1,6 @@
-package com.eatwhat.exception;
+package com.fantuan.eatwhat.exception;
 
-import com.eatwhat.common.ResultCode;
+import com.fantuan.eatwhat.common.ResultCode;
 import lombok.Getter;
 
 /**

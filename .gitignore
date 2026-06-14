@@ -9,6 +9,9 @@ application-local.yml
 # Docker 数据卷
 mysql_data/
 
+# Claude Code
+.claude/
+
 # IDE
 .idea/
 .vscode/

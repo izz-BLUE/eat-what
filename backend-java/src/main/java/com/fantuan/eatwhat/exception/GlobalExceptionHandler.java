@@ -1,7 +1,7 @@
-package com.eatwhat.exception;
+package com.fantuan.eatwhat.exception;
 
-import com.eatwhat.common.ApiResponse;
-import com.eatwhat.common.ResultCode;
+import com.fantuan.eatwhat.common.ApiResponse;
+import com.fantuan.eatwhat.common.ResultCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;

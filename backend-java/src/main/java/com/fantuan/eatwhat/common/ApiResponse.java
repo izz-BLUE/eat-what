@@ -1,4 +1,4 @@
-package com.eatwhat.common;
+package com.fantuan.eatwhat.common;
 
 import lombok.Data;
 

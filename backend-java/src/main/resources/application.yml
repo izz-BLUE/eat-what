@@ -27,10 +27,10 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
   # 实体类包路径
-  type-aliases-package: com.eatwhat.domain
+  type-aliases-package: com.fantuan.eatwhat.domain
 
 # 日志配置
 logging:
   level:
-    com.eatwhat: debug
+    com.fantuan.eatwhat: debug
     org.springframework: info

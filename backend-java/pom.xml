@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.eatwhat</groupId>
+    <groupId>com.fantuan</groupId>
     <artifactId>eat-what-backend</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>eat-what-backend</name>
