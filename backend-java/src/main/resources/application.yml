@@ -1,5 +1,11 @@
 server:
   port: 8080
+  # 响应编码设置
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 spring:
   application:

@@ -7,7 +7,7 @@ spring:
     # 数据库名：eat_what
     # 用户名：eatwhat
     # 密码：通过环境变量 DB_PASSWORD 设置，默认 eatwhat_dev
-    url: jdbc:mysql://localhost:3306/eat_what?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/eat_what?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&connectionCollation=utf8mb4_unicode_ci
     username: eatwhat
     password: ${DB_PASSWORD:eatwhat_dev}
     driver-class-name: com.mysql.cj.jdbc.Driver
