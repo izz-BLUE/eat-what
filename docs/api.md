@@ -428,7 +428,7 @@
 
 ## 后续阶段接口（需要登录）
 
-### 12. 微信登录
+### 13. 微信登录
 
 **POST** `/api/v1/user/login`
 
@@ -457,36 +457,7 @@
 
 ---
 
-### 10. 标记不想吃（后续阶段）
-
-**POST** `/api/v1/dislike/add`
-
-标记不想吃的食物分类。
-
-**请求头**：
-```
-Authorization: Bearer {token}
-```
-
----
-
-### 11. 获取不想吃列表（后续阶段）
-
-**GET** `/api/v1/dislike/list`
-
-获取用户标记的不想吃分类（未过期）。
-
----
-
-### 12. 解除不想吃（后续阶段）
-
-**DELETE** `/api/v1/dislike/{dislikeId}`
-
-解除不想吃的食物分类。
-
----
-
-### 13. 发起投票（后续阶段）
+### 14. 发起投票（后续阶段）
 
 **POST** `/api/v1/vote/create`
 
@@ -494,7 +465,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 14. 获取投票详情（后续阶段）
+### 15. 获取投票详情（后续阶段）
 
 **GET** `/api/v1/vote/{voteId}`
 
@@ -502,7 +473,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 15. 投票（后续阶段）
+### 16. 投票（后续阶段）
 
 **POST** `/api/v1/vote/{voteId}/vote`
 
@@ -520,10 +491,10 @@ Authorization: Bearer {token}
 # 一键推荐（无 userId，基础推荐）
 Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐" | ConvertTo-Json -Depth 8
 
-# 一键推荐（有 userId，黑名单过滤 + 最近吃过降权）
+# 一键推荐（有 userId，黑名单过滤 + 不想吃分类过滤 + 最近吃过降权）
 Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐&userId=1" | ConvertTo-Json -Depth 8
 
-# 换一个
+# 换一个（blacklist + dislike + excludeFoodIds 同时生效）
 Invoke-RestMethod "http://localhost:8080/api/v1/recommend/swap?mealType=晚餐&excludeFoodIds=31,32&userId=1" | ConvertTo-Json -Depth 8
 
 # ========== 吃过记录接口 ==========
@@ -550,6 +521,26 @@ Invoke-RestMethod "http://localhost:8080/api/v1/blacklist/list?userId=1" | Conve
 
 # 移出黑名单
 Invoke-RestMethod -Method DELETE -Uri "http://localhost:8080/api/v1/blacklist/1?userId=1" | ConvertTo-Json -Depth 8
+
+# ========== 不想吃接口 ==========
+
+# 添加不想吃（默认 3 天）
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/dislike/add" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"userId":1,"category":"火锅"}')) `
+  | ConvertTo-Json -Depth 8
+
+# 添加不想吃（自定义 5 天）
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/dislike/add" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"userId":1,"category":"川菜","days":5}')) `
+  | ConvertTo-Json -Depth 8
+
+# 查询不想吃列表（只返回未过期记录）
+Invoke-RestMethod "http://localhost:8080/api/v1/dislike/list?userId=1" | ConvertTo-Json -Depth 8
+
+# 解除不想吃
+Invoke-RestMethod -Method DELETE -Uri "http://localhost:8080/api/v1/dislike/1?userId=1" | ConvertTo-Json -Depth 8
 
 # ========== 健康检查 ==========
 
