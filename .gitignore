@@ -1,0 +1,28 @@
+# 今天吃啥 - Git 忽略配置
+
+# 环境配置（不提交真实密码、appid、appSecret）
+.env
+.env.*
+!.env.example
+application-local.yml
+
+# Docker 数据卷
+mysql_data/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+
+# 临时文件
+*.tmp
+*.temp

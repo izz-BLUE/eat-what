@@ -1,0 +1,4 @@
+# 测试环境主配置
+spring:
+  profiles:
+    active: test
