@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+
 import java.util.stream.Collectors;
 
 /**
@@ -65,6 +68,19 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleMissingParamException(MissingServletRequestParameterException e) {
         log.warn("缺少请求参数: {}", e.getParameterName());
         return ApiResponse.fail(ResultCode.PARAM_MISSING, "缺少参数: " + e.getParameterName());
+    }
+
+    /**
+     * 约束校验异常（@Min、@Max 等在 @RequestParam/@PathVariable 上的校验）
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<Void> handleConstraintViolationException(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .collect(Collectors.joining(", "));
+        log.warn("参数校验失败: {}", message);
+        return ApiResponse.fail(ResultCode.PARAM_ERROR, message);
     }
 
     /**

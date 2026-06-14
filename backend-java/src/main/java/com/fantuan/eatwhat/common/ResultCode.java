@@ -23,6 +23,7 @@ public enum ResultCode {
     VOTE_ENDED(2004, "投票已结束"),
     VOTE_ALREADY_VOTED(2005, "已投过票"),
     VOTE_LIMIT_EXCEEDED(2006, "超过投票上限"),
+    BLACKLIST_NOT_FOUND(2007, "黑名单记录不存在"),
 
     // 系统错误 5xxx
     SYSTEM_ERROR(5001, "系统错误");

@@ -24,6 +24,7 @@ public class RecommendService {
 
     private final FoodService foodService;
     private final EatRecordService eatRecordService;
+    private final UserBlacklistService userBlacklistService;
 
     /**
      * 推荐一个菜品
@@ -35,7 +36,7 @@ public class RecommendService {
         // 1. 获取候选菜品
         List<Food> candidates = foodService.listAllEnabled();
 
-        // 2. 排除指定菜品
+        // 2. 排除指定菜品（excludeFoodIds）
         if (!CollectionUtils.isEmpty(request.getExcludeFoodIds())) {
             Set<Long> excludeIds = new HashSet<>(request.getExcludeFoodIds());
             candidates = candidates.stream()
@@ -43,11 +44,21 @@ public class RecommendService {
                     .collect(Collectors.toList());
         }
 
+        // 3. 排除用户黑名单菜品
+        if (request.getUserId() != null) {
+            Set<Long> blacklistFoodIds = userBlacklistService.getBlacklistFoodIds(request.getUserId());
+            if (!blacklistFoodIds.isEmpty()) {
+                candidates = candidates.stream()
+                        .filter(f -> !blacklistFoodIds.contains(f.getId()))
+                        .collect(Collectors.toList());
+            }
+        }
+
         if (candidates.isEmpty()) {
             return null;
         }
 
-        // 3. 查询用户最近7天吃过的食物（如果有 userId）
+        // 4. 查询用户最近7天吃过的食物（如果有 userId）
         Map<Long, LocalDateTime> recentEatenMap = eatRecordService.getRecentEatenFoodMap(request.getUserId());
         LocalDateTime now = LocalDateTime.now();
 
