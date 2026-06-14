@@ -25,6 +25,7 @@ public class RecommendService {
     private final FoodService foodService;
     private final EatRecordService eatRecordService;
     private final UserBlacklistService userBlacklistService;
+    private final UserDislikeService userDislikeService;
 
     /**
      * 推荐一个菜品
@@ -54,13 +55,23 @@ public class RecommendService {
             }
         }
 
+        // 4. 排除用户不想吃的分类（有效期内）
+        LocalDateTime now = LocalDateTime.now();
+        if (request.getUserId() != null) {
+            Set<String> dislikeCategories = userDislikeService.getActiveDislikeCategories(request.getUserId(), now);
+            if (!dislikeCategories.isEmpty()) {
+                candidates = candidates.stream()
+                        .filter(f -> !dislikeCategories.contains(f.getCategory()))
+                        .collect(Collectors.toList());
+            }
+        }
+
         if (candidates.isEmpty()) {
             return null;
         }
 
-        // 4. 查询用户最近7天吃过的食物（如果有 userId）
+        // 5. 查询用户最近7天吃过的食物（如果有 userId）
         Map<Long, LocalDateTime> recentEatenMap = eatRecordService.getRecentEatenFoodMap(request.getUserId());
-        LocalDateTime now = LocalDateTime.now();
 
         // 4. 计算每个菜品的得分
         List<ScoredFood> scoredFoods = candidates.stream()

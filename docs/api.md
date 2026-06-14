@@ -28,6 +28,7 @@
 | 2005 | 已投过票 |
 | 2006 | 超过投票上限 |
 | 2007 | 黑名单记录不存在 |
+| 2008 | 不想吃记录不存在 |
 | 5001 | 系统错误 |
 
 ---
@@ -46,16 +47,16 @@
 | 6 | /api/v1/blacklist/add | POST | 临时 userId | 加入黑名单 |
 | 7 | /api/v1/blacklist/list | GET | 临时 userId | 黑名单列表 |
 | 8 | /api/v1/blacklist/{blacklistId} | DELETE | 临时 userId | 移出黑名单 |
-| 9 | /api/health | GET | 无需登录 | 健康检查 |
+| 9 | /api/v1/dislike/add | POST | 临时 userId | 添加不想吃 |
+| 10 | /api/v1/dislike/list | GET | 临时 userId | 不想吃列表 |
+| 11 | /api/v1/dislike/{dislikeId} | DELETE | 临时 userId | 解除不想吃 |
+| 12 | /api/health | GET | 无需登录 | 健康检查 |
 
 ### 后续阶段实现
 
 | 序号 | 接口 | 方法 | 说明 | 阶段 |
 |------|------|------|------|------|
-| 10 | /api/v1/user/login | POST | 微信登录 | M1 |
-| 11 | /api/v1/dislike/add | POST | 标记不想吃 | M2 |
-| 12 | /api/v1/dislike/list | GET | 不想吃列表 | M2 |
-| 13 | /api/v1/dislike/{id} | DELETE | 解除不想吃 | M2 |
+| 13 | /api/v1/user/login | POST | 微信登录 | M1 |
 | 14 | /api/v1/vote/create | POST | 发起投票 | M3 |
 | 15 | /api/v1/vote/{id} | GET | 获取投票详情 | M3 |
 | 16 | /api/v1/vote/{id}/vote | POST | 投票 | M3 |
@@ -72,7 +73,7 @@
 
 **推荐逻辑**：
 - `userId` 为空：基础推荐（餐段 + 价格 + 口味 + 随机）
-- `userId` 不为空：黑名单硬过滤 + 最近吃过降权
+- `userId` 不为空：黑名单硬过滤 + 有效不想吃分类硬过滤 + 最近吃过降权
 
 **请求参数**：
 | 参数 | 类型 | 必填 | 说明 |
@@ -333,9 +334,101 @@
 
 ---
 
+## 不想吃相关
+
+### 9. 添加不想吃
+
+**POST** `/api/v1/dislike/add`
+
+添加或更新不想吃的分类。**当前阶段临时使用 userId 参数，无需 token**。同一 userId + category 幂等，已过期记录重新添加会恢复生效。
+
+**请求参数**：
+```json
+{
+  "userId": 1,
+  "category": "火锅",
+  "days": 3
+}
+```
+
+**请求参数说明**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| userId | long | 是 | 用户ID（临时，后续从 token 获取） |
+| category | string | 是 | 食物分类，最长 32 字符 |
+| days | int | 否 | 有效天数，默认 3，范围 1-30 |
+
+**响应数据**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "category": "火锅",
+    "expiresAt": "2024-01-18T12:30:00",
+    "createdAt": "2024-01-15T12:30:00"
+  }
+}
+```
+
+---
+
+### 10. 获取不想吃列表
+
+**GET** `/api/v1/dislike/list?userId=1`
+
+获取用户有效的不想吃分类列表。**当前阶段临时使用 userId 参数，无需 token**。只返回未过期记录，按 expiresAt 升序。
+
+**请求参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| userId | long | 是 | 用户ID（临时，后续从 token 获取） |
+
+**响应数据**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "category": "火锅",
+      "expiresAt": "2024-01-18T12:30:00",
+      "createdAt": "2024-01-15T12:30:00"
+    }
+  ]
+}
+```
+
+---
+
+### 11. 解除不想吃
+
+**DELETE** `/api/v1/dislike/{dislikeId}?userId=1`
+
+解除不想吃的分类。**当前阶段临时使用 userId 参数，无需 token**。只能删除自己的记录。
+
+**请求参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| dislikeId | long | 是 | 路径参数，记录ID |
+| userId | long | 是 | 用户ID（临时，后续从 token 获取） |
+
+**响应数据**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": null
+}
+```
+
+---
+
 ## 后续阶段接口（需要登录）
 
-### 9. 微信登录
+### 13. 微信登录
 
 **POST** `/api/v1/user/login`
 
@@ -364,36 +457,7 @@
 
 ---
 
-### 10. 标记不想吃（后续阶段）
-
-**POST** `/api/v1/dislike/add`
-
-标记不想吃的食物分类。
-
-**请求头**：
-```
-Authorization: Bearer {token}
-```
-
----
-
-### 11. 获取不想吃列表（后续阶段）
-
-**GET** `/api/v1/dislike/list`
-
-获取用户标记的不想吃分类（未过期）。
-
----
-
-### 12. 解除不想吃（后续阶段）
-
-**DELETE** `/api/v1/dislike/{dislikeId}`
-
-解除不想吃的食物分类。
-
----
-
-### 13. 发起投票（后续阶段）
+### 14. 发起投票（后续阶段）
 
 **POST** `/api/v1/vote/create`
 
@@ -401,7 +465,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 14. 获取投票详情（后续阶段）
+### 15. 获取投票详情（后续阶段）
 
 **GET** `/api/v1/vote/{voteId}`
 
@@ -409,7 +473,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 15. 投票（后续阶段）
+### 16. 投票（后续阶段）
 
 **POST** `/api/v1/vote/{voteId}/vote`
 
@@ -427,10 +491,10 @@ Authorization: Bearer {token}
 # 一键推荐（无 userId，基础推荐）
 Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐" | ConvertTo-Json -Depth 8
 
-# 一键推荐（有 userId，黑名单过滤 + 最近吃过降权）
+# 一键推荐（有 userId，黑名单过滤 + 不想吃分类过滤 + 最近吃过降权）
 Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐&userId=1" | ConvertTo-Json -Depth 8
 
-# 换一个
+# 换一个（blacklist + dislike + excludeFoodIds 同时生效）
 Invoke-RestMethod "http://localhost:8080/api/v1/recommend/swap?mealType=晚餐&excludeFoodIds=31,32&userId=1" | ConvertTo-Json -Depth 8
 
 # ========== 吃过记录接口 ==========
@@ -457,6 +521,26 @@ Invoke-RestMethod "http://localhost:8080/api/v1/blacklist/list?userId=1" | Conve
 
 # 移出黑名单
 Invoke-RestMethod -Method DELETE -Uri "http://localhost:8080/api/v1/blacklist/1?userId=1" | ConvertTo-Json -Depth 8
+
+# ========== 不想吃接口 ==========
+
+# 添加不想吃（默认 3 天）
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/dislike/add" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"userId":1,"category":"火锅"}')) `
+  | ConvertTo-Json -Depth 8
+
+# 添加不想吃（自定义 5 天）
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/dislike/add" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"userId":1,"category":"川菜","days":5}')) `
+  | ConvertTo-Json -Depth 8
+
+# 查询不想吃列表（只返回未过期记录）
+Invoke-RestMethod "http://localhost:8080/api/v1/dislike/list?userId=1" | ConvertTo-Json -Depth 8
+
+# 解除不想吃
+Invoke-RestMethod -Method DELETE -Uri "http://localhost:8080/api/v1/dislike/1?userId=1" | ConvertTo-Json -Depth 8
 
 # ========== 健康检查 ==========
 
