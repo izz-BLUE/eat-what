@@ -32,7 +32,7 @@ public class EatRecordService {
     /**
      * 创建吃过记录
      */
-    public EatRecordResponse createRecord(EatRecordRequest request) {
+    public EatRecordResponse createRecord(Long userId, EatRecordRequest request) {
         // 校验食物是否存在
         Food food = foodMapper.selectById(request.getFoodId());
         if (food == null || !Boolean.TRUE.equals(food.getEnabled())) {
@@ -41,7 +41,7 @@ public class EatRecordService {
 
         // 创建记录
         EatRecord record = new EatRecord();
-        record.setUserId(request.getUserId());
+        record.setUserId(userId);
         record.setFoodId(request.getFoodId());
         record.setMealType(request.getMealType());
         record.setRating(request.getRating());

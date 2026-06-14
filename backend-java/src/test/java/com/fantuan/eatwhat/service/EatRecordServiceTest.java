@@ -38,8 +38,8 @@ class EatRecordServiceTest {
     @Test
     void createRecord_success() {
         // Given
+        Long userId = 1L;
         EatRecordRequest request = new EatRecordRequest();
-        request.setUserId(1L);
         request.setFoodId(1L);
         request.setMealType("晚餐");
         request.setRating(5);
@@ -54,7 +54,7 @@ class EatRecordServiceTest {
         when(eatRecordMapper.insert(any(EatRecord.class))).thenReturn(1);
 
         // When
-        EatRecordResponse response = eatRecordService.createRecord(request);
+        EatRecordResponse response = eatRecordService.createRecord(userId, request);
 
         // Then
         assertNotNull(response);
@@ -69,8 +69,8 @@ class EatRecordServiceTest {
     @Test
     void createRecord_foodNotFound() {
         // Given
+        Long userId = 1L;
         EatRecordRequest request = new EatRecordRequest();
-        request.setUserId(1L);
         request.setFoodId(999L);
         request.setMealType("晚餐");
 
@@ -78,15 +78,15 @@ class EatRecordServiceTest {
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> eatRecordService.createRecord(request));
+                () -> eatRecordService.createRecord(userId, request));
         assertEquals(ResultCode.FOOD_NOT_FOUND.getCode(), exception.getCode());
     }
 
     @Test
     void createRecord_foodDisabled() {
         // Given
+        Long userId = 1L;
         EatRecordRequest request = new EatRecordRequest();
-        request.setUserId(1L);
         request.setFoodId(1L);
         request.setMealType("晚餐");
 
@@ -99,7 +99,7 @@ class EatRecordServiceTest {
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> eatRecordService.createRecord(request));
+                () -> eatRecordService.createRecord(userId, request));
         assertEquals(ResultCode.FOOD_NOT_FOUND.getCode(), exception.getCode());
     }
 

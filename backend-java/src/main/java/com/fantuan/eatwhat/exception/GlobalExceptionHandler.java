@@ -87,7 +87,7 @@ public class GlobalExceptionHandler {
      * 其他未知异常
      */
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseStatus(HttpStatus.OK)
     public ApiResponse<Void> handleException(Exception e) {
         log.error("系统异常", e);
         return ApiResponse.fail(ResultCode.SYSTEM_ERROR);

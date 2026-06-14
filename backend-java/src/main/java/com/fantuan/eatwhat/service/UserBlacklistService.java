@@ -32,7 +32,7 @@ public class UserBlacklistService {
     /**
      * 加入黑名单（幂等）
      */
-    public BlacklistResponse addToBlacklist(BlacklistAddRequest request) {
+    public BlacklistResponse addToBlacklist(Long userId, BlacklistAddRequest request) {
         // 校验食物是否存在
         Food food = foodMapper.selectById(request.getFoodId());
         if (food == null || !Boolean.TRUE.equals(food.getEnabled())) {
@@ -43,7 +43,7 @@ public class UserBlacklistService {
 
         // 先查询是否已存在
         LambdaQueryWrapper<UserBlacklist> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserBlacklist::getUserId, request.getUserId())
+        wrapper.eq(UserBlacklist::getUserId, userId)
                 .eq(UserBlacklist::getFoodId, request.getFoodId());
         UserBlacklist existing = userBlacklistMapper.selectOne(wrapper);
 
@@ -58,7 +58,7 @@ public class UserBlacklistService {
 
         // 不存在，插入新记录
         UserBlacklist blacklist = new UserBlacklist();
-        blacklist.setUserId(request.getUserId());
+        blacklist.setUserId(userId);
         blacklist.setFoodId(request.getFoodId());
         blacklist.setReason(request.getReason());
         blacklist.setCreatedAt(now);
@@ -67,7 +67,7 @@ public class UserBlacklistService {
             userBlacklistMapper.insert(blacklist);
         } catch (DuplicateKeyException e) {
             // 并发插入导致的重复，重新查询并更新 reason
-            log.warn("并发插入黑名单，重新查询: userId={}, foodId={}", request.getUserId(), request.getFoodId());
+            log.warn("并发插入黑名单，重新查询: userId={}, foodId={}", userId, request.getFoodId());
             UserBlacklist concurrent = userBlacklistMapper.selectOne(wrapper);
             if (concurrent == null) {
                 throw new BusinessException(ResultCode.SYSTEM_ERROR, "黑名单插入失败");

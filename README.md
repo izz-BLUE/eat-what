@@ -64,24 +64,45 @@ eat-what/
 # 1. 启动 MySQL（Docker）
 docker compose up -d
 
-# 2. 运行测试（不需要 MySQL）
+# 2. 设置环境变量
+$env:SPRING_PROFILES_ACTIVE="dev"
+$env:JWT_SECRET="eat-what-dev-jwt-secret-at-least-32-bytes"
+$env:WECHAT_MOCK_ENABLED="true"
+
+# 3. 运行测试（不需要 MySQL）
 cd backend-java
 .\mvnw.cmd clean test
 
-# 3. 启动后端（需要 MySQL）
+# 4. 启动后端（需要 MySQL）
 .\mvnw.cmd spring-boot:run
 
-# 4. 验证服务
+# 5. 验证服务
 # 浏览器访问：http://localhost:8080/api/health
 
 # PowerShell 验证（推荐，中文显示正常）：
 Invoke-RestMethod http://localhost:8080/api/health | ConvertTo-Json -Depth 8
-Invoke-RestMethod http://localhost:8080/api/v1/foods | ConvertTo-Json -Depth 8
-Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口" | ConvertTo-Json -Depth 8
 
-# 或使用 curl：
-curl http://localhost:8080/api/health
+# 微信登录获取 token
+$loginResult = Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/user/login" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"code":"dev-user-1"}'))
+$token = $loginResult.data.token
+
+# 查询菜品
+Invoke-RestMethod http://localhost:8080/api/v1/foods | ConvertTo-Json -Depth 8
+
+# 一键推荐（无 token，基础推荐）
+Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐" | ConvertTo-Json -Depth 8
+
+# 一键推荐（有 token，个性化推荐）
+Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐" `
+  -Headers @{Authorization="Bearer $token"} | ConvertTo-Json -Depth 8
 ```
+
+**环境变量说明**：
+- `SPRING_PROFILES_ACTIVE`：激活 dev Profile（启用微信 Mock）
+- `JWT_SECRET`：JWT 签名密钥，至少 32 字节
+- `WECHAT_MOCK_ENABLED`：启用微信 Mock 模式（仅 dev/test 生效）
 
 **数据库说明**：
 - 使用 Docker MySQL 8.0，容器名：eat-what-mysql

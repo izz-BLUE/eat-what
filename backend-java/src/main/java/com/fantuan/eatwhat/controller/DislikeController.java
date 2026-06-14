@@ -1,5 +1,7 @@
 package com.fantuan.eatwhat.controller;
 
+import com.fantuan.eatwhat.auth.RequireLogin;
+import com.fantuan.eatwhat.auth.UserContext;
 import com.fantuan.eatwhat.common.ApiResponse;
 import com.fantuan.eatwhat.dto.request.DislikeAddRequest;
 import com.fantuan.eatwhat.dto.response.DislikeResponse;
@@ -19,6 +21,7 @@ import java.util.List;
 @RequestMapping("/api/v1/dislike")
 @RequiredArgsConstructor
 @Validated
+@RequireLogin
 public class DislikeController {
 
     private final UserDislikeService userDislikeService;
@@ -29,27 +32,29 @@ public class DislikeController {
      */
     @PostMapping("/add")
     public ApiResponse<DislikeResponse> add(@Valid @RequestBody DislikeAddRequest request) {
-        DislikeResponse response = userDislikeService.addDislike(request);
+        Long userId = UserContext.getUserId();
+        DislikeResponse response = userDislikeService.addDislike(userId, request);
         return ApiResponse.success(response);
     }
 
     /**
      * 查询有效的不想吃列表
-     * GET /api/v1/dislike/list?userId=1
+     * GET /api/v1/dislike/list
      */
     @GetMapping("/list")
-    public ApiResponse<List<DislikeResponse>> list(@RequestParam @Min(1) Long userId) {
+    public ApiResponse<List<DislikeResponse>> list() {
+        Long userId = UserContext.getUserId();
         List<DislikeResponse> list = userDislikeService.listActiveDislikes(userId);
         return ApiResponse.success(list);
     }
 
     /**
      * 解除不想吃
-     * DELETE /api/v1/dislike/{dislikeId}?userId=1
+     * DELETE /api/v1/dislike/{dislikeId}
      */
     @DeleteMapping("/{dislikeId}")
-    public ApiResponse<Void> remove(@PathVariable @Min(1) Long dislikeId,
-                                     @RequestParam @Min(1) Long userId) {
+    public ApiResponse<Void> remove(@PathVariable @Min(1) Long dislikeId) {
+        Long userId = UserContext.getUserId();
         userDislikeService.removeDislike(dislikeId, userId);
         return ApiResponse.success();
     }

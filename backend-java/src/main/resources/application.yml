@@ -10,8 +10,6 @@ server:
 spring:
   application:
     name: eat-what-backend
-  profiles:
-    active: dev
   # Flyway 配置
   flyway:
     enabled: true
@@ -24,8 +22,6 @@ mybatis-plus:
   configuration:
     # 开启驼峰命名转换
     map-underscore-to-camel-case: true
-    # 日志输出（开发环境开启）
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       # 逻辑删除字段
@@ -35,8 +31,19 @@ mybatis-plus:
   # 实体类包路径
   type-aliases-package: com.fantuan.eatwhat.domain.entity
 
+# JWT 配置（必须通过环境变量提供）
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-seconds: ${JWT_EXPIRATION_SECONDS:604800}
+
+# 微信配置（必须通过环境变量提供）
+wechat:
+  app-id: ${WECHAT_APP_ID}
+  app-secret: ${WECHAT_APP_SECRET}
+  mock-enabled: ${WECHAT_MOCK_ENABLED:false}
+
 # 日志配置
 logging:
   level:
-    com.fantuan.eatwhat: debug
+    com.fantuan.eatwhat: info
     org.springframework: info

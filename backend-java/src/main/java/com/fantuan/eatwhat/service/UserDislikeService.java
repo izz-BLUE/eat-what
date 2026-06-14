@@ -32,7 +32,7 @@ public class UserDislikeService {
     /**
      * 添加或更新不想吃（幂等）
      */
-    public DislikeResponse addDislike(DislikeAddRequest request) {
+    public DislikeResponse addDislike(Long userId, DislikeAddRequest request) {
         // 校验分类是否存在于启用的菜品中
         validateCategoryExists(request.getCategory());
 
@@ -41,7 +41,7 @@ public class UserDislikeService {
 
         // 先查询是否已存在
         LambdaQueryWrapper<UserDislike> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserDislike::getUserId, request.getUserId())
+        wrapper.eq(UserDislike::getUserId, userId)
                 .eq(UserDislike::getCategory, request.getCategory());
         UserDislike existing = userDislikeMapper.selectOne(wrapper);
 
@@ -54,7 +54,7 @@ public class UserDislikeService {
 
         // 不存在，插入新记录
         UserDislike dislike = new UserDislike();
-        dislike.setUserId(request.getUserId());
+        dislike.setUserId(userId);
         dislike.setCategory(request.getCategory());
         dislike.setExpiresAt(expiresAt);
         dislike.setCreatedAt(now);
@@ -63,7 +63,7 @@ public class UserDislikeService {
             userDislikeMapper.insert(dislike);
         } catch (DuplicateKeyException e) {
             // 并发插入导致的重复，重新查询并更新
-            log.warn("并发插入不想吃，重新查询: userId={}, category={}", request.getUserId(), request.getCategory());
+            log.warn("并发插入不想吃，重新查询: userId={}, category={}", userId, request.getCategory());
             UserDislike concurrent = userDislikeMapper.selectOne(wrapper);
             if (concurrent == null) {
                 throw new BusinessException(ResultCode.SYSTEM_ERROR, "不想吃记录插入失败");

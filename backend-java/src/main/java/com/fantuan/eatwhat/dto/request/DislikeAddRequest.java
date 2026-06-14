@@ -10,13 +10,6 @@ import lombok.Data;
 public class DislikeAddRequest {
 
     /**
-     * 用户ID（临时，后续从 token 获取）
-     */
-    @NotNull(message = "userId 不能为空")
-    @Min(value = 1, message = "userId 必须大于 0")
-    private Long userId;
-
-    /**
      * 食物分类
      */
     @NotBlank(message = "category 不能为空")

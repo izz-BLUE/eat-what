@@ -39,8 +39,8 @@ class UserDislikeServiceTest {
 
     @Test
     void addDislike_defaultDays() {
+        Long userId = 1L;
         DislikeAddRequest request = new DislikeAddRequest();
-        request.setUserId(1L);
         request.setCategory("火锅");
         // days 默认 3
 
@@ -48,7 +48,7 @@ class UserDislikeServiceTest {
         when(userDislikeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
         when(userDislikeMapper.insert(any(UserDislike.class))).thenReturn(1);
 
-        DislikeResponse response = userDislikeService.addDislike(request);
+        DislikeResponse response = userDislikeService.addDislike(userId, request);
 
         assertNotNull(response);
         assertEquals("火锅", response.getCategory());
@@ -60,8 +60,8 @@ class UserDislikeServiceTest {
 
     @Test
     void addDislike_customDays() {
+        Long userId = 1L;
         DislikeAddRequest request = new DislikeAddRequest();
-        request.setUserId(1L);
         request.setCategory("火锅");
         request.setDays(7);
 
@@ -69,7 +69,7 @@ class UserDislikeServiceTest {
         when(userDislikeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
         when(userDislikeMapper.insert(any(UserDislike.class))).thenReturn(1);
 
-        DislikeResponse response = userDislikeService.addDislike(request);
+        DislikeResponse response = userDislikeService.addDislike(userId, request);
 
         assertNotNull(response);
         assertTrue(response.getExpiresAt().isAfter(LocalDateTime.now().plusDays(6)));
@@ -77,21 +77,21 @@ class UserDislikeServiceTest {
 
     @Test
     void addDislike_categoryNotFound() {
+        Long userId = 1L;
         DislikeAddRequest request = new DislikeAddRequest();
-        request.setUserId(1L);
         request.setCategory("不存在的分类");
 
         when(foodMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> userDislikeService.addDislike(request));
+                () -> userDislikeService.addDislike(userId, request));
         assertEquals(ResultCode.FOOD_NOT_FOUND.getCode(), exception.getCode());
     }
 
     @Test
     void addDislike_duplicateNoNewRecord() {
+        Long userId = 1L;
         DislikeAddRequest request = new DislikeAddRequest();
-        request.setUserId(1L);
         request.setCategory("火锅");
         request.setDays(3);
 
@@ -106,7 +106,7 @@ class UserDislikeServiceTest {
         when(userDislikeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(existing);
         when(userDislikeMapper.updateById(any(UserDislike.class))).thenReturn(1);
 
-        DislikeResponse response = userDislikeService.addDislike(request);
+        DislikeResponse response = userDislikeService.addDislike(userId, request);
 
         assertNotNull(response);
         assertEquals(1L, response.getId());
@@ -115,8 +115,8 @@ class UserDislikeServiceTest {
 
     @Test
     void addDislike_duplicateRefreshesExpiresAt() {
+        Long userId = 1L;
         DislikeAddRequest request = new DislikeAddRequest();
-        request.setUserId(1L);
         request.setCategory("火锅");
         request.setDays(5);
 
@@ -131,7 +131,7 @@ class UserDislikeServiceTest {
         when(userDislikeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(existing);
         when(userDislikeMapper.updateById(any(UserDislike.class))).thenReturn(1);
 
-        DislikeResponse response = userDislikeService.addDislike(request);
+        DislikeResponse response = userDislikeService.addDislike(userId, request);
 
         assertNotNull(response);
         // expiresAt 应该被刷新为大约 5 天后
@@ -140,8 +140,8 @@ class UserDislikeServiceTest {
 
     @Test
     void addDislike_expiredRecordRestored() {
+        Long userId = 1L;
         DislikeAddRequest request = new DislikeAddRequest();
-        request.setUserId(1L);
         request.setCategory("火锅");
         request.setDays(3);
 
@@ -157,7 +157,7 @@ class UserDislikeServiceTest {
         when(userDislikeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(expired);
         when(userDislikeMapper.updateById(any(UserDislike.class))).thenReturn(1);
 
-        DislikeResponse response = userDislikeService.addDislike(request);
+        DislikeResponse response = userDislikeService.addDislike(userId, request);
 
         assertNotNull(response);
         // 过期记录被恢复，expiresAt 更新为 3 天后
@@ -166,8 +166,8 @@ class UserDislikeServiceTest {
 
     @Test
     void addDislike_concurrentDuplicateUpdatesExpiresAt() {
+        Long userId = 1L;
         DislikeAddRequest request = new DislikeAddRequest();
-        request.setUserId(1L);
         request.setCategory("火锅");
         request.setDays(3);
 
@@ -183,7 +183,7 @@ class UserDislikeServiceTest {
                 .thenThrow(new DuplicateKeyException("Duplicate entry"));
         when(userDislikeMapper.updateById(any(UserDislike.class))).thenReturn(1);
 
-        DislikeResponse response = userDislikeService.addDislike(request);
+        DislikeResponse response = userDislikeService.addDislike(userId, request);
 
         assertNotNull(response);
         assertTrue(response.getExpiresAt().isAfter(LocalDateTime.now().plusDays(2)));

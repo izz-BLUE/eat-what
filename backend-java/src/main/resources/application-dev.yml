@@ -19,6 +19,17 @@ spring:
       max-lifetime: 1800000
       connection-timeout: 30000
 
+# JWT 配置（开发环境使用默认密钥）
+jwt:
+  secret: ${JWT_SECRET:eat-what-dev-jwt-secret-at-least-32-bytes}
+  expiration-seconds: ${JWT_EXPIRATION_SECONDS:604800}
+
+# 微信配置（开发环境启用 Mock）
+wechat:
+  app-id: ${WECHAT_APP_ID:wx_dev_app_id}
+  app-secret: ${WECHAT_APP_SECRET:wx_dev_app_secret}
+  mock-enabled: ${WECHAT_MOCK_ENABLED:true}
+
 # 日志级别（开发环境更详细）
 logging:
   level:
