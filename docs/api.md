@@ -40,24 +40,33 @@
 
 ---
 
-## 接口总览（MVP 共 12 个）
+## 接口总览
 
-| 序号 | 接口 | 方法 | 说明 |
-|------|------|------|------|
-| 1 | /user/login | POST | 微信登录 |
-| 2 | /recommend | GET | 一键推荐 |
-| 3 | /recommend/swap | GET | 换一个 |
-| 4 | /record/eat | POST | 我就吃它 |
-| 5 | /record/list | GET | 吃过记录列表 |
-| 6 | /blacklist/add | POST | 加入黑名单 |
-| 7 | /blacklist/list | GET | 黑名单列表 |
-| 8 | /blacklist/{id} | DELETE | 移出黑名单 |
-| 9 | /dislike/add | POST | 标记不想吃 |
-| 10 | /dislike/list | GET | 不想吃列表 |
-| 11 | /dislike/{id} | DELETE | 解除不想吃 |
-| 12 | /vote/create | POST | 发起投票 |
-| 13 | /vote/{id} | GET | 获取投票详情 |
-| 14 | /vote/{id}/vote | POST | 投票 |
+### 当前已实现（M0 推荐骨架）
+
+| 序号 | 接口 | 方法 | 认证 | 说明 |
+|------|------|------|------|------|
+| 1 | /api/v1/foods | GET | 无需登录 | 查询菜品列表 |
+| 2 | /api/v1/recommend | GET | 无需登录 | 一键推荐 |
+| 3 | /api/v1/recommend/swap | GET | 无需登录 | 换一个 |
+| 4 | /api/health | GET | 无需登录 | 健康检查 |
+
+### 后续阶段实现
+
+| 序号 | 接口 | 方法 | 认证 | 说明 | 阶段 |
+|------|------|------|------|------|------|
+| 5 | /user/login | POST | - | 微信登录 | M1 |
+| 6 | /record/eat | POST | 必需 | 我就吃它 | M1 |
+| 7 | /record/list | GET | 必需 | 吃过记录列表 | M1 |
+| 8 | /blacklist/add | POST | 必需 | 加入黑名单 | M1 |
+| 9 | /blacklist/list | GET | 必需 | 黑名单列表 | M1 |
+| 10 | /blacklist/{id} | DELETE | 必需 | 移出黑名单 | M1 |
+| 11 | /dislike/add | POST | 必需 | 标记不想吃 | M1 |
+| 12 | /dislike/list | GET | 必需 | 不想吃列表 | M1 |
+| 13 | /dislike/{id} | DELETE | 必需 | 解除不想吃 | M1 |
+| 14 | /vote/create | POST | 必需 | 发起投票 | M2 |
+| 15 | /vote/{id} | GET | 无需 | 获取投票详情 | M2 |
+| 16 | /vote/{id}/vote | POST | 必需 | 投票 | M2 |
 
 ---
 
@@ -98,18 +107,20 @@
 
 ---
 
-## 推荐相关
+## 推荐相关（M0 已实现）
 
 ### 2. 一键推荐
 
 **GET** `/api/v1/recommend`
 
-根据用户偏好推荐一道食物。
+根据参数推荐一道食物。**当前阶段无需登录**，只基于 foods 表和请求参数做简单规则打分。
 
-**请求头**：
-```
-Authorization: Bearer {token}
-```
+**请求参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| mealType | string | 否 | 餐段：早餐、午餐、晚餐、夜宵 |
+| priceLevel | string | 否 | 价格偏好：15以内、15-25、25-40、不限 |
+| taste | string | 否 | 口味偏好：清淡、重口、辣、不辣 |
 
 **响应数据**：
 ```json
@@ -117,23 +128,32 @@ Authorization: Bearer {token}
   "code": 0,
   "message": "success",
   "data": {
-    "food_id": 1,
-    "name": "猪脚饭",
-    "category": "快餐",
-    "taste_tags": "咸,香",
-    "price_level": 2,
-    "image_url": "https://xxx.jpg",
-    "score": 95,
-    "reason": "你喜欢快餐，而且现在吃正合适"
+    "food": {
+      "id": 1,
+      "name": "猪脚饭",
+      "category": "快餐",
+      "tasteTags": "咸,香",
+      "priceLevel": 2,
+      "imageUrl": ""
+    },
+    "score": 45,
+    "reasons": ["适合当前餐段", "符合预算"]
   }
 }
 ```
 
-**业务逻辑**：
-1. 获取用户偏好、黑名单、历史记录、不想吃分类
-2. 计算候选食物得分
+**当前业务逻辑**（M0）：
+1. 查询所有 enabled=true 的菜品
+2. 按 mealType、priceLevel、taste 打分
 3. 从 Top 5 中随机选一个
 4. 返回推荐结果
+
+**后续阶段**（M1）：
+- 接入用户登录
+- 读取用户偏好（user_prefs）
+- 排除黑名单（user_blacklist）
+- 排除不想吃（user_dislikes）
+- 读取吃过记录（eat_records）降权
 
 ---
 
@@ -141,19 +161,15 @@ Authorization: Bearer {token}
 
 **GET** `/api/v1/recommend/swap`
 
-排除已推荐的食物，重新推荐。
-
-**请求头**：
-```
-Authorization: Bearer {token}
-```
+排除已推荐的食物，重新推荐。**当前阶段无需登录**。
 
 **请求参数**：
-```json
-{
-  "exclude_ids": [1, 2, 3]
-}
-```
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| mealType | string | 否 | 餐段 |
+| priceLevel | string | 否 | 价格偏好 |
+| taste | string | 否 | 口味偏好 |
+| excludeFoodIds | string | 否 | 排除的菜品 ID，逗号分隔，如：1,2,3 |
 
 **响应数据**：
 ```json
@@ -161,20 +177,27 @@ Authorization: Bearer {token}
   "code": 0,
   "message": "success",
   "data": {
-    "food_id": 4,
-    "name": "火锅",
-    "category": "火锅",
-    "taste_tags": "辣,麻",
-    "price_level": 4,
-    "image_url": "https://xxx.jpg",
-    "score": 65,
-    "reason": "你喜欢火锅"
+    "food": {
+      "id": 4,
+      "name": "火锅",
+      "category": "火锅",
+      "tasteTags": "辣,麻",
+      "priceLevel": 4,
+      "imageUrl": ""
+    },
+    "score": 38,
+    "reasons": ["适合当前餐段"]
   }
 }
 ```
 
 **业务逻辑**：
-1. 获取 exclude_ids
+1. 查询所有 enabled=true 的菜品
+2. 排除 excludeFoodIds 中的菜品
+3. 按规则打分，从 Top 5 中随机选一个
+
+**业务逻辑**：
+1. 获取 excludeFoodIds
 2. 排除这些食物后重新推荐
 3. 如果没有候选食物，返回错误提示
 
@@ -650,7 +673,59 @@ Authorization: Bearer {token}
 
 const BASE_URL = 'https://api.example.com/api/v1'
 
-// 微信登录
+// ============================================
+// M0 阶段接口（无需登录）
+// ============================================
+
+// 一键推荐（M0 无需登录）
+export async function getRecommend(mealType?: string, priceLevel?: string, taste?: string) {
+  const params = new URLSearchParams()
+  if (mealType) params.append('mealType', mealType)
+  if (priceLevel) params.append('priceLevel', priceLevel)
+  if (taste) params.append('taste', taste)
+
+  const res = await wx.request({
+    url: `${BASE_URL}/recommend?${params.toString()}`,
+    method: 'GET'
+  })
+  return res.data
+}
+
+// 换一个（M0 无需登录）
+export async function swapRecommend(mealType?: string, priceLevel?: string, taste?: string, excludeFoodIds?: number[]) {
+  const params = new URLSearchParams()
+  if (mealType) params.append('mealType', mealType)
+  if (priceLevel) params.append('priceLevel', priceLevel)
+  if (taste) params.append('taste', taste)
+  if (excludeFoodIds && excludeFoodIds.length > 0) {
+    params.append('excludeFoodIds', excludeFoodIds.join(','))
+  }
+
+  const res = await wx.request({
+    url: `${BASE_URL}/recommend/swap?${params.toString()}`,
+    method: 'GET'
+  })
+  return res.data
+}
+
+// 查询菜品列表（M0 无需登录）
+export async function getFoods(category?: string, priceLevel?: number) {
+  const params = new URLSearchParams()
+  if (category) params.append('category', category)
+  if (priceLevel) params.append('priceLevel', priceLevel.toString())
+
+  const res = await wx.request({
+    url: `${BASE_URL}/foods?${params.toString()}`,
+    method: 'GET'
+  })
+  return res.data
+}
+
+// ============================================
+// 后续阶段接口（需要登录）
+// ============================================
+
+// 微信登录（M1 阶段）
 export async function login(code: string) {
   const res = await wx.request({
     url: `${BASE_URL}/user/login`,
@@ -660,36 +735,7 @@ export async function login(code: string) {
   return res.data
 }
 
-// 一键推荐
-export async function getRecommend() {
-  const token = wx.getStorageSync('token')
-  const res = await wx.request({
-    url: `${BASE_URL}/recommend`,
-    method: 'GET',
-    header: {
-      'Authorization': `Bearer ${token}`
-    }
-  })
-  return res.data
-}
-
-// 换一个
-export async function swapRecommend(excludeIds: number[]) {
-  const token = wx.getStorageSync('token')
-  const res = await wx.request({
-    url: `${BASE_URL}/recommend/swap`,
-    method: 'GET',
-    header: {
-      'Authorization': `Bearer ${token}`
-    },
-    data: {
-      exclude_ids: excludeIds
-    }
-  })
-  return res.data
-}
-
-// 我就吃它
+// 我就吃它（M1 阶段，需要登录）
 export async function eatFood(foodId: number, rating?: number, note?: string) {
   const token = wx.getStorageSync('token')
   const res = await wx.request({
@@ -712,36 +758,53 @@ export async function eatFood(foodId: number, rating?: number, note?: string) {
 
 ## 接口测试
 
-### Postman 测试集合
-
-1. **环境变量**：
-   - `base_url`: https://api.example.com/api/v1
-   - `token`: 用户登录后的 token
-
-2. **测试流程**：
-   - 微信登录获取 token
-   - 使用 token 调用其他接口
-   - 验证响应格式和数据
-
 ### curl 测试示例
+
+#### M0 阶段接口（无需登录）
+
+```bash
+# 健康检查
+curl http://localhost:8080/api/health
+
+# 查询菜品列表
+curl http://localhost:8080/api/v1/foods
+
+# 按分类筛选
+curl "http://localhost:8080/api/v1/foods?category=快餐"
+
+# 一键推荐
+curl "http://localhost:8080/api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口"
+
+# 换一个（排除指定菜品）
+curl "http://localhost:8080/api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2,3"
+```
+
+#### PowerShell 测试示例（推荐，中文显示正常）
+
+```powershell
+# 健康检查
+Invoke-RestMethod http://localhost:8080/api/health | ConvertTo-Json -Depth 8
+
+# 查询菜品列表
+Invoke-RestMethod http://localhost:8080/api/v1/foods | ConvertTo-Json -Depth 8
+
+# 一键推荐
+Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口" | ConvertTo-Json -Depth 8
+
+# 换一个
+Invoke-RestMethod "http://localhost:8080/api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2" | ConvertTo-Json -Depth 8
+```
+
+#### 后续阶段接口示例（需要登录，M1 阶段实现）
 
 ```bash
 # 微信登录
-curl -X POST https://api.example.com/api/v1/user/login \
+curl -X POST http://localhost:8080/api/v1/user/login \
   -H "Content-Type: application/json" \
   -d '{"code": "test_code"}'
 
-# 一键推荐
-curl -X GET https://api.example.com/api/v1/recommend \
-  -H "Authorization: Bearer {token}"
-
-# 换一个
-curl -X GET https://api.example.com/api/v1/recommend/swap \
-  -H "Authorization: Bearer {token}" \
-  -d '{"exclude_ids": [1, 2, 3]}'
-
-# 我就吃它
-curl -X POST https://api.example.com/api/v1/record/eat \
+# 我就吃它（需要 token）
+curl -X POST http://localhost:8080/api/v1/record/eat \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/json" \
   -d '{"food_id": 1, "rating": 5, "note": "很好吃"}'

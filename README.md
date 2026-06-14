@@ -52,20 +52,60 @@ eat-what/
 
 ## 快速开始
 
+### 环境要求
+
+- JDK 17+
+- Docker Desktop（含 WSL2）
+- Maven 3.8+（或使用项目自带的 mvnw）
+
 ### 后端
 
 ```bash
+# 1. 启动 MySQL（Docker）
+docker compose up -d
+
+# 2. 运行测试（不需要 MySQL）
 cd backend-java
+.\mvnw.cmd clean test
 
-# 1. 创建数据库
-mysql -u root -p < src/main/resources/schema.sql
+# 3. 启动后端（需要 MySQL）
+.\mvnw.cmd spring-boot:run
 
-# 2. 修改配置
-# 编辑 src/main/resources/application.yml
-# 配置数据库连接信息
+# 4. 验证服务
+# 浏览器访问：http://localhost:8080/api/health
 
-# 3. 启动
-./mvnw spring-boot:run
+# PowerShell 验证（推荐，中文显示正常）：
+Invoke-RestMethod http://localhost:8080/api/health | ConvertTo-Json -Depth 8
+Invoke-RestMethod http://localhost:8080/api/v1/foods | ConvertTo-Json -Depth 8
+Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口" | ConvertTo-Json -Depth 8
+
+# 或使用 curl：
+curl http://localhost:8080/api/health
+```
+
+**数据库说明**：
+- 使用 Docker MySQL 8.0，容器名：eat-what-mysql
+- 数据库名：eat_what，用户名：eatwhat，密码：eatwhat_dev
+- 使用 Flyway 管理数据库脚本
+- 首次启动会自动创建表结构和初始化 30 种食物测试数据
+- 迁移脚本位于 `src/main/resources/db/migration/`
+- 请勿手动修改数据库结构，所有变更通过 Flyway 脚本管理
+
+**Docker 常用命令**：
+```bash
+docker compose up -d          # 启动 MySQL
+docker compose down            # 停止 MySQL
+docker compose logs -f mysql   # 查看 MySQL 日志
+docker compose down -v         # 停止并删除数据卷（清空数据）
+
+# 如果遇到中文乱码问题，重建数据卷：
+docker compose down -v         # 删除数据卷
+docker volume rm eat-what_mysql_data  # 确保删除
+docker compose up -d           # 重新启动
+cd backend-java
+.\mvnw.cmd flyway:clean       # 清除 Flyway 记录（需要配置 flyway.clean-disabled=false）
+# 或者直接重建整个环境：
+docker compose down -v && docker compose up -d
 ```
 
 ### 前端

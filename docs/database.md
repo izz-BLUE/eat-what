@@ -169,7 +169,7 @@ CREATE TABLE `eat_records` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_food` (`user_id`, `food_id`),
+  KEY `idx_user_food_eaten_at` (`user_id`, `food_id`, `eaten_at`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_food_id` (`food_id`),
   KEY `idx_eaten_at` (`eaten_at`)
@@ -188,7 +188,7 @@ CREATE TABLE `eat_records` (
 | created_at | DATETIME | 是 | 创建时间 |
 | updated_at | DATETIME | 是 | 更新时间 |
 
-**唯一约束**：同一用户对同一食物只能有一条记录。
+**索引说明**：用户可能多次吃同一个食物，吃过记录允许多条。
 
 ---
 
@@ -397,7 +397,7 @@ CREATE TABLE `vote_records` (
 | 表名 | 索引名 | 字段 | 类型 | 说明 |
 |------|--------|------|------|------|
 | users | uk_openid | openid | UNIQUE | 用户唯一标识 |
-| eat_records | uk_user_food | user_id, food_id | UNIQUE | 防止重复记录 |
+| eat_records | idx_user_food_eaten_at | user_id, food_id, eaten_at | INDEX | 查询用户吃某食物的记录 |
 | user_blacklist | uk_user_food | user_id, food_id | UNIQUE | 防止重复拉黑 |
 | user_prefs | uk_user_category | user_id, category | UNIQUE | 用户偏好唯一 |
 | user_dislikes | uk_user_category | user_id, category | UNIQUE | 不想吃唯一 |
