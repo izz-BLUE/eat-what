@@ -673,7 +673,59 @@ Authorization: Bearer {token}
 
 const BASE_URL = 'https://api.example.com/api/v1'
 
-// 微信登录
+// ============================================
+// M0 阶段接口（无需登录）
+// ============================================
+
+// 一键推荐（M0 无需登录）
+export async function getRecommend(mealType?: string, priceLevel?: string, taste?: string) {
+  const params = new URLSearchParams()
+  if (mealType) params.append('mealType', mealType)
+  if (priceLevel) params.append('priceLevel', priceLevel)
+  if (taste) params.append('taste', taste)
+
+  const res = await wx.request({
+    url: `${BASE_URL}/recommend?${params.toString()}`,
+    method: 'GET'
+  })
+  return res.data
+}
+
+// 换一个（M0 无需登录）
+export async function swapRecommend(mealType?: string, priceLevel?: string, taste?: string, excludeFoodIds?: number[]) {
+  const params = new URLSearchParams()
+  if (mealType) params.append('mealType', mealType)
+  if (priceLevel) params.append('priceLevel', priceLevel)
+  if (taste) params.append('taste', taste)
+  if (excludeFoodIds && excludeFoodIds.length > 0) {
+    params.append('excludeFoodIds', excludeFoodIds.join(','))
+  }
+
+  const res = await wx.request({
+    url: `${BASE_URL}/recommend/swap?${params.toString()}`,
+    method: 'GET'
+  })
+  return res.data
+}
+
+// 查询菜品列表（M0 无需登录）
+export async function getFoods(category?: string, priceLevel?: number) {
+  const params = new URLSearchParams()
+  if (category) params.append('category', category)
+  if (priceLevel) params.append('priceLevel', priceLevel.toString())
+
+  const res = await wx.request({
+    url: `${BASE_URL}/foods?${params.toString()}`,
+    method: 'GET'
+  })
+  return res.data
+}
+
+// ============================================
+// 后续阶段接口（需要登录）
+// ============================================
+
+// 微信登录（M1 阶段）
 export async function login(code: string) {
   const res = await wx.request({
     url: `${BASE_URL}/user/login`,
@@ -683,36 +735,7 @@ export async function login(code: string) {
   return res.data
 }
 
-// 一键推荐
-export async function getRecommend() {
-  const token = wx.getStorageSync('token')
-  const res = await wx.request({
-    url: `${BASE_URL}/recommend`,
-    method: 'GET',
-    header: {
-      'Authorization': `Bearer ${token}`
-    }
-  })
-  return res.data
-}
-
-// 换一个
-export async function swapRecommend(excludeIds: number[]) {
-  const token = wx.getStorageSync('token')
-  const res = await wx.request({
-    url: `${BASE_URL}/recommend/swap`,
-    method: 'GET',
-    header: {
-      'Authorization': `Bearer ${token}`
-    },
-    data: {
-      exclude_ids: excludeIds
-    }
-  })
-  return res.data
-}
-
-// 我就吃它
+// 我就吃它（M1 阶段，需要登录）
 export async function eatFood(foodId: number, rating?: number, note?: string) {
   const token = wx.getStorageSync('token')
   const res = await wx.request({
@@ -735,36 +758,53 @@ export async function eatFood(foodId: number, rating?: number, note?: string) {
 
 ## 接口测试
 
-### Postman 测试集合
-
-1. **环境变量**：
-   - `base_url`: https://api.example.com/api/v1
-   - `token`: 用户登录后的 token
-
-2. **测试流程**：
-   - 微信登录获取 token
-   - 使用 token 调用其他接口
-   - 验证响应格式和数据
-
 ### curl 测试示例
+
+#### M0 阶段接口（无需登录）
+
+```bash
+# 健康检查
+curl http://localhost:8080/api/health
+
+# 查询菜品列表
+curl http://localhost:8080/api/v1/foods
+
+# 按分类筛选
+curl "http://localhost:8080/api/v1/foods?category=快餐"
+
+# 一键推荐
+curl "http://localhost:8080/api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口"
+
+# 换一个（排除指定菜品）
+curl "http://localhost:8080/api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2,3"
+```
+
+#### PowerShell 测试示例（推荐，中文显示正常）
+
+```powershell
+# 健康检查
+Invoke-RestMethod http://localhost:8080/api/health | ConvertTo-Json -Depth 8
+
+# 查询菜品列表
+Invoke-RestMethod http://localhost:8080/api/v1/foods | ConvertTo-Json -Depth 8
+
+# 一键推荐
+Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口" | ConvertTo-Json -Depth 8
+
+# 换一个
+Invoke-RestMethod "http://localhost:8080/api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2" | ConvertTo-Json -Depth 8
+```
+
+#### 后续阶段接口示例（需要登录，M1 阶段实现）
 
 ```bash
 # 微信登录
-curl -X POST https://api.example.com/api/v1/user/login \
+curl -X POST http://localhost:8080/api/v1/user/login \
   -H "Content-Type: application/json" \
   -d '{"code": "test_code"}'
 
-# 一键推荐
-curl -X GET https://api.example.com/api/v1/recommend \
-  -H "Authorization: Bearer {token}"
-
-# 换一个
-curl -X GET https://api.example.com/api/v1/recommend/swap \
-  -H "Authorization: Bearer {token}" \
-  -d '{"exclude_ids": [1, 2, 3]}'
-
-# 我就吃它
-curl -X POST https://api.example.com/api/v1/record/eat \
+# 我就吃它（需要 token）
+curl -X POST http://localhost:8080/api/v1/record/eat \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/json" \
   -d '{"food_id": 1, "rating": 5, "note": "很好吃"}'
