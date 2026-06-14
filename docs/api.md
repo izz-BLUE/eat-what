@@ -312,26 +312,29 @@
 
 ---
 
-## 黑名单相关
+## 黑名单相关（M2 已实现）
 
 ### 6. 加入黑名单
 
 **POST** `/api/v1/blacklist/add`
 
-将食物加入黑名单。
-
-**请求头**：
-```
-Authorization: Bearer {token}
-```
+将食物加入黑名单。**当前阶段临时使用 userId 参数，后续接入微信登录后从 token 获取**。重复添加幂等，如果 reason 变化则更新。
 
 **请求参数**：
 ```json
 {
-  "food_id": 1,
-  "reason": "太难吃了"
+  "userId": 1,
+  "foodId": 1,
+  "reason": "不喜欢"
 }
 ```
+
+**请求参数说明**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| userId | long | 是 | 用户ID（临时，后续从 token 获取） |
+| foodId | long | 是 | 食物ID |
+| reason | string | 否 | 拉黑原因，最长 128 字符 |
 
 **响应数据**：
 ```json
@@ -339,58 +342,50 @@ Authorization: Bearer {token}
   "code": 0,
   "message": "success",
   "data": {
-    "blacklist_id": 1,
-    "food_id": 1,
-    "reason": "太难吃了",
-    "created_at": "2024-01-15T12:30:00"
+    "id": 1,
+    "foodId": 1,
+    "foodName": "猪脚饭",
+    "category": "快餐",
+    "reason": "不喜欢",
+    "createdAt": "2024-01-15T12:30:00"
   }
 }
 ```
 
 **业务逻辑**：
-1. 创建黑名单记录
-2. 自动调整用户偏好权重（-20）
-3. 返回黑名单详情
+1. 校验 foodId 是否存在
+2. 幂等处理：同一 userId + foodId 不产生重复记录
+3. 如果 reason 有变化，更新 reason
+4. 返回黑名单详情
 
 ---
 
 ### 7. 获取黑名单列表
 
-**GET** `/api/v1/blacklist/list`
+**GET** `/api/v1/blacklist/list?userId=1`
 
-获取用户的黑名单列表。
-
-**请求头**：
-```
-Authorization: Bearer {token}
-```
+获取用户的黑名单列表。**当前阶段临时使用 userId 参数，后续接入微信登录后从 token 获取**。
 
 **请求参数**：
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| page | int | 否 | 页码，默认 1 |
-| pageSize | int | 否 | 每页数量，默认 20 |
+| userId | long | 是 | 用户ID（临时，后续从 token 获取） |
 
 **响应数据**：
 ```json
 {
   "code": 0,
   "message": "success",
-  "data": {
-    "total": 5,
-    "page": 1,
-    "pageSize": 20,
-    "list": [
-      {
-        "blacklist_id": 1,
-        "food_id": 1,
-        "food_name": "猪脚饭",
-        "category": "快餐",
-        "reason": "太难吃了",
-        "created_at": "2024-01-15T12:30:00"
-      }
-    ]
-  }
+  "data": [
+    {
+      "id": 1,
+      "foodId": 1,
+      "foodName": "猪脚饭",
+      "category": "快餐",
+      "reason": "不喜欢",
+      "createdAt": "2024-01-15T12:30:00"
+    }
+  ]
 }
 ```
 
@@ -398,14 +393,15 @@ Authorization: Bearer {token}
 
 ### 8. 移出黑名单
 
-**DELETE** `/api/v1/blacklist/{blacklistId}`
+**DELETE** `/api/v1/blacklist/{blacklistId}?userId=1`
 
-将食物从黑名单中移除。
+将食物从黑名单中移除。**当前阶段临时使用 userId 参数，后续接入微信登录后从 token 获取**。只能删除自己的黑名单记录。
 
-**请求头**：
-```
-Authorization: Bearer {token}
-```
+**请求参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| blacklistId | long | 是 | 路径参数，黑名单记录ID |
+| userId | long | 是 | 用户ID（临时，后续从 token 获取） |
 
 **响应数据**：
 ```json
@@ -415,6 +411,11 @@ Authorization: Bearer {token}
   "data": null
 }
 ```
+
+**业务逻辑**：
+1. 校验黑名单记录是否存在
+2. 校验记录是否属于该用户
+3. 删除记录
 
 ---
 

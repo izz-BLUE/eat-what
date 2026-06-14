@@ -18,10 +18,11 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -32,6 +33,9 @@ class RecommendServiceTest {
 
     @Mock
     private EatRecordService eatRecordService;
+
+    @Mock
+    private UserBlacklistService userBlacklistService;
 
     @InjectMocks
     private RecommendService recommendService;
@@ -100,6 +104,86 @@ class RecommendServiceTest {
 
         assertNotNull(response);
         assertTrue(response.getReasons().contains("最近几天没吃过，换换口味"));
+    }
+
+    // ========== 黑名单过滤测试 ==========
+
+    @Test
+    void recommend_noUserId_doesNotQueryBlacklist() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(null);
+
+        Food food = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // userId 为空时不应查询黑名单
+        verifyNoInteractions(userBlacklistService);
+    }
+
+    @Test
+    void recommend_blacklistFiltersOutFood() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        Food food2 = createFood(2L, "寿司", "日料", "清淡,鲜", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+
+        // 黑名单包含 food1
+        when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // food1 被黑名单过滤，只能推荐 food2
+        assertEquals(2L, response.getFood().getId());
+    }
+
+    @Test
+    void recommend_blacklistAndExcludeFoodIdsBothApply() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+        request.setExcludeFoodIds(List.of(2L));
+
+        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        Food food2 = createFood(2L, "寿司", "日料", "清淡,鲜", 3);
+        Food food3 = createFood(3L, "烤肉", "烧烤", "咸,香", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
+
+        // 黑名单包含 food1
+        when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // food1 被黑名单过滤，food2 被 excludeFoodIds 排除，只能推荐 food3
+        assertEquals(3L, response.getFood().getId());
+    }
+
+    @Test
+    void recommend_allFilteredByBlacklist_returnsNull() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+
+        // 所有菜品都在黑名单中
+        when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNull(response);
     }
 
     // ========== 边界测试：calculateRecentEatenDeduction ==========
