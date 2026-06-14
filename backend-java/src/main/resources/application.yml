@@ -27,7 +27,7 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
   # 实体类包路径
-  type-aliases-package: com.fantuan.eatwhat.domain
+  type-aliases-package: com.fantuan.eatwhat.domain.entity
 
 # 日志配置
 logging:
