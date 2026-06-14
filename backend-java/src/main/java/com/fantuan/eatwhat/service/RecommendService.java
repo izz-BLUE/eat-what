@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class RecommendService {
 
     private final FoodService foodService;
+    private final EatRecordService eatRecordService;
 
     /**
      * 推荐一个菜品
@@ -44,9 +47,13 @@ public class RecommendService {
             return null;
         }
 
-        // 3. 计算每个菜品的得分
+        // 3. 查询用户最近7天吃过的食物（如果有 userId）
+        Map<Long, LocalDateTime> recentEatenMap = eatRecordService.getRecentEatenFoodMap(request.getUserId());
+        LocalDateTime now = LocalDateTime.now();
+
+        // 4. 计算每个菜品的得分
         List<ScoredFood> scoredFoods = candidates.stream()
-                .map(food -> calculateScore(food, request))
+                .map(food -> calculateScore(food, request, recentEatenMap, now))
                 .collect(Collectors.toList());
 
         // 4. 按得分排序，取 Top 5
@@ -70,7 +77,8 @@ public class RecommendService {
     /**
      * 计算菜品得分
      */
-    private ScoredFood calculateScore(Food food, RecommendRequest request) {
+    private ScoredFood calculateScore(Food food, RecommendRequest request,
+                                       Map<Long, LocalDateTime> recentEatenMap, LocalDateTime now) {
         int score = 0;
         List<String> reasons = new ArrayList<>();
 
@@ -95,11 +103,45 @@ public class RecommendService {
             reasons.add("符合口味偏好");
         }
 
-        // 4. 随机因素：0-19
+        // 4. 最近吃过降权
+        int recentEatenDeduction = calculateRecentEatenDeduction(food.getId(), recentEatenMap, now);
+        if (recentEatenDeduction == 0) {
+            reasons.add("最近几天没吃过，换换口味");
+        }
+        score += recentEatenDeduction;
+
+        // 5. 随机因素：0-19
         int randomScore = new Random().nextInt(20);
         score += randomScore;
 
         return new ScoredFood(food, score, reasons);
+    }
+
+    /**
+     * 计算最近吃过扣分
+     * 小于 24 小时：-100
+     * 大于等于 24 小时且小于 48 小时：-80
+     * 大于等于 48 小时且小于 72 小时：-60
+     * 大于等于 72 小时且小于等于 168 小时：-30
+     * 超过 168 小时：0
+     */
+    private int calculateRecentEatenDeduction(Long foodId, Map<Long, LocalDateTime> recentEatenMap,
+                                               LocalDateTime now) {
+        if (recentEatenMap == null || recentEatenMap.isEmpty()) {
+            return 0;
+        }
+
+        LocalDateTime lastEatenAt = recentEatenMap.get(foodId);
+        if (lastEatenAt == null) {
+            return 0;
+        }
+
+        Duration duration = Duration.between(lastEatenAt, now);
+        if (duration.compareTo(Duration.ofHours(24)) < 0) return -100;
+        if (duration.compareTo(Duration.ofHours(48)) < 0) return -80;
+        if (duration.compareTo(Duration.ofHours(72)) < 0) return -60;
+        if (duration.compareTo(Duration.ofHours(168)) <= 0) return -30;
+        return 0;
     }
 
     /**

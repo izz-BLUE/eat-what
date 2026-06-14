@@ -29,4 +29,9 @@ public class RecommendRequest {
      * 排除的菜品 ID 列表（用于换一个）
      */
     private List<Long> excludeFoodIds;
+
+    /**
+     * 用户ID（临时，后续从 token 获取）
+     */
+    private Long userId;
 }
