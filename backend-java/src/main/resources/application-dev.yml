@@ -22,6 +22,6 @@ spring:
 # 日志级别（开发环境更详细）
 logging:
   level:
-    com.eatwhat: debug
+    com.fantuan.eatwhat: debug
     org.springframework: debug
     org.flywaydb: debug
