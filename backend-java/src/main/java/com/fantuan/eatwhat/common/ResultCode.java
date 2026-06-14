@@ -24,6 +24,7 @@ public enum ResultCode {
     VOTE_ALREADY_VOTED(2005, "已投过票"),
     VOTE_LIMIT_EXCEEDED(2006, "超过投票上限"),
     BLACKLIST_NOT_FOUND(2007, "黑名单记录不存在"),
+    DISLIKE_NOT_FOUND(2008, "不想吃记录不存在"),
 
     // 系统错误 5xxx
     SYSTEM_ERROR(5001, "系统错误");
