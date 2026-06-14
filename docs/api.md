@@ -121,6 +121,7 @@
 | mealType | string | 否 | 餐段：早餐、午餐、晚餐、夜宵 |
 | priceLevel | string | 否 | 价格偏好：15以内、15-25、25-40、不限 |
 | taste | string | 否 | 口味偏好：清淡、重口、辣、不辣 |
+| userId | long | 否 | 用户ID（临时，后续从 token 获取），传入后会查询最近吃过记录进行降权 |
 
 **响应数据**：
 ```json
@@ -137,14 +138,16 @@
       "imageUrl": ""
     },
     "score": 45,
-    "reasons": ["适合当前餐段", "符合预算"]
+    "reasons": ["适合当前餐段", "符合预算", "最近几天没吃过，换换口味"]
   }
 }
 ```
 
-**当前业务逻辑**（M0）：
+**当前业务逻辑**（M1）：
 1. 查询所有 enabled=true 的菜品
-2. 按 mealType、priceLevel、taste 打分
+2. 如果 userId 不为空，查询该用户最近 7 天吃过的食物进行降权
+3. 按 mealType、priceLevel、taste 打分
+4. 最近吃过扣分：1天内-100、2天内-80、3天内-60、4-7天-30
 3. 从 Top 5 中随机选一个
 4. 返回推荐结果
 
@@ -170,6 +173,7 @@
 | priceLevel | string | 否 | 价格偏好 |
 | taste | string | 否 | 口味偏好 |
 | excludeFoodIds | string | 否 | 排除的菜品 ID，逗号分隔，如：1,2,3 |
+| userId | long | 否 | 用户ID（临时，后续从 token 获取） |
 
 **响应数据**：
 ```json
@@ -186,7 +190,7 @@
       "imageUrl": ""
     },
     "score": 38,
-    "reasons": ["适合当前餐段"]
+    "reasons": ["适合当前餐段", "最近几天没吃过，换换口味"]
   }
 }
 ```
@@ -194,36 +198,38 @@
 **业务逻辑**：
 1. 查询所有 enabled=true 的菜品
 2. 排除 excludeFoodIds 中的菜品
-3. 按规则打分，从 Top 5 中随机选一个
-
-**业务逻辑**：
-1. 获取 excludeFoodIds
-2. 排除这些食物后重新推荐
-3. 如果没有候选食物，返回错误提示
+3. 查询最近 7 天吃过的食物进行降权
+4. 按规则打分，从 Top 5 中随机选一个
 
 ---
 
-## 记录相关
+## 记录相关（M1 已实现）
 
 ### 4. 我就吃它
 
 **POST** `/api/v1/record/eat`
 
-记录用户选择吃某道食物。
-
-**请求头**：
-```
-Authorization: Bearer {token}
-```
+记录用户选择吃某道食物。**当前阶段临时使用 userId 参数，后续接入微信登录后从 token 获取**。
 
 **请求参数**：
 ```json
 {
-  "food_id": 1,
+  "userId": 1,
+  "foodId": 1,
+  "mealType": "晚餐",
   "rating": 5,
   "note": "今天加了个蛋，很好吃"
 }
 ```
+
+**请求参数说明**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| userId | long | 是 | 用户ID（临时，后续从 token 获取） |
+| foodId | long | 是 | 食物ID |
+| mealType | string | 否 | 餐段：早餐、午餐、晚餐、夜宵 |
+| rating | int | 否 | 评分 1-5 |
+| note | string | 否 | 备注 |
 
 **响应数据**：
 ```json
@@ -231,32 +237,35 @@ Authorization: Bearer {token}
   "code": 0,
   "message": "success",
   "data": {
-    "record_id": 1,
-    "food_id": 1,
-    "status": "eaten",
+    "id": 1,
+    "foodId": 1,
+    "foodName": "猪脚饭",
+    "mealType": "晚餐",
     "rating": 5,
     "note": "今天加了个蛋，很好吃",
-    "eaten_at": "2024-01-15T12:30:00"
+    "eatenAt": "2024-01-15T12:30:00"
   }
 }
 ```
 
 **业务逻辑**：
-1. 创建 eat_records 记录，status=eaten
-2. 自动调整用户偏好权重（+5）
+1. 校验 foodId 是否存在
+2. 创建 eat_records 记录
 3. 返回记录详情
 
 ---
 
 ### 5. 获取吃过记录
 
-**GET** `/api/v1/record/list`
+**GET** `/api/v1/record/list?userId=1&limit=20`
 
-获取用户吃过的食物记录列表。
+获取用户吃过的食物记录列表。**当前阶段临时使用 userId 参数，后续接入微信登录后从 token 获取**。
 
-**请求头**：
-```
-Authorization: Bearer {token}
+**请求参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| userId | long | 是 | 用户ID（临时，后续从 token 获取） |
+| limit | int | 否 | 返回数量，默认 20 |
 ```
 
 **请求参数**：

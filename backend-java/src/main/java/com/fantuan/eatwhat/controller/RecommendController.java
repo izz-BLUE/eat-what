@@ -27,18 +27,20 @@ public class RecommendController {
 
     /**
      * 一键推荐
-     * GET /api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口
+     * GET /api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口&userId=1
      */
     @GetMapping
     public ApiResponse<RecommendResponse> recommend(
             @RequestParam(required = false) String mealType,
             @RequestParam(required = false) String priceLevel,
-            @RequestParam(required = false) String taste) {
+            @RequestParam(required = false) String taste,
+            @RequestParam(required = false) Long userId) {
 
         RecommendRequest request = new RecommendRequest();
         request.setMealType(mealType);
         request.setPriceLevel(priceLevel);
         request.setTaste(taste);
+        request.setUserId(userId);
 
         RecommendResponse response = recommendService.recommend(request);
         if (response == null) {
@@ -49,19 +51,21 @@ public class RecommendController {
 
     /**
      * 换一个
-     * GET /api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2,3
+     * GET /api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2,3&userId=1
      */
     @GetMapping("/swap")
     public ApiResponse<RecommendResponse> swap(
             @RequestParam(required = false) String mealType,
             @RequestParam(required = false) String priceLevel,
             @RequestParam(required = false) String taste,
-            @RequestParam(required = false) String excludeFoodIds) {
+            @RequestParam(required = false) String excludeFoodIds,
+            @RequestParam(required = false) Long userId) {
 
         RecommendRequest request = new RecommendRequest();
         request.setMealType(mealType);
         request.setPriceLevel(priceLevel);
         request.setTaste(taste);
+        request.setUserId(userId);
 
         // 解析 excludeFoodIds
         if (excludeFoodIds != null && !excludeFoodIds.isEmpty()) {
