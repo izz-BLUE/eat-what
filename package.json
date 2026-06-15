@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "name": "eat-what",
+  "version": "1.0.0",
+  "description": "今天吃啥 - 菜品数据管线",
+  "scripts": {
+    "foods:validate": "node scripts/validate-foods.mjs",
+    "foods:generate": "node scripts/generate-food-migration.mjs",
+    "foods:test": "node --test scripts/test/*.test.mjs"
+  }
+}

@@ -68,9 +68,9 @@ class EatRecordServiceConcurrencyTest {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
-        createFood(F1, "猪脚饭");
-        createFood(F2, "黄焖鸡");
-        createFood(F3, "麻辣烫");
+        createFood(F1, "并发测试猪脚饭");
+        createFood(F2, "并发测试黄焖鸡");
+        createFood(F3, "并发测试麻辣烫");
     }
 
     private void createFood(Long id, String name) {
