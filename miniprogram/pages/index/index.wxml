@@ -15,25 +15,9 @@
       <view class="filter-options">
         <view
           wx:for="{{mealTypes}}"
-          wx:key="*this"
-          class="filter-option {{selectedMealType === item ? 'active' : ''}}"
-          bindtap="selectMealType"
-          data-value="{{item}}"
-        >
-          {{item}}
-        </view>
-      </view>
-    </view>
-
-    <!-- 预算偏好 -->
-    <view class="filter-group">
-      <text class="filter-label">预算偏好</text>
-      <view class="filter-options">
-        <view
-          wx:for="{{priceLevels}}"
           wx:key="value"
-          class="filter-option {{selectedPriceLevel === item.value ? 'active' : ''}}"
-          bindtap="selectPriceLevel"
+          class="filter-option {{item.selected ? 'active' : ''}}"
+          bindtap="selectMealType"
           data-value="{{item.value}}"
         >
           {{item.label}}
@@ -41,59 +25,87 @@
       </view>
     </view>
 
+    <!-- 预算偏好 -->
+    <view class="filter-group">
+      <text class="filter-label">参考价位</text>
+      <view class="filter-options">
+        <view
+          class="filter-option {{priceNoLimitSelected ? 'active' : ''}}"
+          bindtap="selectPriceLevel"
+          data-value=""
+        >
+          不限
+        </view>
+        <view
+          wx:for="{{priceLevels}}"
+          wx:key="value"
+          class="filter-option {{item.selected ? 'active' : ''}}"
+          bindtap="selectPriceLevel"
+          data-value="{{item.value}}"
+        >
+          {{item.label}}
+        </view>
+      </view>
+      <text class="filter-hint">实际价格因门店、份量和用餐方式而异</text>
+    </view>
+
     <!-- 口味 -->
     <view class="filter-group">
       <text class="filter-label">口味</text>
       <view class="filter-options">
         <view
-          wx:for="{{tastes}}"
-          wx:key="*this"
-          class="filter-option {{selectedTaste === item ? 'active' : ''}}"
+          class="filter-option {{tasteNoLimitSelected ? 'active' : ''}}"
           bindtap="selectTaste"
-          data-value="{{item}}"
-        >
-          {{item}}
-        </view>
-      </view>
-    </view>
-
-    <!-- 偏好分类 -->
-    <view class="filter-group">
-      <text class="filter-label">偏好分类（可选）</text>
-      <view class="filter-options">
-        <view
-          class="filter-option {{selectedCategories.length === 0 ? 'active' : ''}}"
-          bindtap="selectNoLimit"
+          data-value=""
         >
           不限
         </view>
         <view
-          wx:for="{{commonCategoryOptions}}"
-          wx:key="name"
-          class="filter-option {{item.selected ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
-          bindtap="selectCategory"
-          data-value="{{item.name}}"
+          wx:for="{{tastes}}"
+          wx:key="value"
+          class="filter-option {{item.selected ? 'active' : ''}}"
+          bindtap="selectTaste"
+          data-value="{{item.value}}"
         >
-          {{item.name}}
-        </view>
-        <view
-          class="filter-option more-btn {{showMoreCategories ? 'expanded' : ''}}"
-          bindtap="toggleMoreCategories"
-        >
-          更多 ▾
+          {{item.label}}
         </view>
       </view>
-      <view class="more-categories" wx:if="{{showMoreCategories}}">
-        <view class="filter-options">
-          <view
-            wx:for="{{moreCategoryOptions}}"
-            wx:key="name"
-            class="filter-option {{item.selected ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
-            bindtap="selectCategory"
-            data-value="{{item.name}}"
-          >
-            {{item.name}}
-          </view>
+    </view>
+
+    <!-- 食物类型（多选，与菜系合计最多3） -->
+    <view class="filter-group">
+      <text class="filter-label">食物类型（可选）</text>
+      <view class="filter-options">
+        <view
+          class="filter-option {{categoryNoLimitSelected ? 'active' : ''}}"
+          bindtap="selectCategoryNoLimit"
+        >
+          不限
+        </view>
+        <view
+          wx:for="{{typeTagOptions}}"
+          wx:key="value"
+          class="filter-option {{item.selected ? 'active' : ''}}"
+          bindtap="selectTypeTag"
+          data-value="{{item.value}}"
+        >
+          {{item.label}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 菜系/风格（多选，与食物类型合计最多3） -->
+    <view class="filter-group">
+      <text class="filter-label">菜系/风格（可选）</text>
+      <view class="filter-options">
+        <view
+          wx:for="{{cuisineTagOptions}}"
+          wx:key="value"
+          class="filter-option {{item.selected ? 'active' : ''}}"
+          bindtap="selectCuisineTag"
+          data-value="{{item.value}}"
+        >
+          {{item.label}}
         </view>
       </view>
     </view>
@@ -173,6 +185,6 @@
     </button>
   </view>
   <view class="blacklist-action" bindtap="addToBlacklist">
-    <text>🚫 加入黑名单</text>
+    <text>加入黑名单</text>
   </view>
 </view>

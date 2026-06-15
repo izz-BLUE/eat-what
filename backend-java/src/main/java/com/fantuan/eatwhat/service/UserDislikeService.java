@@ -1,6 +1,8 @@
 package com.fantuan.eatwhat.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fantuan.eatwhat.common.FoodTaxonomy;
+import com.fantuan.eatwhat.common.RecommendDict;
 import com.fantuan.eatwhat.common.ResultCode;
 import com.fantuan.eatwhat.domain.entity.Food;
 import com.fantuan.eatwhat.domain.entity.UserDislike;
@@ -31,9 +33,11 @@ public class UserDislikeService {
 
     /**
      * 添加或更新不想吃（幂等）
+     *
+     * 校验：category 值必须是合法的旧 category、typeTag 或 cuisineTag。
      */
     public DislikeResponse addDislike(Long userId, DislikeAddRequest request) {
-        // 校验分类是否存在于启用的菜品中
+        // 校验分类是否合法（旧 category + 新 typeTag + 新 cuisineTag）
         validateCategoryExists(request.getCategory());
 
         LocalDateTime now = LocalDateTime.now();
@@ -118,17 +122,56 @@ public class UserDislikeService {
     }
 
     /**
-     * 校验分类是否存在于启用的菜品中
+     * 校验分类是否存在（兼容旧 category + 新 typeTag + 新 cuisineTag）
+     *
+     * 合法值：
+     * - RecommendDict.TYPE_TAGS 中的值（如"面食"）
+     * - RecommendDict.CUISINE_TAGS 中的值（如"日料"）
+     * - RecommendDict.LEGACY_CATEGORIES 中的值（兼容已有数据）
+     *
+     * 精确匹配规则：
+     * 1. food.category 精确相等
+     * 2. food.typeTags 用 FoodTaxonomy.parseTags() 解析后 Set.contains 精确匹配
+     * 3. food.cuisineTags 用 FoodTaxonomy.parseTags() 解析后 Set.contains 精确匹配
+     * 禁止 LIKE、contains、FIND_IN_SET 等模糊匹配。
+     * 只有启用菜品使用该分类时才视为存在。
      */
     private void validateCategoryExists(String category) {
-        LambdaQueryWrapper<Food> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Food::getCategory, category)
-                .eq(Food::getEnabled, true)
-                .last("LIMIT 1");
-        Food food = foodMapper.selectOne(wrapper);
-        if (food == null) {
-            throw new BusinessException(ResultCode.FOOD_NOT_FOUND, "分类不存在或无启用菜品: " + category);
+        // null 或空值直接拒绝
+        if (category == null || category.isEmpty()) {
+            throw new BusinessException(ResultCode.FOOD_NOT_FOUND, "无效的分类: " + category);
         }
+
+        // 先检查词典合法性
+        boolean valid = RecommendDict.isValidTypeTag(category)
+                || RecommendDict.isValidCuisineTag(category)
+                || RecommendDict.isValidLegacyCategory(category);
+
+        if (!valid) {
+            throw new BusinessException(ResultCode.FOOD_NOT_FOUND, "无效的分类: " + category);
+        }
+
+        // 查询所有启用菜品，Java 端精确匹配（禁止 LIKE）
+        LambdaQueryWrapper<Food> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Food::getEnabled, true);
+        List<Food> enabledFoods = foodMapper.selectList(wrapper);
+
+        for (Food food : enabledFoods) {
+            // 精确匹配 category
+            if (category.equals(food.getCategory())) {
+                return;
+            }
+            // 精确匹配 typeTags（Set.contains，非子串）
+            if (FoodTaxonomy.parseTags(food.getTypeTags()).contains(category)) {
+                return;
+            }
+            // 精确匹配 cuisineTags（Set.contains，非子串）
+            if (FoodTaxonomy.parseTags(food.getCuisineTags()).contains(category)) {
+                return;
+            }
+        }
+
+        throw new BusinessException(ResultCode.FOOD_NOT_FOUND, "分类不存在或无启用菜品: " + category);
     }
 
     private DislikeResponse toResponse(UserDislike dislike) {
