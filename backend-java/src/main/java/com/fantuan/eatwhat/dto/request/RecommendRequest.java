@@ -34,4 +34,9 @@ public class RecommendRequest {
      * 用户ID（临时，后续从 token 获取）
      */
     private Long userId;
+
+    /**
+     * 偏好分类列表（硬过滤，最多3个）
+     */
+    private List<String> categories;
 }

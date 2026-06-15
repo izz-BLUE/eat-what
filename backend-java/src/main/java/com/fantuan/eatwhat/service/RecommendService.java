@@ -66,6 +66,29 @@ public class RecommendService {
             }
         }
 
+        // 5. 用户选择的分类硬过滤
+        if (!CollectionUtils.isEmpty(request.getCategories())) {
+            Set<String> selectedCategories = new HashSet<>(request.getCategories());
+            candidates = candidates.stream()
+                    .filter(f -> selectedCategories.contains(f.getCategory()))
+                    .collect(Collectors.toList());
+        }
+
+        // 6. 清淡时排除重口味分类
+        if ("清淡".equals(request.getTaste())) {
+            Set<String> heavyCategories = Set.of("火锅", "烧烤", "川菜", "湘菜");
+            candidates = candidates.stream()
+                    .filter(f -> !heavyCategories.contains(f.getCategory()))
+                    .collect(Collectors.toList());
+        }
+
+        // 7. 口味硬过滤
+        if (StringUtils.hasText(request.getTaste()) && !"不限".equals(request.getTaste())) {
+            candidates = candidates.stream()
+                    .filter(f -> matchesTaste(f.getTasteTags(), request.getTaste()))
+                    .collect(Collectors.toList());
+        }
+
         if (candidates.isEmpty()) {
             return null;
         }
@@ -220,6 +243,43 @@ public class RecommendService {
     }
 
     /**
+     * 口味硬过滤（按逗号拆分精确匹配）
+     *
+     * @param tasteTags 食物口味标签，逗号分隔
+     * @param taste 用户选择的口味偏好
+     * @return 是否匹配
+     */
+    private boolean matchesTaste(String tasteTags, String taste) {
+        if (!StringUtils.hasText(tasteTags)) {
+            return false;
+        }
+
+        // 按逗号拆分并 trim
+        Set<String> tags = Arrays.stream(tasteTags.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
+
+        switch (taste) {
+            case "清淡":
+                // 必须包含"清淡"，同时不能包含辣、微辣、麻
+                return tags.contains("清淡") && !tags.contains("辣") && !tags.contains("微辣") && !tags.contains("麻");
+            case "不辣":
+                // 排除辣、微辣、麻
+                return !tags.contains("辣") && !tags.contains("微辣") && !tags.contains("麻");
+            case "辣":
+                // 必须包含辣或微辣
+                return tags.contains("辣") || tags.contains("微辣");
+            case "重口":
+                // 包含辣、麻、酸之一，或者同时包含咸和香
+                return tags.contains("辣") || tags.contains("麻") || tags.contains("酸")
+                        || (tags.contains("咸") && tags.contains("香"));
+            default:
+                return true;
+        }
+    }
+
+    /**
      * 计算价格匹配得分
      * 用户价格偏好：15以内(priceLevel=1)、15-25(priceLevel=2)、25-40(priceLevel=3)、不限
      */
@@ -259,22 +319,26 @@ public class RecommendService {
             return 0;
         }
 
-        boolean hasLight = tasteTags.contains("清淡") || tasteTags.contains("鲜");
-        boolean hasSpicy = tasteTags.contains("辣") || tasteTags.contains("麻");
-        boolean hasStrong = tasteTags.contains("咸") || tasteTags.contains("香") || tasteTags.contains("重");
+        // 按逗号拆分精确匹配
+        Set<String> tags = Arrays.stream(tasteTags.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
 
         switch (taste) {
             case "清淡":
-                if (hasLight) return 20;
+                if (tags.contains("清淡") || tags.contains("鲜")) return 20;
                 break;
             case "重口":
-                if (hasStrong) return 20;
+                // 与 matchesTaste 规则完全一致
+                if (tags.contains("辣") || tags.contains("麻") || tags.contains("酸")
+                        || (tags.contains("咸") && tags.contains("香"))) return 20;
                 break;
             case "辣":
-                if (hasSpicy) return 20;
+                if (tags.contains("辣") || tags.contains("微辣")) return 20;
                 break;
             case "不辣":
-                if (!hasSpicy) return 20;
+                if (!tags.contains("辣") && !tags.contains("麻")) return 20;
                 break;
             default:
                 return 0;

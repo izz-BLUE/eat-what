@@ -1,0 +1,78 @@
+<!--pages/record/record.wxml-->
+<view class="container">
+  <!-- 菜品信息 -->
+  <view class="card food-card" wx:if="{{!submitted}}">
+    <view class="food-name">{{foodName}}</view>
+    <view class="food-category" wx:if="{{category}}">{{category}}</view>
+  </view>
+
+  <!-- 记录表单 -->
+  <view class="card form-card" wx:if="{{!submitted}}">
+    <!-- 餐段 -->
+    <view class="form-group">
+      <text class="form-label">餐段</text>
+      <view class="form-options">
+        <view
+          wx:for="{{mealTypes}}"
+          wx:key="*this"
+          class="form-option {{selectedMealType === item ? 'active' : ''}}"
+          bindtap="selectMealType"
+          data-value="{{item}}"
+        >
+          {{item}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 评分 -->
+    <view class="form-group">
+      <text class="form-label">评分（可选）</text>
+      <view class="rating-section">
+        <view
+          wx:for="{{[1,2,3,4,5]}}"
+          wx:key="*this"
+          class="star {{rating >= item ? 'active' : ''}}"
+          bindtap="setRating"
+          data-value="{{item}}"
+        >
+          ★
+        </view>
+      </view>
+    </view>
+
+    <!-- 备注 -->
+    <view class="form-group">
+      <text class="form-label">备注（可选）</text>
+      <textarea
+        class="note-input"
+        placeholder="今天吃得怎么样？"
+        value="{{note}}"
+        bindinput="onNoteInput"
+        maxlength="256"
+      ></textarea>
+      <text class="char-count">{{note.length}}/256</text>
+    </view>
+  </view>
+
+  <!-- 提交按钮 -->
+  <button
+    class="btn-primary btn-submit"
+    bindtap="submitRecord"
+    disabled="{{submitting || submitted}}"
+    wx:if="{{!submitted}}"
+  >
+    {{submitting ? '提交中...' : '确认记录'}}
+  </button>
+
+  <!-- 成功状态 -->
+  <view class="success-state" wx:if="{{submitted}}">
+    <view class="success-icon">✅</view>
+    <view class="success-text">记录成功！</view>
+    <button class="btn-secondary" bindtap="goBack">返回首页</button>
+  </view>
+
+  <!-- 错误状态 -->
+  <view class="error-state" wx:if="{{errorMsg && !submitted}}">
+    <text>{{errorMsg}}</text>
+  </view>
+</view>

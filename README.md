@@ -129,19 +129,33 @@ cd backend-java
 docker compose down -v && docker compose up -d
 ```
 
-### 前端
+### 前端（微信小程序）
 
 ```bash
-cd miniprogram
+# 1. 使用微信开发者工具打开 miniprogram 目录
 
-# 1. 安装依赖（如果有）
-npm install
+# 2. 本地调试设置
+#    - 详情 → 本地设置 → 勾选"不校验合法域名"
+#    - 这样可以访问 http://localhost:8080
 
-# 2. 使用微信开发者工具打开 miniprogram 目录
+# 3. 确认后端已启动
+#    - API 地址配置在 miniprogram/config/index.ts
+#    - 开发环境默认 http://localhost:8080
 
-# 3. 修改 API 地址
-# 编辑 services/api.ts，配置后端地址
+# 4. 编译运行
+#    - 点击"编译"按钮即可预览
 ```
+
+**小程序功能**：
+- 首页：选择餐段/价格/口味，点击"今天吃啥"获取推荐
+- 换一个：最多连续换 5 次
+- 我就吃它：记录用餐信息（需登录）
+- 登录：微信一键登录
+
+**本地调试说明**：
+- 微信开发者工具需开启"不校验合法域名"才能访问 localhost
+- 后端需使用 dev Profile 启用微信 Mock
+- Mock 模式下 wx.login 会返回稳定的测试 openid
 
 ## 开发规范
 
