@@ -27,7 +27,7 @@ const DATA_DIR = resolve(PROJECT_ROOT, 'data');
 let parseFoodsCSV, readFoodsCSV, validateFoods, readTaxonomy, clearTaxonomyCache;
 let generateMigrationSQL, migrationOutputPath, migrationFileName;
 let parseMultiValue, formatMultiValue, escapeSQLString, toDBMultiValue;
-let sortRowsByName;
+let sortRowsByName, findExistingMigration;
 let TAXONOMY_PATH, CSV_PATH, MIGRATION_DIR;
 
 before(async () => {
@@ -45,6 +45,7 @@ before(async () => {
   escapeSQLString = mod.escapeSQLString;
   toDBMultiValue = mod.toDBMultiValue;
   sortRowsByName = mod.sortRowsByName;
+  findExistingMigration = mod.findExistingMigration;
   TAXONOMY_PATH = mod.TAXONOMY_PATH;
   CSV_PATH = mod.CSV_PATH;
   MIGRATION_DIR = mod.MIGRATION_DIR;
@@ -115,14 +116,8 @@ describe('CSV 解析与数据正确性', () => {
     assert.equal(errors.length, 0, '校验错误: ' + errors.join('\n'));
   });
 
-  // --- 3. 当前 fixture 为 30 道启用菜（固定基线检查，非永久规则） ---
-  it('3. 当前 fixture 恰好 30 道启用菜', () => {
-    const enabled = realRows.filter(r => r.enabled === 'true');
-    assert.equal(enabled.length, 30, '当前基线期望 30 道菜，如果新增/删除菜品请更新此数字');
-  });
-
-  // --- 4. taxonomy JSON 与 Java RecommendDict 对应字段匹配 ---
-  it('4. taxonomy JSON 结构与 RecommendDict 对应字段匹配', () => {
+  // --- 3. taxonomy JSON 与 Java RecommendDict 对应字段匹配 ---
+  it('3. taxonomy JSON 结构与 RecommendDict 对应字段匹配', () => {
     assert.ok(Array.isArray(taxonomy.mealTypes));
     assert.ok(Array.isArray(taxonomy.priceLevels));
     assert.ok(Array.isArray(taxonomy.budgetValues));
@@ -140,8 +135,8 @@ describe('CSV 解析与数据正确性', () => {
     assert.deepEqual(taxonomy.emptyMealTypesAllowlist, ['奶茶']);
   });
 
-  // --- 5. 所有标签精确匹配 ---
-  it('5. CSV 中所有标签都在词典中定义', () => {
+  // --- 4. 所有标签精确匹配 ---
+  it('4. CSV 中所有标签都在词典中定义', () => {
     const allTypeSet = new Set(taxonomy.typeTags);
     const allCuisineSet = new Set(taxonomy.cuisineTags);
     const allMealSet = new Set(taxonomy.mealTypes);
@@ -163,16 +158,16 @@ describe('CSV 解析与数据正确性', () => {
     }
   });
 
-  // --- 6. 奶茶空 meal_types 白名单正确 ---
-  it('6. 奶茶空 meal_types 在白名单中', () => {
+  // --- 5. 奶茶空 meal_types 白名单正确 ---
+  it('5. 奶茶空 meal_types 在白名单中', () => {
     const milkTea = realRows.find(r => r.name === '奶茶');
     assert.ok(milkTea, '未找到奶茶');
     assert.equal(milkTea.meal_types, '', '奶茶 meal_types 应为空');
     assert.ok(taxonomy.emptyMealTypesAllowlist.includes('奶茶'), '奶茶应在白名单中');
   });
 
-  // --- 7. name 唯一 ---
-  it('7. 所有菜品 name 唯一', () => {
+  // --- 6. name 唯一 ---
+  it('6. 所有菜品 name 唯一', () => {
     const names = realRows.map(r => r.name);
     const unique = new Set(names);
     assert.equal(unique.size, names.length, `存在重复 name: ${names.length - unique.size} 个重复`);
@@ -327,6 +322,50 @@ describe('错误检测：校验失败场景', () => {
     assert.ok(errors.some(e => e.includes('price_level')), `应报告非法 price_level: ${errors.join('; ')}`);
   });
 
+  // --- 15b. price_level "2abc" 失败（严格字符串匹配） ---
+  it('15b. price_level "2abc" 校验失败（严格字符串，不允许 parseInt 宽松解析）', () => {
+    createTmpDir();
+    const content = makeCSVHeader() + '\n' + makeCSVLine('白切鸡', '粤菜', '', '粤菜', '午餐|晚餐', '清淡|鲜', '2abc', 'true');
+    const p = writeTmpCSV('bad-price-str.csv', content);
+    const { rows, errors: parseErrors } = parseFoodsCSV(content, p);
+    assert.equal(parseErrors.length, 0);
+    const errors = validateFoods(rows, taxonomy, { skipSortCheck: true });
+    assert.ok(errors.some(e => e.includes('price_level')), `"2abc" 应校验失败: ${errors.join('; ')}`);
+  });
+
+  // --- 15c. price_level "2.5" 失败（禁止小数） ---
+  it('15c. price_level "2.5" 校验失败（禁止小数）', () => {
+    createTmpDir();
+    const content = makeCSVHeader() + '\n' + makeCSVLine('白切鸡', '粤菜', '', '粤菜', '午餐|晚餐', '清淡|鲜', '2.5', 'true');
+    const p = writeTmpCSV('bad-price-decimal.csv', content);
+    const { rows, errors: parseErrors } = parseFoodsCSV(content, p);
+    assert.equal(parseErrors.length, 0);
+    const errors = validateFoods(rows, taxonomy, { skipSortCheck: true });
+    assert.ok(errors.some(e => e.includes('price_level')), `"2.5" 应校验失败: ${errors.join('; ')}`);
+  });
+
+  // --- 15d. price_level "02" 失败（禁止前导零） ---
+  it('15d. price_level "02" 校验失败（禁止前导零）', () => {
+    createTmpDir();
+    const content = makeCSVHeader() + '\n' + makeCSVLine('白切鸡', '粤菜', '', '粤菜', '午餐|晚餐', '清淡|鲜', '02', 'true');
+    const p = writeTmpCSV('bad-price-zero.csv', content);
+    const { rows, errors: parseErrors } = parseFoodsCSV(content, p);
+    assert.equal(parseErrors.length, 0);
+    const errors = validateFoods(rows, taxonomy, { skipSortCheck: true });
+    assert.ok(errors.some(e => e.includes('price_level')), `"02" 应校验失败: ${errors.join('; ')}`);
+  });
+
+  // --- 15e. price_level 空值失败 ---
+  it('15e. price_level 空值校验失败', () => {
+    createTmpDir();
+    const content = makeCSVHeader() + '\n' + makeCSVLine('白切鸡', '粤菜', '', '粤菜', '午餐|晚餐', '清淡|鲜', '', 'true');
+    const p = writeTmpCSV('bad-price-empty.csv', content);
+    const { rows, errors: parseErrors } = parseFoodsCSV(content, p);
+    assert.equal(parseErrors.length, 0);
+    const errors = validateFoods(rows, taxonomy, { skipSortCheck: true });
+    assert.ok(errors.some(e => e.includes('price_level')), `空值应校验失败: ${errors.join('; ')}`);
+  });
+
   // --- 16. 非法 enabled 失败 ---
   it('16. 非法 enabled 值校验失败', () => {
     createTmpDir();
@@ -399,12 +438,32 @@ describe('Migration SQL 生成', () => {
     assert.ok(sql.includes("\\'"), '应包含转义的单引号');
   });
 
-  // --- 20. 已存在 migration 文件不覆盖（CLI 层测试，此处标记） ---
-  it('20. 目标文件已存在时生成器应拒绝覆盖', () => {
+  // --- 20. 扫描 migration 目录检测版本号冲突 ---
+  it('20. findExistingMigration 检测同版本不同描述的文件冲突', () => {
     createTmpDir();
-    const p = resolve(tmpMigrationDir, 'V8__test_exists.sql');
-    writeFileSync(p, 'dummy', 'utf-8');
+    // 创建一个 V8 文件
+    const p = resolve(tmpMigrationDir, 'V8__other_description.sql');
+    writeFileSync(p, '-- dummy', 'utf-8');
     assert.ok(existsSync(p));
+
+    // 同版本 + 不同描述 → 应检测到冲突
+    const conflict = findExistingMigration('V8', tmpMigrationDir);
+    assert.equal(conflict, 'V8__other_description.sql',
+      '应检测到已有 V8__other_description.sql');
+
+    // 同版本 + 相同描述 → 路径检查应拒绝（精确匹配）
+    const exactPath = migrationOutputPath('V8', 'test_exists', tmpMigrationDir);
+    writeFileSync(exactPath, '-- dummy', 'utf-8');
+    assert.ok(existsSync(exactPath), '精确路径也应被占用');
+
+    // 不同版本 → 无冲突
+    const noConflict = findExistingMigration('V9', tmpMigrationDir);
+    assert.equal(noConflict, null, 'V9 不应有冲突');
+
+    // 带前缀版本号（如 V8 vs 8）
+    const conflict2 = findExistingMigration('8', tmpMigrationDir);
+    assert.equal(conflict2, 'V8__other_description.sql',
+      '不带 V 前缀的版本号 8 也应检测到冲突');
   });
 
   // --- 21. 非法版本失败 ---

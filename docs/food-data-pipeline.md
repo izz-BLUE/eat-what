@@ -109,7 +109,7 @@ npm run foods:generate -- V9 update_noodle_prices
 - **V8+** — 菜品数据 migration 的合法版本号。使用 `INSERT ... ON DUPLICATE KEY UPDATE` 语法。
 
 生成前会自动运行全套校验，校验失败不会生成文件。
-目标文件已存在时拒绝覆盖。
+目标文件已存在时拒绝覆盖（同时扫描 migration 目录，相同版本号不同描述也冲突）。
 
 ## 为什么不能修改已执行 migration
 
@@ -215,7 +215,7 @@ ON DUPLICATE KEY UPDATE category = VALUES(category)
 | 13 | 多值字段不允许重复值 |
 | 14 | 多值字段不允许空元素 |
 | 15 | 多值字段每个值不允许前后空格 |
-| 16 | price_level 只能是 1-4 |
+| 16 | price_level 严格只允许字符串 "1", "2", "3", "4"（禁止前导零、小数、后缀） |
 | 17 | enabled 只能是 true 或 false |
 | 18 | 至少 1 道启用菜（不硬编码数量） |
 | 19 | 菜品数据与数据库一致（Java 测试验证） |

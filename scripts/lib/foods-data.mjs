@@ -12,7 +12,7 @@
  *       检测到违规时必须报错，不得静默接受。
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -398,9 +398,9 @@ export function validateFoods(rows, taxonomy = null, opts = {}) {
     checkSpace('meal_types', row.meal_types);
     checkSpace('taste_tags', row.taste_tags);
 
-    // ---------- 16. price_level 只能是 1-4 ----------
-    const pl = parseInt(row.price_level, 10);
-    if (isNaN(pl) || pl < 1 || pl > 4) {
+    // ---------- 16. price_level 严格校验：只允许字符串 "1", "2", "3", "4" ----------
+    const validPriceLevels = ['1', '2', '3', '4'];
+    if (!validPriceLevels.includes(row.price_level)) {
       errors.push(`${fileName}:${row.line}: name="${n}" price_level="${row.price_level}" 不合法，只允许 1-4`);
     }
 
@@ -592,6 +592,33 @@ export function migrationOutputPath(version, description, dir = MIGRATION_DIR) {
  * @param {Array<object>} rows
  * @returns {Array<object>}
  */
+/**
+ * 扫描 migration 目录，查找是否存在相同版本号的文件。
+ * 版本号匹配规则：以 V{version}__ 开头且 .sql 结尾。
+ *
+ * @param {string|number} version - 版本号
+ * @param {string} [dir] - migration 目录
+ * @returns {string|null} 找到的文件名，未找到返回 null
+ */
+export function findExistingMigration(version, dir = MIGRATION_DIR) {
+  const v = String(version).replace(/^v/i, '');
+  const versionStr = 'V' + v;
+  const prefix = versionStr + '__';
+
+  try {
+    if (!existsSync(dir)) return null;
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      if (entry.startsWith(prefix) && entry.endsWith('.sql')) {
+        return entry;
+      }
+    }
+  } catch (_) {
+    // 目录不存在或无权限，视为无冲突
+  }
+  return null;
+}
+
 export function sortRowsByName(rows) {
   return [...rows].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
 }

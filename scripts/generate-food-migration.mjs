@@ -25,6 +25,7 @@ import {
   validateFoods,
   generateMigrationSQL,
   sortRowsByName,
+  findExistingMigration,
   migrationOutputPath,
 } from './lib/foods-data.mjs';
 
@@ -77,11 +78,21 @@ function main() {
     process.exit(1);
   }
 
-  // 2. 检查目标文件是否已存在
+  // 2. 检查目标文件是否已存在（精确路径冲突）
   const outputPath = migrationOutputPath(versionStr, description);
   if (existsSync(outputPath)) {
     console.error(`❌ 目标 migration 文件已存在，禁止覆盖：`);
     console.error(`   ${outputPath}`);
+    process.exit(1);
+  }
+
+  // 2b. 扫描 migration 目录，检查是否有相同版本号的其他文件（不同描述也冲突）
+  const conflictingFile = findExistingMigration(versionStr);
+  if (conflictingFile) {
+    console.error(`❌ 版本号 ${versionStr} 已存在 migration 文件，禁止生成：`);
+    console.error(`   已有文件: ${conflictingFile}`);
+    console.error(`   目标文件: ${migrationFileName(versionStr, description)}`);
+    console.error(`   版本号必须唯一，请使用下一个版本号`);
     process.exit(1);
   }
 

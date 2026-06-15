@@ -1,6 +1,9 @@
 package com.fantuan.eatwhat.service;
 
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,15 +19,17 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * 验证 TestFoodDataInitializer 在不同 Spring ApplicationContext 中独立运行。
  *
- * 使用 @DirtiesContext 强制重建 Context：
- *   - 方法 A 在 Context-1 中运行（初始 Context）
- *   - 方法 A 的 @DirtiesContext 标记 Context-1 为脏
- *   - 方法 B 在 Context-2 中运行（全新 Context，TestFoodDataInitializer 再次执行）
+ * 测试顺序由 @Order 明确保证：
+ *   - @Order(1) 方法在 Context-1 中运行（初始 Context）
+ *   - @DirtiesContext 标记 Context-1 为脏
+ *   - @Order(2) 方法在 Context-2 中运行（全新 Context，TestFoodDataInitializer 再次执行）
+ *   - @Order(3) 验证唯一性
  *
  * 两个 Context 各有独立的 H2 内存实例，应各自拥有完整的 CSV 数据。
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class FoodDataPipelineIsolationTest {
 
     @Autowired
@@ -35,6 +40,7 @@ class FoodDataPipelineIsolationTest {
      * @DirtiesContext 标记当前 Context 脏，确保下一个方法获得全新 Context。
      */
     @Test
+    @Order(1)
     @DirtiesContext
     void context1_hasFullCsvData() {
         List<Map<String, Object>> foods = jdbcTemplate.queryForList(
@@ -59,6 +65,7 @@ class FoodDataPipelineIsolationTest {
      * TestFoodDataInitializer 在 Context-2 中再次执行，应重新导入 CSV 全量数据。
      */
     @Test
+    @Order(2)
     void context2_alsoHasFullCsvData() {
         List<Map<String, Object>> foods = jdbcTemplate.queryForList(
                 "SELECT name FROM foods WHERE enabled = 1 ORDER BY name");
@@ -80,6 +87,7 @@ class FoodDataPipelineIsolationTest {
      * 验证 name 唯一性在独立 Context 中也成立。
      */
     @Test
+    @Order(3)
     void namesAreUniqueInIsolatedContext() {
         List<String> names = jdbcTemplate.queryForList(
                 "SELECT name FROM foods WHERE enabled = 1", String.class);
