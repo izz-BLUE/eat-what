@@ -159,7 +159,7 @@ $env:WECHAT_MOCK_ENABLED="true"
 根据参数推荐一道食物。
 
 **推荐逻辑**：
-- 无 token：基础推荐（餐段 + 价格 + 口味 + 随机）
+- 无 token：基础推荐（餐段 + 价格 + 口味 + 分类 + 随机）
 - 有 token：黑名单硬过滤 + 有效不想吃分类硬过滤 + 最近吃过降权
 
 **请求参数**：
@@ -168,6 +168,7 @@ $env:WECHAT_MOCK_ENABLED="true"
 | mealType | string | 否 | 餐段：早餐、午餐、晚餐、夜宵 |
 | priceLevel | string | 否 | 价格偏好：15以内、15-25、25-40、不限 |
 | taste | string | 否 | 口味偏好：清淡、重口、辣、不辣 |
+| categories | string | 否 | 偏好分类，逗号分隔，最多3个，如：快餐,面食,粤菜 |
 
 **请求头**（可选）：
 ```
@@ -209,6 +210,7 @@ Authorization: Bearer {token}
 | priceLevel | string | 否 | 价格偏好 |
 | taste | string | 否 | 口味偏好 |
 | excludeFoodIds | string | 否 | 排除的食物 ID，逗号分隔，如：1,2,3 |
+| categories | string | 否 | 偏好分类，逗号分隔，最多3个 |
 
 **请求头**（可选）：
 ```

@@ -1,0 +1,28 @@
+<!--pages/login/login.wxml-->
+<view class="container login-page">
+  <view class="login-card card">
+    <view class="login-icon">🍽️</view>
+    <view class="login-title">今天吃啥</view>
+    <view class="login-desc">登录后可以保存你的口味偏好和吃过记录</view>
+
+    <button
+      class="btn-primary btn-login"
+      bindtap="handleLogin"
+      disabled="{{loading}}"
+    >
+      {{loading ? '登录中...' : '微信登录'}}
+    </button>
+
+    <view class="login-tip">仅获取基本信息，不会获取你的手机号</view>
+  </view>
+
+  <!-- 返回首页 -->
+  <view class="back-section">
+    <text class="back-link" bindtap="goBack">暂不登录，返回首页</text>
+  </view>
+
+  <!-- 错误状态 -->
+  <view class="error-state" wx:if="{{errorMsg}}">
+    <text>{{errorMsg}}</text>
+  </view>
+</view>

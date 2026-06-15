@@ -1,0 +1,153 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 标题 -->
+  <view class="title-section">
+    <text class="title">今天吃啥</text>
+    <text class="subtitle">帮你决定吃什么</text>
+  </view>
+
+  <!-- 筛选条件 -->
+  <view class="filter-section card">
+    <!-- 餐段 -->
+    <view class="filter-group">
+      <text class="filter-label">餐段</text>
+      <view class="filter-options">
+        <view
+          wx:for="{{mealTypes}}"
+          wx:key="*this"
+          class="filter-option {{selectedMealType === item ? 'active' : ''}}"
+          bindtap="selectMealType"
+          data-value="{{item}}"
+        >
+          {{item}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 预算偏好 -->
+    <view class="filter-group">
+      <text class="filter-label">预算偏好</text>
+      <view class="filter-options">
+        <view
+          wx:for="{{priceLevels}}"
+          wx:key="*this"
+          class="filter-option {{selectedPriceLevel === item ? 'active' : ''}}"
+          bindtap="selectPriceLevel"
+          data-value="{{item}}"
+        >
+          {{item}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 口味 -->
+    <view class="filter-group">
+      <text class="filter-label">口味</text>
+      <view class="filter-options">
+        <view
+          wx:for="{{tastes}}"
+          wx:key="*this"
+          class="filter-option {{selectedTaste === item ? 'active' : ''}}"
+          bindtap="selectTaste"
+          data-value="{{item}}"
+        >
+          {{item}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 偏好分类 -->
+    <view class="filter-group">
+      <text class="filter-label">偏好分类（可选）</text>
+      <view class="filter-options">
+        <!-- 不限 -->
+        <view
+          class="filter-option {{selectedCategories.length === 0 ? 'active' : ''}}"
+          bindtap="selectNoLimit"
+        >
+          不限
+        </view>
+        <!-- 常用分类 -->
+        <view
+          wx:for="{{commonCategoryOptions}}"
+          wx:key="name"
+          class="filter-option {{item.selected ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
+          bindtap="selectCategory"
+          data-value="{{item.name}}"
+        >
+          {{item.name}}
+        </view>
+        <!-- 更多按钮 -->
+        <view
+          class="filter-option more-btn {{showMoreCategories ? 'expanded' : ''}}"
+          bindtap="toggleMoreCategories"
+        >
+          更多 ▾
+        </view>
+      </view>
+      <!-- 更多分类弹层 -->
+      <view class="more-categories" wx:if="{{showMoreCategories}}">
+        <view class="filter-options">
+          <view
+            wx:for="{{moreCategoryOptions}}"
+            wx:key="name"
+            class="filter-option {{item.selected ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
+            bindtap="selectCategory"
+            data-value="{{item.name}}"
+          >
+            {{item.name}}
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 推荐结果 -->
+  <view class="result-section" wx:if="{{recommendResult}}">
+    <view class="card result-card">
+      <view class="food-name">{{recommendResult.food.name}}</view>
+      <view class="food-info">
+        <text class="food-category">{{recommendResult.food.category}}</text>
+        <text class="food-tags" wx:if="{{recommendResult.food.tasteTags}}">{{recommendResult.food.tasteTags}}</text>
+      </view>
+      <view class="food-price">
+        参考价位：{{priceDisplay}}
+      </view>
+      <view class="food-price-note">具体价格因门店、份量和用餐方式而异</view>
+      <view class="reasons" wx:if="{{recommendResult.reasons.length > 0}}">
+        <text class="reason-label">推荐理由：</text>
+        <text wx:for="{{recommendResult.reasons}}" wx:key="*this" class="reason-item">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 主按钮（无推荐结果时显示） -->
+  <view class="main-button-section" wx:if="{{!recommendResult}}">
+    <button class="btn-primary btn-large" bindtap="getRecommend" disabled="{{loading}}">
+      {{loading ? '推荐中...' : '今天吃啥'}}
+    </button>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading" wx:if="{{loading && !recommendResult}}">
+    <text>正在为你推荐...</text>
+  </view>
+
+  <!-- 错误状态 -->
+  <view class="error-state" wx:if="{{errorMsg}}">
+    <text>{{errorMsg}}</text>
+    <button class="btn-secondary" bindtap="getRecommend" style="margin-top: 24rpx;">重试</button>
+  </view>
+</view>
+
+<!-- 固定底部操作栏（有推荐结果时显示） -->
+<view class="bottom-action-bar" wx:if="{{recommendResult}}">
+  <view class="action-buttons">
+    <button class="btn-secondary action-btn" bindtap="swapRecommend" disabled="{{swapCount >= maxSwapCount || loading}}">
+      换一个{{swapCount > 0 ? '(' + swapCount + '/' + maxSwapCount + ')' : ''}}
+    </button>
+    <button class="btn-primary action-btn" bindtap="eatIt" disabled="{{loading}}">
+      我就吃它
+    </button>
+  </view>
+</view>

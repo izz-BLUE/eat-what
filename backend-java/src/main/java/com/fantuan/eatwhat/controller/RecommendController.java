@@ -28,7 +28,7 @@ public class RecommendController {
 
     /**
      * 一键推荐
-     * GET /api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口
+     * GET /api/v1/recommend?mealType=晚餐&priceLevel=15-25&taste=重口&categories=快餐,面食
      *
      * 有 token 时使用个性化过滤（黑名单 + 不想吃 + 最近吃过降权）
      * 无 token 时使用基础推荐
@@ -37,7 +37,8 @@ public class RecommendController {
     public ApiResponse<RecommendResponse> recommend(
             @RequestParam(required = false) String mealType,
             @RequestParam(required = false) String priceLevel,
-            @RequestParam(required = false) String taste) {
+            @RequestParam(required = false) String taste,
+            @RequestParam(required = false) String categories) {
 
         Long userId = UserContext.getUserId(); // 可能为 null
 
@@ -46,6 +47,7 @@ public class RecommendController {
         request.setPriceLevel(priceLevel);
         request.setTaste(taste);
         request.setUserId(userId);
+        request.setCategories(parseCategories(categories));
 
         RecommendResponse response = recommendService.recommend(request);
         if (response == null) {
@@ -56,7 +58,7 @@ public class RecommendController {
 
     /**
      * 换一个
-     * GET /api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2,3
+     * GET /api/v1/recommend/swap?mealType=晚餐&priceLevel=15-25&excludeFoodIds=1,2,3&categories=快餐
      *
      * 有 token 时使用个性化过滤
      * 无 token 时使用基础推荐
@@ -66,7 +68,8 @@ public class RecommendController {
             @RequestParam(required = false) String mealType,
             @RequestParam(required = false) String priceLevel,
             @RequestParam(required = false) String taste,
-            @RequestParam(required = false) String excludeFoodIds) {
+            @RequestParam(required = false) String excludeFoodIds,
+            @RequestParam(required = false) String categories) {
 
         Long userId = UserContext.getUserId(); // 可能为 null
 
@@ -75,6 +78,7 @@ public class RecommendController {
         request.setPriceLevel(priceLevel);
         request.setTaste(taste);
         request.setUserId(userId);
+        request.setCategories(parseCategories(categories));
 
         // 解析 excludeFoodIds
         if (excludeFoodIds != null && !excludeFoodIds.isEmpty()) {
@@ -96,5 +100,20 @@ public class RecommendController {
             return ApiResponse.fail(2002, "没有找到合适的菜品");
         }
         return ApiResponse.success(response);
+    }
+
+    /**
+     * 解析分类参数
+     */
+    private List<String> parseCategories(String categories) {
+        if (categories == null || categories.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(categories.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .limit(3)
+                .collect(Collectors.toList());
     }
 }

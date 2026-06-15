@@ -29,3 +29,11 @@ Thumbs.db
 # 临时文件
 *.tmp
 *.temp
+
+# 小程序
+miniprogram/node_modules/
+miniprogram/project.private.config.json
+
+# 小程序项目配置（各自本地配置）
+/project.config.json
+/project.private.config.json
