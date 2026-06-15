@@ -5,13 +5,15 @@ const app = getApp<IApp>()
 Page({
   data: {
     nickname: '',
-    isLoggedIn: false
+    isLoggedIn: false,
+    _loginRedirecting: false
   },
 
   onShow() {
     this.setData({
       nickname: app.globalData.nickname || '未设置昵称',
-      isLoggedIn: app.isLoggedIn()
+      isLoggedIn: app.isLoggedIn(),
+      _loginRedirecting: false
     })
   },
 
@@ -36,6 +38,8 @@ Page({
 
   checkLogin(): boolean {
     if (!app.isLoggedIn()) {
+      if (this.data._loginRedirecting) return false
+      this.setData({ _loginRedirecting: true })
       wx.navigateTo({ url: '/pages/login/login' })
       return false
     }
