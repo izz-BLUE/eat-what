@@ -10,7 +10,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -539,6 +539,119 @@ describe('Migration SQL 生成', () => {
     const sql3 = generateMigrationSQL(rows, 'V8', 'continuous_test');
     assert.equal(sql1, sql2);
     assert.equal(sql2, sql3);
+  });
+});
+
+// ============================================================
+// 测试：CLI 集成（run 函数）
+// ============================================================
+
+describe('CLI 集成：run() 冲突拒绝', () => {
+  let run;
+  let taxonomy;
+
+  before(async () => {
+    clearTaxonomyCache();
+    taxonomy = readTaxonomy();
+    const cliMod = await import('../generate-food-migration.mjs');
+    run = cliMod.run;
+  });
+
+  after(() => {
+    cleanupTmpDir();
+  });
+
+  // --- CLI 拒绝同版本 V8（真实调用 run 函数，不直接调 findExistingMigration） ---
+  it('CLI run() 拒绝同版本 V8：已有 V8__existing.sql 时禁止生成另一个 V8', () => {
+    createTmpDir();
+
+    // 写一个合法的最小 CSV
+    const csvContent = makeCSVHeader() + '\n'
+      + makeCSVLine('测试菜A', '快餐', '小吃', '', '午餐|晚餐', '辣', '1', 'true') + '\n'
+      + makeCSVLine('测试菜B', '快餐', '小吃', '', '午餐|晚餐', '辣', '1', 'true');
+    const csvPath = writeTmpCSV('cli-test.csv', csvContent);
+
+    // 预先在 migration 目录中创建 V8__existing.sql
+    const existingPath = resolve(tmpMigrationDir, 'V8__existing.sql');
+    writeFileSync(existingPath, '-- dummy migration', 'utf-8');
+    assert.ok(existsSync(existingPath), 'V8__existing.sql 应已创建');
+
+    // 记录创建前的文件列表
+    const filesBefore = readdirSync(tmpMigrationDir).filter(f => f.endsWith('.sql'));
+    assert.equal(filesBefore.length, 1, '初始应有 1 个 sql 文件');
+
+    // 捕获 stderr
+    const stderrLines = [];
+    const stderr = (msg) => { stderrLines.push(msg); };
+
+    // 实际调用 run()
+    const result = run(['V8', 'test_migration'], {
+      migrationDir: tmpMigrationDir,
+      csvPath: csvPath,
+      stderr: stderr,
+    });
+
+    // 断言：应失败
+    assert.equal(result.ok, false, 'run() 应返回 ok=false');
+    assert.ok(result.error, '应有错误消息');
+    assert.ok(
+      result.error.includes('V8') || result.error.includes('已存在'),
+      `错误消息应提及版本冲突: ${result.error}`
+    );
+
+    // 断言：不是 ReferenceError
+    assert.ok(!result.error.includes('ReferenceError'), '不应是 ReferenceError');
+    assert.ok(!result.error.includes('is not defined'), '不应是未定义变量错误');
+
+    // 断言：stderr 中应包含冲突信息
+    const stderrText = stderrLines.join('\n');
+    assert.ok(
+      stderrText.includes('V8') && stderrText.includes('已存在'),
+      `stderr 应包含版本冲突信息: ${stderrText}`
+    );
+
+    // 断言：没有生成第二个 V8 文件
+    const filesAfter = readdirSync(tmpMigrationDir).filter(f => f.endsWith('.sql'));
+    assert.equal(filesAfter.length, 1, '不应生成第二个文件');
+    assert.equal(filesAfter[0], 'V8__existing.sql', '原有文件不受影响');
+    assert.ok(!existsSync(resolve(tmpMigrationDir, 'V8__test_migration.sql')),
+      '不应生成 V8__test_migration.sql');
+
+    console.log('✅ CLI run() 正确拒绝同版本冲突');
+  });
+
+  // --- CLI 成功生成 V9（同一 migration 目录中 V8 已存在但不冲突） ---
+  it('CLI run() 成功生成 V9：同一目录已有 V8 时 V9 不受阻止', () => {
+    createTmpDir();
+
+    const csvContent = makeCSVHeader() + '\n'
+      + makeCSVLine('测试菜A', '快餐', '小吃', '', '午餐|晚餐', '辣', '1', 'true') + '\n'
+      + makeCSVLine('测试菜B', '快餐', '小吃', '', '午餐|晚餐', '辣', '1', 'true');
+    const csvPath = writeTmpCSV('cli-test2.csv', csvContent);
+
+    // 预先创建 V8__existing.sql
+    writeFileSync(resolve(tmpMigrationDir, 'V8__existing.sql'), '-- dummy', 'utf-8');
+
+    const stderrLines = [];
+    const stderr = (msg) => { stderrLines.push(msg); };
+
+    const result = run(['V9', 'new_migration'], {
+      migrationDir: tmpMigrationDir,
+      csvPath: csvPath,
+      stderr: stderr,
+    });
+
+    assert.equal(result.ok, true, `run() 应返回 ok=true，实际: ${JSON.stringify(result)}`);
+    assert.ok(result.outputPath, '应有 outputPath');
+    assert.ok(result.outputPath.includes('V9__new_migration.sql'), '输出路径应包含 V9');
+    assert.equal(result.count, 2, '应有 2 道菜');
+    assert.ok(existsSync(result.outputPath), 'V9 文件应存在');
+
+    // 两个文件都存在
+    const files = readdirSync(tmpMigrationDir).filter(f => f.endsWith('.sql'));
+    assert.equal(files.length, 2, '应有 V8 和 V9 两个文件');
+
+    console.log('✅ CLI run() 成功生成 V9（V8 不冲突）');
   });
 });
 
