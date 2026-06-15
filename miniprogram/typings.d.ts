@@ -7,6 +7,7 @@ interface IApp {
     nickname: string
     avatarUrl: string
     pendingRecord: any
+    pendingBlacklist: any
   }
   saveLoginInfo(data: { token: string; userId: number; nickname: string; avatarUrl: string }): void
   clearLoginInfo(): void

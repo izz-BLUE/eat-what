@@ -1,0 +1,44 @@
+<!--pages/dislike/dislike.wxml-->
+<view class="container">
+  <!-- 添加不想吃 -->
+  <view class="card add-section">
+    <text class="section-title">添加限制</text>
+    <view class="filter-options">
+      <view
+        wx:for="{{categories}}"
+        wx:key="*this"
+        class="cat-option {{selectedCategory === item ? 'active' : ''}}"
+        bindtap="selectCategory"
+        data-value="{{item}}"
+      >{{item}}</view>
+    </view>
+    <text class="section-title">有效期</text>
+    <view class="filter-options">
+      <view
+        wx:for="{{dayOptions}}"
+        wx:key="value"
+        class="cat-option {{selectedDays === item.value ? 'active' : ''}}"
+        bindtap="selectDays"
+        data-value="{{item.value}}"
+      >{{item.label}}</view>
+    </view>
+    <button class="btn-primary" bindtap="handleAdd" disabled="{{adding}}" style="margin-top:32rpx;">
+      {{adding ? '添加中...' : '添加'}}
+    </button>
+  </view>
+
+  <!-- 当前不想吃列表 -->
+  <view class="loading" wx:if="{{loading}}"><text>加载中...</text></view>
+  <view class="empty-state" wx:elif="{{items.length === 0}}"><text>最近没有暂时不想吃的分类</text></view>
+  <block wx:for="{{items}}" wx:key="id">
+    <view class="dislike-item">
+      <view class="item-info">
+        <text class="item-cat">{{item.category}}</text>
+        <text class="item-expire">至 {{item.expiresAt}}</text>
+      </view>
+      <button class="btn-remove" bindtap="handleRemove" data-id="{{item.id}}" data-cat="{{item.category}}" disabled="{{removing === item.id}}">
+        {{removing === item.id ? '解除中' : '解除'}}
+      </button>
+    </view>
+  </block>
+</view>

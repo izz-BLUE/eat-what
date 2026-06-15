@@ -1,0 +1,55 @@
+/* pages/history/history.wxss */
+
+.record-item {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 16rpx;
+}
+
+.record-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-bottom: 12rpx;
+}
+
+.record-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.record-meal {
+  font-size: 26rpx;
+  color: #FF6B35;
+  background: #FFF3E8;
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.record-stars {
+  margin-left: auto;
+}
+
+.star {
+  font-size: 28rpx;
+  color: #ddd;
+}
+
+.star.active {
+  color: #FFD700;
+}
+
+.record-note {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+  word-break: break-all;
+}
+
+.record-time {
+  font-size: 24rpx;
+  color: #999;
+}
