@@ -1,8 +1,12 @@
 // pages/login/login.ts
 
-import { login, addBlacklist } from '../../services/api'
+import { login, addBlacklist, decideFood } from '../../services/api'
+import { CurrentMealDecision } from '../../types/index'
 
 const app = getApp<IApp>()
+
+const DECISION_KEY = 'currentMealDecision'
+const DECISION_VERSION = 2
 
 Page({
   data: {
@@ -31,15 +35,50 @@ Page({
         avatarUrl: result.avatarUrl
       })
 
-      // 4. 优先处理待记录菜品
-      const pendingRecord = app.globalData.pendingRecord
-      app.globalData.pendingRecord = null
-      if (pendingRecord) {
+      // 4. 优先处理待决定菜品（新流程）
+      const pendingDecision = app.globalData.pendingDecision
+      app.globalData.pendingDecision = null
+      if (pendingDecision) {
+        try {
+          const record = await decideFood({
+            foodId: pendingDecision.foodId,
+            mealType: pendingDecision.mealType
+          })
+
+          // 保存本地决定
+          const decision: CurrentMealDecision = {
+            version: DECISION_VERSION,
+            recordId: record.id,
+            foodId: pendingDecision.foodId,
+            foodName: pendingDecision.foodName,
+            category: pendingDecision.category,
+            mealType: pendingDecision.mealType,
+            decidedAt: new Date().toISOString()
+          }
+          try {
+            wx.setStorageSync(DECISION_KEY, decision)
+          } catch (e) { /* ignore */ }
+
+          // 写入 pendingResult 供首页 onShow 消费
+          app.globalData.pendingResult = {
+            type: 'decision',
+            foodId: pendingDecision.foodId,
+            foodName: pendingDecision.foodName || ''
+          }
+        } catch (e: any) {
+          // 决定失败：保留 pendingDecision，停留登录页允许重试
+          this.setData({ loading: false, errorMsg: e.message || '决定失败，请重试' })
+          app.globalData.pendingDecision = pendingDecision // 恢复待办
+          return
+        }
         wx.showToast({ title: '登录成功', icon: 'success' })
-        wx.redirectTo({
-          url: `/pages/record/record?foodId=${pendingRecord.foodId}&foodName=${encodeURIComponent(pendingRecord.foodName)}&category=${encodeURIComponent(pendingRecord.category)}&mealType=${encodeURIComponent(pendingRecord.mealType || '')}`
-        })
-        return // 已导航，不继续 setData
+        const pages = getCurrentPages()
+        if (pages.length > 1) {
+          wx.navigateBack()
+        } else {
+          wx.redirectTo({ url: '/pages/index/index' })
+        }
+        return
       }
 
       // 5. 处理待拉黑
@@ -47,7 +86,6 @@ Page({
       if (pendingBlacklist) {
         try {
           await addBlacklist({ foodId: pendingBlacklist.foodId, reason: pendingBlacklist.reason })
-          // 成功：写入 pendingResult 供首页 onShow 消费
           app.globalData.pendingResult = {
             type: 'blacklist',
             foodId: pendingBlacklist.foodId,
@@ -55,11 +93,9 @@ Page({
           }
           app.globalData.pendingBlacklist = null
         } catch (e: any) {
-          // 失败：保留 pendingBlacklist，停留登录页允许重试
           this.setData({ loading: false, errorMsg: e.message || '加入黑名单失败，请重试' })
-          return // 不导航，不继续
+          return
         }
-        // 成功：导航回首页
         wx.showToast({ title: '登录成功', icon: 'success' })
         const pages = getCurrentPages()
         if (pages.length > 1) {
@@ -102,7 +138,7 @@ Page({
 
   // 返回首页（暂不登录，清除 pending 状态）
   goBack() {
-    app.globalData.pendingRecord = null
+    app.globalData.pendingDecision = null
     app.globalData.pendingBlacklist = null
     const pages = getCurrentPages()
     if (pages.length > 1) {
@@ -114,7 +150,7 @@ Page({
 
   // 页面卸载时清除 pending 状态
   onUnload() {
-    app.globalData.pendingRecord = null
+    app.globalData.pendingDecision = null
     app.globalData.pendingBlacklist = null
   }
 })

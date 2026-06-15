@@ -31,6 +31,8 @@
 | 2007 | 黑名单记录不存在 |
 | 2008 | 不想吃记录不存在 |
 | 2009 | 微信登录失败 |
+| 2010 | 记录不存在 |
+| 2011 | 记录状态不允许此操作 |
 | 5001 | 系统错误 |
 
 ---
@@ -81,8 +83,13 @@ $env:WECHAT_MOCK_ENABLED="true"
 | 2 | /api/v1/foods | GET | 无需登录 | 查询菜品列表 |
 | 3 | /api/v1/recommend | GET | 可选登录 | 一键推荐 |
 | 4 | /api/v1/recommend/swap | GET | 可选登录 | 换一个 |
-| 5 | /api/v1/record/eat | POST | 必须登录 | 我就吃它 |
-| 6 | /api/v1/record/list | GET | 必须登录 | 吃过记录列表 |
+| 5 | /api/v1/record/eat | POST | 必须登录 | 我就吃它（旧接口，保留兼容） |
+| 6 | /api/v1/record/decide | POST | 必须登录 | 决定吃什么（创建 DECIDED 记录） |
+| 7 | /api/v1/record/{id}/complete | POST | 必须登录 | 完成用餐（DECIDED → EATEN） |
+| 8 | /api/v1/record/{id}/review | PUT | 必须登录 | 修改已吃记录的评价 |
+| 9 | /api/v1/record/{id}/decision | DELETE | 必须登录 | 取消决定（删除 DECIDED 记录） |
+| 10 | /api/v1/record/{id} | GET | 必须登录 | 获取单条记录详情 |
+| 11 | /api/v1/record/list | GET | 必须登录 | 吃过记录列表 |
 | 7 | /api/v1/blacklist/add | POST | 必须登录 | 加入黑名单 |
 | 8 | /api/v1/blacklist/list | GET | 必须登录 | 黑名单列表 |
 | 9 | /api/v1/blacklist/{blacklistId} | DELETE | 必须登录 | 移出黑名单 |
@@ -255,13 +262,17 @@ Authorization: Bearer {token}
 
 ---
 
-## 吃过记录相关
+## 吃过记录相关（两阶段生命周期）
 
-### 5. 我就吃它
+用餐记录采用两阶段生命周期：
+1. **DECIDED（已决定）**：用户点击"我就吃它"时创建，表示"今天决定吃这个"
+2. **EATEN（已完成）**：用户吃完后评价，从 DECIDED 转为 EATEN
+
+### 5. 我就吃它（旧接口，保留兼容）
 
 **POST** `/api/v1/record/eat`
 
-记录用户选择吃某道食物。**需要登录**。
+直接创建 EATEN 记录，保留兼容旧版本。
 
 **请求头**：
 ```
@@ -274,17 +285,43 @@ Authorization: Bearer {token}
   "foodId": 31,
   "mealType": "晚餐",
   "rating": 5,
-  "note": "今天加了个蛋，很好吃"
+  "note": "很好吃"
 }
 ```
 
-**请求参数说明**：
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | foodId | long | 是 | 食物ID |
 | mealType | string | 是 | 餐段：早餐、午餐、晚餐、夜宵 |
 | rating | int | 否 | 评分 1-5 |
 | note | string | 否 | 备注，最长 256 字符 |
+
+---
+
+### 6. 决定吃什么
+
+**POST** `/api/v1/record/decide`
+
+创建 DECIDED 记录。事务+行锁保证并发下每个用户最多一条 DECIDED。
+同一菜品重复决定幂等返回原记录；不同菜品决定时替换旧 DECIDED。
+
+**请求头**：
+```
+Authorization: Bearer {token}
+```
+
+**请求参数**：
+```json
+{
+  "foodId": 31,
+  "mealType": "晚餐"
+}
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| foodId | long | 是 | 食物ID |
+| mealType | string | 是 | 餐段：早餐、午餐、晚餐、夜宵 |
 
 **响应数据**：
 ```json
@@ -296,25 +333,76 @@ Authorization: Bearer {token}
     "foodId": 31,
     "foodName": "猪脚饭",
     "mealType": "晚餐",
-    "rating": 5,
-    "note": "今天加了个蛋，很好吃",
-    "eatenAt": "2024-01-15T12:30:00"
+    "status": "DECIDED",
+    "rating": null,
+    "note": null,
+    "eatenAt": null,
+    "decidedAt": "2024-01-15T12:30:00",
+    "category": "快餐"
   }
 }
 ```
 
 ---
 
-### 6. 获取吃过记录
+### 7. 完成用餐
+
+**POST** `/api/v1/record/{recordId}/complete`
+
+将 DECIDED 记录转为 EATEN。要求记录属于当前用户且状态为 DECIDED。
+
+**请求参数**：
+```json
+{
+  "rating": 5,
+  "note": "很好吃"
+}
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| rating | int | 否 | 评分 1-5 |
+| note | string | 否 | 备注，最长 256 字符 |
+
+---
+
+### 8. 修改评价
+
+**PUT** `/api/v1/record/{recordId}/review`
+
+修改已吃记录的评分和备注。要求记录属于当前用户且状态为 EATEN。
+
+**请求参数**：
+```json
+{
+  "rating": 4,
+  "note": "还不错"
+}
+```
+
+---
+
+### 9. 取消决定
+
+**DELETE** `/api/v1/record/{recordId}/decision`
+
+删除 DECIDED 记录。要求记录属于当前用户且状态为 DECIDED。EATEN 记录不可删除。
+
+---
+
+### 10. 获取单条记录
+
+**GET** `/api/v1/record/{recordId}`
+
+获取单条记录详情（含 foodName、category）。要求记录属于当前用户。
+
+---
+
+### 11. 获取吃过记录列表
 
 **GET** `/api/v1/record/list`
 
-获取用户吃过的食物记录列表。**需要登录**。
-
-**请求头**：
-```
-Authorization: Bearer {token}
-```
+获取用户用餐记录列表。**需要登录**。排序：DECIDED 排最前，然后按时间倒序。
 
 **请求参数**：
 | 参数 | 类型 | 必填 | 说明 |
@@ -328,13 +416,28 @@ Authorization: Bearer {token}
   "message": "success",
   "data": [
     {
+      "id": 2,
+      "foodId": 32,
+      "foodName": "黄焖鸡",
+      "mealType": "午餐",
+      "status": "DECIDED",
+      "rating": null,
+      "note": null,
+      "eatenAt": null,
+      "decidedAt": "2024-01-15T12:30:00",
+      "category": "快餐"
+    },
+    {
       "id": 1,
       "foodId": 31,
       "foodName": "猪脚饭",
       "mealType": "晚餐",
+      "status": "EATEN",
       "rating": 5,
-      "note": "今天加了个蛋，很好吃",
-      "eatenAt": "2024-01-15T12:30:00"
+      "note": "很好吃",
+      "eatenAt": "2024-01-14T18:30:00",
+      "decidedAt": null,
+      "category": "快餐"
     }
   ]
 }
@@ -344,7 +447,7 @@ Authorization: Bearer {token}
 
 ## 黑名单相关
 
-### 7. 加入黑名单
+### 12. 加入黑名单
 
 **POST** `/api/v1/blacklist/add`
 
@@ -387,7 +490,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 8. 获取黑名单列表
+### 13. 获取黑名单列表
 
 **GET** `/api/v1/blacklist/list`
 
@@ -418,7 +521,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 9. 移出黑名单
+### 14. 移出黑名单
 
 **DELETE** `/api/v1/blacklist/{blacklistId}`
 
@@ -442,7 +545,7 @@ Authorization: Bearer {token}
 
 ## 不想吃相关
 
-### 10. 添加不想吃
+### 15. 添加不想吃
 
 **POST** `/api/v1/dislike/add`
 
@@ -483,7 +586,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 11. 获取不想吃列表
+### 16. 获取不想吃列表
 
 **GET** `/api/v1/dislike/list`
 
@@ -512,7 +615,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 12. 解除不想吃
+### 17. 解除不想吃
 
 **DELETE** `/api/v1/dislike/{dislikeId}`
 
@@ -606,16 +709,47 @@ Invoke-RestMethod "http://localhost:8080/api/v1/foods?category=快餐" | Convert
 
 # ========== 吃过记录接口（需要登录） ==========
 
-# 我就吃它
+# 我就吃它（旧接口，保留兼容）
 Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/record/eat" `
   -ContentType "application/json; charset=utf-8" `
   -Headers @{Authorization="Bearer $token"} `
   -Body ([System.Text.Encoding]::UTF8.GetBytes('{"foodId":31,"mealType":"晚餐","rating":5,"note":"很好吃"}')) `
   | ConvertTo-Json -Depth 8
 
-# 查询吃过记录
+# 决定吃什么（新接口）
+$decideResult = Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/record/decide" `
+  -ContentType "application/json; charset=utf-8" `
+  -Headers @{Authorization="Bearer $token"} `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"foodId":31,"mealType":"晚餐"}'))
+$recordId = $decideResult.data.id
+
+# 查询单条记录
+Invoke-RestMethod "http://localhost:8080/api/v1/record/$recordId" `
+  -Headers @{Authorization="Bearer $token"} | ConvertTo-Json -Depth 8
+
+# 完成用餐
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/record/$recordId/complete" `
+  -ContentType "application/json; charset=utf-8" `
+  -Headers @{Authorization="Bearer $token"} `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"rating":5,"note":"很好吃"}'))
+
+# 查询吃过记录列表
 Invoke-RestMethod "http://localhost:8080/api/v1/record/list" `
   -Headers @{Authorization="Bearer $token"} | ConvertTo-Json -Depth 8
+
+# 修改评价
+Invoke-RestMethod -Method PUT -Uri "http://localhost:8080/api/v1/record/$recordId/review" `
+  -ContentType "application/json; charset=utf-8" `
+  -Headers @{Authorization="Bearer $token"} `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"rating":4,"note":"还不错"}'))
+
+# 取消决定（先重新决定一个再取消）
+$decideResult2 = Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/record/decide" `
+  -ContentType "application/json; charset=utf-8" `
+  -Headers @{Authorization="Bearer $token"} `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"foodId":32,"mealType":"午餐"}'))
+Invoke-RestMethod -Method DELETE -Uri "http://localhost:8080/api/v1/record/$($decideResult2.data.id)/decision" `
+  -Headers @{Authorization="Bearer $token"}
 
 # ========== 黑名单接口（需要登录） ==========
 
@@ -673,7 +807,6 @@ Invoke-RestMethod "http://localhost:8080/api/health" | ConvertTo-Json -Depth 8
 
 | 接口 | 说明 | 计划版本 |
 |------|------|----------|
-| /record/{id} | 更新/删除记录 | v1.1 |
 | /preference/list | 获取用户偏好 | v1.1 |
 | /preference/update | 更新用户偏好 | v1.1 |
 | /vote/{id}/end | 结束投票 | v1.1 |

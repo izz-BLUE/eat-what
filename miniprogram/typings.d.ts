@@ -1,7 +1,7 @@
 /// <reference path="./node_modules/miniprogram-api-typings/types/wx/index.d.ts" />
 
 interface PendingResult {
-  type: 'blacklist' | 'record'
+  type: 'blacklist' | 'decision'
   foodId: number
   foodName: string
 }
@@ -12,7 +12,7 @@ interface IApp {
     userId: number
     nickname: string
     avatarUrl: string
-    pendingRecord: any
+    pendingDecision: any
     pendingBlacklist: any
     pendingResult: PendingResult | null
   }

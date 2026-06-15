@@ -40,9 +40,12 @@ export interface EatRecordData {
   foodId: number
   foodName: string
   mealType: string
+  status: string          // 'DECIDED' | 'EATEN'
   rating: number | null
   note: string
-  eatenAt: string
+  eatenAt: string | null
+  decidedAt: string | null
+  category: string
 }
 
 /** 推荐参数 */
@@ -54,10 +57,28 @@ export interface RecommendParams {
   categories?: string
 }
 
-/** 吃过记录请求 */
+/** 吃过记录请求（旧接口兼容） */
 export interface EatRecordRequest {
   foodId: number
   mealType: string
+  rating?: number
+  note?: string
+}
+
+/** 决定吃什么请求 */
+export interface DecideRecordRequest {
+  foodId: number
+  mealType: string
+}
+
+/** 完成用餐请求 */
+export interface CompleteRecordRequest {
+  rating?: number
+  note?: string
+}
+
+/** 修改评价请求 */
+export interface ReviewRecordRequest {
   rating?: number
   note?: string
 }
@@ -106,4 +127,32 @@ export interface PendingBlacklist {
   foodId: number
   foodName: string
   reason: string
+}
+
+/** 待决定的菜品（未登录时暂存） */
+export interface PendingDecision {
+  foodId: number
+  foodName: string
+  category: string
+  mealType: string
+}
+
+/** 筛选偏好（本地持久化） */
+export interface RecommendFilterPreferences {
+  version: number
+  mealType: string
+  priceLevel: string
+  taste: string
+  categories: string[]
+}
+
+/** 当前就餐决定（本地存储，v2 含 recordId） */
+export interface CurrentMealDecision {
+  version: number
+  recordId: number
+  foodId: number
+  foodName: string
+  category: string
+  mealType: string
+  decidedAt: string
 }

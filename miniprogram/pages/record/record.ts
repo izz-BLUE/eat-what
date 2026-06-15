@@ -1,41 +1,53 @@
 // pages/record/record.ts
 
-import { eatFood } from '../../services/api'
+import { getRecord, completeRecord, reviewRecord } from '../../services/api'
+
+const app = getApp<IApp>()
 
 Page({
   data: {
-    foodId: 0,
+    recordId: 0,
     foodName: '',
     category: '',
-    mealTypes: ['早餐', '午餐', '晚餐', '夜宵'],
-    selectedMealType: '',
+    mealType: '',        // 只读展示，来自服务端
+    status: '',          // 'DECIDED' | 'EATEN'，来自 GET /record/{id}
     rating: 0,
     note: '',
     submitting: false,
     submitted: false,
-    errorMsg: ''
+    errorMsg: '',
+    loading: true        // 加载详情中
   },
 
-  onLoad(options) {
-    const foodId = Number(options.foodId) || 0
-    if (!foodId) {
-      wx.showToast({ title: '菜品信息无效', icon: 'none' })
+  async onLoad(options) {
+    const recordId = Number(options.recordId) || 0
+    if (!recordId) {
+      wx.showToast({ title: '记录信息无效', icon: 'none' })
       setTimeout(() => wx.redirectTo({ url: '/pages/index/index' }), 1500)
       return
     }
-    this.setData({
-      foodId,
-      foodName: decodeURIComponent(options.foodName || ''),
-      category: decodeURIComponent(options.category || ''),
-      selectedMealType: decodeURIComponent(options.mealType || '')
-    })
-  },
+    this.setData({ recordId })
 
-  selectMealType(e: WechatMiniprogram.TouchEvent) {
-    const value = e.currentTarget.dataset.value as string
-    this.setData({
-      selectedMealType: this.data.selectedMealType === value ? '' : value
-    })
+    // 调服务端获取真实详情（不信任 URL 参数）
+    try {
+      const record = await getRecord(recordId)
+      this.setData({
+        foodName: record.foodName,
+        category: record.category,
+        mealType: record.mealType,
+        status: record.status,
+        rating: record.rating || 0,
+        note: record.note || '',
+        loading: false
+      })
+    } catch (err: any) {
+      if (err.message === 'NEED_LOGIN') {
+        wx.navigateTo({ url: '/pages/login/login' })
+        return
+      }
+      wx.showToast({ title: err.message || '加载失败', icon: 'none' })
+      setTimeout(() => wx.redirectTo({ url: '/pages/index/index' }), 1500)
+    }
   },
 
   setRating(e: WechatMiniprogram.TouchEvent) {
@@ -50,14 +62,9 @@ Page({
   },
 
   async submitRecord() {
-    // 校验
-    if (!this.data.foodId || this.data.foodId <= 0) {
-      wx.showToast({ title: '菜品信息无效', icon: 'none' })
+    if (!this.data.recordId || this.data.recordId <= 0) {
+      wx.showToast({ title: '记录信息无效', icon: 'none' })
       setTimeout(() => wx.redirectTo({ url: '/pages/index/index' }), 1500)
-      return
-    }
-    if (!this.data.selectedMealType) {
-      wx.showToast({ title: '请选择餐段', icon: 'none' })
       return
     }
 
@@ -69,29 +76,48 @@ Page({
     this.setData({ submitting: true, errorMsg: '' })
 
     try {
-      const data: any = {
-        foodId: this.data.foodId,
-        mealType: this.data.selectedMealType
-      }
-
+      const data: any = {}
       if (this.data.rating > 0) {
         data.rating = this.data.rating
       }
-
       if (this.data.note) {
         data.note = this.data.note
       }
 
-      await eatFood(data)
+      // 根据服务端状态选择接口：DECIDED → complete, EATEN → review
+      if (this.data.status === 'DECIDED') {
+        await completeRecord(this.data.recordId, data)
+      } else {
+        await reviewRecord(this.data.recordId, data)
+      }
+
+      // 清除匹配 recordId 的本地决定
+      try {
+        const raw = wx.getStorageSync('currentMealDecision')
+        if (raw) {
+          let obj: any = raw
+          if (typeof raw === 'string') {
+            try { obj = JSON.parse(raw) } catch (e) { obj = null }
+          }
+          if (obj && obj.recordId === this.data.recordId) {
+            wx.removeStorageSync('currentMealDecision')
+          }
+        }
+      } catch (e) { /* ignore */ }
+
+      // 清除匹配 recordId 的 pendingDecision
+      if (app.globalData.pendingDecision) {
+        app.globalData.pendingDecision = null
+      }
 
       this.setData({ submitted: true })
-      wx.showToast({ title: '记录成功', icon: 'success' })
+      wx.showToast({ title: this.data.status === 'DECIDED' ? '记录成功' : '评价已更新', icon: 'success' })
     } catch (err: any) {
       if (err.message === 'NEED_LOGIN') {
         wx.navigateTo({ url: '/pages/login/login' })
         return
       }
-      this.setData({ errorMsg: err.message || '记录失败，请重试' })
+      this.setData({ errorMsg: err.message || '提交失败，请重试' })
     } finally {
       this.setData({ submitting: false })
     }

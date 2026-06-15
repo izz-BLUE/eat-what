@@ -37,6 +37,11 @@ public class EatRecordResponse {
     private String mealType;
 
     /**
+     * 状态：DECIDED-已决定，EATEN-已吃
+     */
+    private String status;
+
+    /**
      * 评分
      */
     private Integer rating;
@@ -47,7 +52,17 @@ public class EatRecordResponse {
     private String note;
 
     /**
-     * 吃的时间
+     * 吃的时间（DECIDED 状态时为空）
      */
     private LocalDateTime eatenAt;
+
+    /**
+     * 决定时间
+     */
+    private LocalDateTime decidedAt;
+
+    /**
+     * 食物分类
+     */
+    private String category;
 }

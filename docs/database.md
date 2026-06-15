@@ -161,23 +161,27 @@ CREATE TABLE `foods` (
 
 ### 3. eat_records - 吃过记录表
 
-记录用户吃过的食物：评分、备注等。用于"我就吃它"功能。
+记录用户吃过的食物，采用两阶段生命周期：DECIDED（已决定）→ EATEN（已吃）。
 
 ```sql
 CREATE TABLE `eat_records` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `user_id` BIGINT NOT NULL COMMENT '用户ID',
   `food_id` BIGINT NOT NULL COMMENT '食物ID',
+  `meal_type` VARCHAR(16) DEFAULT '' COMMENT '餐段：早餐、午餐、晚餐、夜宵',
+  `status` VARCHAR(16) NOT NULL DEFAULT 'EATEN' COMMENT '状态：DECIDED-已决定，EATEN-已吃',
+  `decided_at` DATETIME NULL COMMENT '决定时间',
   `rating` TINYINT DEFAULT NULL COMMENT '评分（1-5）',
   `note` VARCHAR(256) DEFAULT '' COMMENT '备注',
-  `eaten_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '吃的时间',
+  `eaten_at` DATETIME NULL COMMENT '吃的时间',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_user_food_eaten_at` (`user_id`, `food_id`, `eaten_at`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_food_id` (`food_id`),
-  KEY `idx_eaten_at` (`eaten_at`)
+  KEY `idx_eaten_at` (`eaten_at`),
+  KEY `idx_user_status_decided` (`user_id`, `status`, `decided_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='吃过记录表';
 ```
 
@@ -187,13 +191,20 @@ CREATE TABLE `eat_records` (
 | id | BIGINT | 是 | 主键，自增 |
 | user_id | BIGINT | 是 | 用户ID，关联 users.id |
 | food_id | BIGINT | 是 | 食物ID，关联 foods.id |
+| meal_type | VARCHAR(16) | 否 | 餐段：早餐、午餐、晚餐、夜宵 |
+| status | VARCHAR(16) | 是 | 状态：DECIDED（已决定）/ EATEN（已吃），默认 EATEN |
+| decided_at | DATETIME | 否 | 决定时间（仅 DECIDED 状态时有值） |
 | rating | TINYINT | 否 | 评分 1-5 |
 | note | VARCHAR(256) | 否 | 备注 |
-| eaten_at | DATETIME | 是 | 吃的时间 |
+| eaten_at | DATETIME | 否 | 吃的时间（DECIDED 状态时为空） |
 | created_at | DATETIME | 是 | 创建时间 |
 | updated_at | DATETIME | 是 | 更新时间 |
 
-**索引说明**：用户可能多次吃同一个食物，吃过记录允许多条。
+**业务规则**：
+- 同一用户最多一条 DECIDED 记录（通过事务+行锁保证）
+- 同一菜品重复决定幂等返回原记录
+- 推荐算法中最近吃过降权仅统计 status='EATEN' 的记录
+- DECIDED 记录不参与最近吃过降权
 
 ---
 
@@ -403,6 +414,7 @@ CREATE TABLE `vote_records` (
 |------|--------|------|------|------|
 | users | uk_openid | openid | UNIQUE | 用户唯一标识 |
 | eat_records | idx_user_food_eaten_at | user_id, food_id, eaten_at | INDEX | 查询用户吃某食物的记录 |
+| eat_records | idx_user_status_decided | user_id, status, decided_at | INDEX | 查询用户当前 DECIDED 记录 |
 | user_blacklist | uk_user_food | user_id, food_id | UNIQUE | 防止重复拉黑 |
 | user_prefs | uk_user_category | user_id, category | UNIQUE | 用户偏好唯一 |
 | user_dislikes | uk_user_category | user_id, category | UNIQUE | 不想吃唯一 |
@@ -471,16 +483,26 @@ INSERT INTO `foods` (`name`, `category`, `taste_tags`, `price_level`) VALUES
 
 ## 常用查询
 
-### 查询用户最近 7 天吃过的食物
+### 查询用户最近 7 天吃过的食物（仅 EATEN）
 
 ```sql
-SELECT f.id, f.name, f.category, uf.eaten_at
-FROM eat_records uf
-JOIN foods f ON uf.food_id = f.id
-WHERE uf.user_id = ?
-  AND uf.status = 'eaten'
-  AND uf.eaten_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-ORDER BY uf.eaten_at DESC;
+SELECT f.id, f.name, f.category, er.eaten_at
+FROM eat_records er
+JOIN foods f ON er.food_id = f.id
+WHERE er.user_id = ?
+  AND er.status = 'EATEN'
+  AND er.eaten_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+ORDER BY er.eaten_at DESC;
+```
+
+### 查询用户当前 DECIDED 记录
+
+```sql
+SELECT er.id, f.name, f.category, er.meal_type, er.decided_at
+FROM eat_records er
+JOIN foods f ON er.food_id = f.id
+WHERE er.user_id = ? AND er.status = 'DECIDED'
+LIMIT 1;
 ```
 
 ### 查询用户黑名单食物

@@ -34,7 +34,18 @@
 }
 
 .filter-section {
+  margin-bottom: 0;
+}
+
+.reset-section {
+  text-align: right;
   margin-bottom: 32rpx;
+}
+
+.reset-link {
+  font-size: 24rpx;
+  color: #bbb;
+  padding: 8rpx 16rpx;
 }
 
 .filter-group {
@@ -206,4 +217,32 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.blacklist-action {
+  margin-top: 16rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 已决定状态 */
+.decision-card {
+  text-align: center;
+}
+
+.decision-badge {
+  display: inline-block;
+  background-color: #4CAF50;
+  color: #fff;
+  font-size: 24rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.decision-time {
+  font-size: 24rpx;
+  color: #bbb;
+  margin-top: 16rpx;
 }
