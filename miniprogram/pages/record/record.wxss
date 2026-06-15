@@ -21,6 +21,18 @@
   border-radius: 8rpx;
 }
 
+.food-meal-type {
+  font-size: 28rpx;
+  color: #666;
+  margin-top: 16rpx;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 64rpx 0;
+  color: #999;
+}
+
 .form-card {
   margin-top: 24rpx;
 }

@@ -61,14 +61,12 @@
     <view class="filter-group">
       <text class="filter-label">偏好分类（可选）</text>
       <view class="filter-options">
-        <!-- 不限 -->
         <view
           class="filter-option {{selectedCategories.length === 0 ? 'active' : ''}}"
           bindtap="selectNoLimit"
         >
           不限
         </view>
-        <!-- 常用分类 -->
         <view
           wx:for="{{commonCategoryOptions}}"
           wx:key="name"
@@ -78,7 +76,6 @@
         >
           {{item.name}}
         </view>
-        <!-- 更多按钮 -->
         <view
           class="filter-option more-btn {{showMoreCategories ? 'expanded' : ''}}"
           bindtap="toggleMoreCategories"
@@ -86,7 +83,6 @@
           更多 ▾
         </view>
       </view>
-      <!-- 更多分类弹层 -->
       <view class="more-categories" wx:if="{{showMoreCategories}}">
         <view class="filter-options">
           <view
@@ -103,8 +99,25 @@
     </view>
   </view>
 
-  <!-- 推荐结果 -->
-  <view class="result-section" wx:if="{{recommendResult}}">
+  <!-- 重置筛选 -->
+  <view class="reset-section">
+    <text class="reset-link" bindtap="handleReset">重置筛选条件</text>
+  </view>
+
+  <!-- 已决定状态 -->
+  <view class="result-section" wx:if="{{mealDecision}}">
+    <view class="card decision-card">
+      <view class="decision-badge">今天就吃</view>
+      <view class="food-name">{{mealDecision.foodName}}</view>
+      <view class="food-info">
+        <text class="food-category">{{mealDecision.category}}</text>
+      </view>
+      <view class="decision-time">决定时间：{{decisionTimeDisplay}}</view>
+    </view>
+  </view>
+
+  <!-- 推荐结果（无决定时） -->
+  <view class="result-section" wx:elif="{{recommendResult}}">
     <view class="card result-card">
       <view class="food-name">{{recommendResult.food.name}}</view>
       <view class="food-info">
@@ -122,15 +135,15 @@
     </view>
   </view>
 
-  <!-- 主按钮（无推荐结果时显示） -->
-  <view class="main-button-section" wx:if="{{!recommendResult}}">
+  <!-- 主按钮（无决定、无推荐时显示） -->
+  <view class="main-button-section" wx:if="{{!mealDecision && !recommendResult}}">
     <button class="btn-primary btn-large" bindtap="getRecommend" disabled="{{loading}}">
       {{loading ? '推荐中...' : '今天吃啥'}}
     </button>
   </view>
 
   <!-- 加载状态 -->
-  <view class="loading" wx:if="{{loading && !recommendResult}}">
+  <view class="loading" wx:if="{{loading && !recommendResult && !mealDecision}}">
     <text>正在为你推荐...</text>
   </view>
 
@@ -141,8 +154,16 @@
   </view>
 </view>
 
-<!-- 固定底部操作栏（有推荐结果时显示） -->
-<view class="bottom-action-bar" wx:if="{{recommendResult}}">
+<!-- 固定底部操作栏：已决定 -->
+<view class="bottom-action-bar" wx:if="{{mealDecision}}">
+  <view class="action-buttons">
+    <button class="btn-secondary action-btn" bindtap="handleReselect">重新选择</button>
+    <button class="btn-primary action-btn" bindtap="handleFinishEating">吃完了，记录一下</button>
+  </view>
+</view>
+
+<!-- 固定底部操作栏：推荐结果 -->
+<view class="bottom-action-bar" wx:elif="{{recommendResult}}">
   <view class="action-buttons">
     <button class="btn-secondary action-btn" bindtap="swapRecommend" disabled="{{swapCount >= maxSwapCount || loading}}">
       换一个{{swapCount > 0 ? '(' + swapCount + '/' + maxSwapCount + ')' : ''}}

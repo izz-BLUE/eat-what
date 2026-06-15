@@ -27,12 +27,37 @@
       <view class="record-header">
         <text class="record-name">{{item.foodName}}</text>
         <text class="record-meal">「{{item.mealType}}」</text>
-        <view class="record-stars" wx:if="{{item.hasRating}}">
-          <text wx:for="{{5}}" wx:for-item="s" wx:key="*this" class="star {{item.rating >= s ? 'active' : ''}}">★</text>
-        </view>
       </view>
+
+      <!-- 状态徽章 -->
+      <view class="status-badge {{item.status === 'DECIDED' ? 'decided' : 'eaten'}}">
+        {{item.status === 'DECIDED' ? '待用餐' : '已吃'}}
+      </view>
+
+      <!-- 评分 -->
+      <view class="record-stars" wx:if="{{item.hasRating && item.status !== 'DECIDED'}}">
+        <text wx:for="{{5}}" wx:for-item="s" wx:key="*this" class="star {{item.rating >= s ? 'active' : ''}}">★</text>
+      </view>
+
+      <!-- 备注 -->
       <view class="record-note" wx:if="{{item.hasNote}}">{{item.note}}</view>
-      <view class="record-time">{{item.eatenAt}}</view>
+
+      <!-- 时间 -->
+      <view class="record-time">
+        <text wx:if="{{item.status === 'DECIDED'}}">决定时间：{{item.decidedAt}}</text>
+        <text wx:else>吃的时间：{{item.eatenAt}}</text>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="record-actions">
+        <!-- 待用餐：吃完了 + 取消决定 -->
+        <block wx:if="{{item.status === 'DECIDED'}}">
+          <button class="btn-small btn-primary" bindtap="handleComplete" data-id="{{item.id}}">吃完了，评价</button>
+          <button class="btn-small btn-secondary" bindtap="handleCancelDecision" data-id="{{item.id}}">取消决定</button>
+        </block>
+        <!-- 已吃：修改评价 -->
+        <button class="btn-small btn-secondary" wx:elif="{{item.status === 'EATEN'}}" bindtap="handleEditReview" data-id="{{item.id}}">修改评价</button>
+      </view>
     </view>
   </block>
 </view>

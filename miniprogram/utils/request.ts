@@ -6,7 +6,7 @@ import { ApiResponse } from '../types/index'
 const app = getApp<IApp>()
 
 interface RequestOptions {
-  method: 'GET' | 'POST' | 'DELETE'
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   url: string
   data?: any
   showLoading?: boolean
@@ -115,4 +115,11 @@ export function post<T = any>(url: string, data?: any): Promise<T> {
  */
 export function del<T = any>(url: string, data?: any): Promise<T> {
   return request<T>({ method: 'DELETE', url, data })
+}
+
+/**
+ * PUT 请求
+ */
+export function put<T = any>(url: string, data?: any): Promise<T> {
+  return request<T>({ method: 'PUT', url, data })
 }

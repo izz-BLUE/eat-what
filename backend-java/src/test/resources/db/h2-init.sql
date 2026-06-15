@@ -33,16 +33,19 @@ CREATE TABLE IF NOT EXISTS `eat_records` (
   `user_id` BIGINT NOT NULL COMMENT '用户ID',
   `food_id` BIGINT NOT NULL COMMENT '食物ID',
   `meal_type` VARCHAR(16) DEFAULT '' COMMENT '餐段：早餐、午餐、晚餐、夜宵',
+  `status` VARCHAR(16) NOT NULL DEFAULT 'EATEN' COMMENT '状态：DECIDED-已决定，EATEN-已吃',
+  `decided_at` DATETIME NULL COMMENT '决定时间',
   `rating` TINYINT DEFAULT NULL COMMENT '评分（1-5）',
   `note` VARCHAR(256) DEFAULT '' COMMENT '备注',
-  `eaten_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '吃的时间',
+  `eaten_at` DATETIME NULL COMMENT '吃的时间',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_eat_records_user_food_eaten_at` (`user_id`, `food_id`, `eaten_at`),
   KEY `idx_eat_records_user_id` (`user_id`),
   KEY `idx_eat_records_food_id` (`food_id`),
-  KEY `idx_eat_records_eaten_at` (`eaten_at`)
+  KEY `idx_eat_records_eaten_at` (`eaten_at`),
+  KEY `idx_user_status_decided` (`user_id`, `status`, `decided_at`)
 ) COMMENT='吃过记录表';
 
 -- 用户黑名单表

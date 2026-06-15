@@ -17,7 +17,7 @@ import java.util.Map;
 public interface EatRecordMapper extends BaseMapper<EatRecord> {
 
     /**
-     * 查询用户最近吃过的食物ID和最近吃的时间
+     * 查询用户最近吃过的食物ID和最近吃的时间（仅 EATEN 状态）
      *
      * @param userId   用户ID
      * @param since    起始时间
@@ -25,8 +25,19 @@ public interface EatRecordMapper extends BaseMapper<EatRecord> {
      */
     @Select("SELECT food_id AS foodId, MAX(eaten_at) AS lastEatenAt " +
             "FROM eat_records " +
-            "WHERE user_id = #{userId} AND eaten_at >= #{since} " +
+            "WHERE user_id = #{userId} AND eaten_at >= #{since} AND status = 'EATEN' " +
             "GROUP BY food_id")
     List<Map<String, Object>> selectRecentEatenFoods(@Param("userId") Long userId,
                                                       @Param("since") LocalDateTime since);
+
+    /**
+     * 锁定并查询用户当前的 DECIDED 记录（FOR UPDATE）
+     *
+     * @param userId 用户ID
+     * @return DECIDED 记录，无则 null
+     */
+    @Select("SELECT * FROM eat_records " +
+            "WHERE user_id = #{userId} AND status = 'DECIDED' " +
+            "FOR UPDATE")
+    EatRecord selectDecidedForUpdate(@Param("userId") Long userId);
 }

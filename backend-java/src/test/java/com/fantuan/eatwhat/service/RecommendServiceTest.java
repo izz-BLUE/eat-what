@@ -816,4 +816,26 @@ class RecommendServiceTest {
         food.setEnabled(true);
         return food;
     }
+
+    // ========== DECIDED 不参与最近吃过降权 ==========
+
+    @Test
+    void recommend_decidedRecordDoesNotAffectScore() {
+        // DECIDED 记录不应出现在最近吃过 map 中（SQL 层已过滤 status='EATEN'）
+        // 这里验证当 getRecentEatenFoodMap 返回空时，推荐正常给出"最近几天没吃过"理由
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        Food food = createFood(1L, "猪脚饭", "快餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+
+        // 即使存在 DECIDED 记录，getRecentEatenFoodMap 也只返回 EATEN 的，这里模拟为空
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("最近几天没吃过，换换口味"));
+    }
 }

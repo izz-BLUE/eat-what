@@ -1,12 +1,15 @@
 // services/api.ts - API 接口封装
 
-import { get, post, del } from '../utils/request'
+import { get, post, del, put } from '../utils/request'
 import {
   LoginData,
   RecommendData,
   RecommendParams,
   EatRecordData,
   EatRecordRequest,
+  DecideRecordRequest,
+  CompleteRecordRequest,
+  ReviewRecordRequest,
   BlacklistData,
   BlacklistAddRequest,
   DislikeData,
@@ -35,7 +38,42 @@ export function swapRecommend(params?: RecommendParams) {
 }
 
 /**
- * 我就吃它
+ * 决定吃什么（创建 DECIDED 记录）
+ */
+export function decideFood(data: DecideRecordRequest) {
+  return post<EatRecordData>('/api/v1/record/decide', data)
+}
+
+/**
+ * 完成用餐（DECIDED → EATEN）
+ */
+export function completeRecord(recordId: number, data: CompleteRecordRequest) {
+  return post<EatRecordData>(`/api/v1/record/${recordId}/complete`, data)
+}
+
+/**
+ * 修改已吃记录的评价
+ */
+export function reviewRecord(recordId: number, data: ReviewRecordRequest) {
+  return put<EatRecordData>(`/api/v1/record/${recordId}/review`, data)
+}
+
+/**
+ * 取消决定（删除 DECIDED 记录）
+ */
+export function cancelDecisionRecord(recordId: number) {
+  return del<void>(`/api/v1/record/${recordId}/decision`)
+}
+
+/**
+ * 获取单条记录详情
+ */
+export function getRecord(recordId: number) {
+  return get<EatRecordData>(`/api/v1/record/${recordId}`)
+}
+
+/**
+ * 我就吃它（旧接口，保留兼容）
  */
 export function eatFood(data: EatRecordRequest) {
   return post<EatRecordData>('/api/v1/record/eat', data)

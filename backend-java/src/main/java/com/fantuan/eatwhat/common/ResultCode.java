@@ -26,6 +26,8 @@ public enum ResultCode {
     BLACKLIST_NOT_FOUND(2007, "黑名单记录不存在"),
     DISLIKE_NOT_FOUND(2008, "不想吃记录不存在"),
     WECHAT_LOGIN_FAILED(2009, "微信登录失败"),
+    RECORD_NOT_FOUND(2010, "记录不存在"),
+    RECORD_STATUS_INVALID(2011, "记录状态不允许此操作"),
 
     // 系统错误 5xxx
     SYSTEM_ERROR(5001, "系统错误");

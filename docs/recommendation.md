@@ -167,7 +167,8 @@ WHERE user_id = ? AND expires_at > NOW()
 
 #### 3.4 最近吃过扣分（已实现）
 
-**数据来源**：`eat_records` 表，使用 `MAX(eaten_at)` 获取最近一次。
+**数据来源**：`eat_records` 表，仅统计 `status = 'EATEN'` 的记录，使用 `MAX(eaten_at)` 获取最近一次。
+**重要**：DECIDED（待用餐）记录不参与最近吃过降权，避免决定但还没吃的食物影响推荐结果。
 
 **扣分规则**（使用 Duration 精确比较）：
 
