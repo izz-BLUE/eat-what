@@ -589,7 +589,7 @@ Page({
           return
         }
         if (err.code === 2002) {
-          this.setData({ errorMsg: '当前条件没有合适菜品，请调整筛选条件' })
+          this.setData({ errorMsg: '当前条件没有合适菜品，请调整筛选条件', recommendResult: null })
         } else if (err.code === 1003) {
           this.setData({ errorMsg: '登录已过期，请重新登录后享受个性化推荐' })
         } else {
@@ -638,7 +638,7 @@ Page({
           return
         }
         if (err.code === 2002) {
-          this.setData({ errorMsg: '当前条件没有合适菜品，请调整筛选条件' })
+          this.setData({ errorMsg: '当前条件没有合适菜品，请调整筛选条件', recommendResult: null })
         } else {
           this.setData({ errorMsg: err.message || '推荐失败，请重试' })
         }
