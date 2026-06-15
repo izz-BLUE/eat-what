@@ -74,7 +74,15 @@ public class RecommendService {
                     .collect(Collectors.toList());
         }
 
-        // 6. 口味硬过滤
+        // 6. 清淡时排除重口味分类
+        if ("清淡".equals(request.getTaste())) {
+            Set<String> heavyCategories = Set.of("火锅", "烧烤", "川菜", "湘菜");
+            candidates = candidates.stream()
+                    .filter(f -> !heavyCategories.contains(f.getCategory()))
+                    .collect(Collectors.toList());
+        }
+
+        // 7. 口味硬过滤
         if (StringUtils.hasText(request.getTaste()) && !"不限".equals(request.getTaste())) {
             candidates = candidates.stream()
                     .filter(f -> matchesTaste(f.getTasteTags(), request.getTaste()))
@@ -311,22 +319,26 @@ public class RecommendService {
             return 0;
         }
 
-        boolean hasLight = tasteTags.contains("清淡") || tasteTags.contains("鲜");
-        boolean hasSpicy = tasteTags.contains("辣") || tasteTags.contains("麻");
-        boolean hasStrong = tasteTags.contains("咸") || tasteTags.contains("香") || tasteTags.contains("重");
+        // 按逗号拆分精确匹配
+        Set<String> tags = Arrays.stream(tasteTags.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
 
         switch (taste) {
             case "清淡":
-                if (hasLight) return 20;
+                if (tags.contains("清淡") || tags.contains("鲜")) return 20;
                 break;
             case "重口":
-                if (hasStrong) return 20;
+                // 与 matchesTaste 规则完全一致
+                if (tags.contains("辣") || tags.contains("麻") || tags.contains("酸")
+                        || (tags.contains("咸") && tags.contains("香"))) return 20;
                 break;
             case "辣":
-                if (hasSpicy) return 20;
+                if (tags.contains("辣") || tags.contains("麻")) return 20;
                 break;
             case "不辣":
-                if (!hasSpicy) return 20;
+                if (!tags.contains("辣") && !tags.contains("麻")) return 20;
                 break;
             default:
                 return 0;

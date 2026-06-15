@@ -17,8 +17,14 @@ Page({
   },
 
   onLoad(options) {
+    const foodId = Number(options.foodId) || 0
+    if (!foodId) {
+      wx.showToast({ title: '菜品信息无效', icon: 'none' })
+      setTimeout(() => wx.redirectTo({ url: '/pages/index/index' }), 1500)
+      return
+    }
     this.setData({
-      foodId: Number(options.foodId) || 0,
+      foodId,
       foodName: decodeURIComponent(options.foodName || ''),
       category: decodeURIComponent(options.category || ''),
       selectedMealType: decodeURIComponent(options.mealType || '')

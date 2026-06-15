@@ -609,6 +609,108 @@ class RecommendServiceTest {
         assertNull(response);
     }
 
+    @Test
+    void recommend_tasteLight_rejectsBBQEvenWithLightTag() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setCategories(List.of("烧烤"));
+        request.setTaste("清淡");
+
+        // 构造 category=烧烤, tasteTags=清淡,鲜 的菜品
+        Food food1 = createFood(1L, "清淡烤鱼", "烧烤", "清淡,鲜", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        // 清淡时直接排除烧烤分类，即使 tasteTags 有清淡标签
+        assertNull(response);
+    }
+
+    // ========== 价格评分测试 ==========
+
+    @Test
+    void recommend_priceScore_lowBudgetMatchesLevel1() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setPriceLevel("15以内");
+
+        Food food = createFood(1L, "沙县小吃", "小吃", "清淡", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合预算"));
+    }
+
+    @Test
+    void recommend_priceScore_midBudgetMatchesLevel2() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setPriceLevel("15-25");
+
+        Food food = createFood(1L, "猪脚饭", "快餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合预算"));
+    }
+
+    // ========== 重口评分测试 ==========
+
+    @Test
+    void recommend_tasteStrong_spicyGetsFlavorReason() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTaste("重口");
+
+        Food food = createFood(1L, "麻辣烫", "小吃", "辣,麻", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合口味偏好"));
+    }
+
+    @Test
+    void recommend_tasteStrong_sourGetsFlavorReason() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTaste("重口");
+
+        Food food = createFood(1L, "酸菜鱼", "川菜", "酸,辣", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合口味偏好"));
+    }
+
+    @Test
+    void recommend_tasteStrong_saltyAndFragrantGetsFlavorReason() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTaste("重口");
+
+        Food food = createFood(1L, "烤肉", "烧烤", "咸,香", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合口味偏好"));
+    }
+
     // ========== 边界测试：calculateRecentEatenDeduction ==========
 
     @Test

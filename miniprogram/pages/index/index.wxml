@@ -30,12 +30,12 @@
       <view class="filter-options">
         <view
           wx:for="{{priceLevels}}"
-          wx:key="*this"
-          class="filter-option {{selectedPriceLevel === item ? 'active' : ''}}"
+          wx:key="value"
+          class="filter-option {{selectedPriceLevel === item.value ? 'active' : ''}}"
           bindtap="selectPriceLevel"
-          data-value="{{item}}"
+          data-value="{{item.value}}"
         >
-          {{item}}
+          {{item.label}}
         </view>
       </view>
     </view>

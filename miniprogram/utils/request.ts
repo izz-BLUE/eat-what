@@ -13,6 +13,18 @@ interface RequestOptions {
 }
 
 /**
+ * 业务错误，包含 code 和 message
+ */
+export class RequestError extends Error {
+  code: number
+  constructor(code: number, message: string) {
+    super(message)
+    this.code = code
+    this.name = 'RequestError'
+  }
+}
+
+/**
  * 统一请求方法
  */
 export async function request<T = any>(options: RequestOptions): Promise<T> {
@@ -49,7 +61,7 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
 
         // 检查响应格式
         if (!response || typeof response.code !== 'number') {
-          reject(new Error('响应格式错误'))
+          reject(new RequestError(-1, '响应格式错误'))
           return
         }
 
@@ -60,15 +72,14 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
         }
 
         // 未登录：清理本地 token，抛出 NEED_LOGIN 错误
-        // 由调用方决定是否跳转登录页
         if (response.code === 1003) {
           app.clearLoginInfo()
-          reject(new Error('NEED_LOGIN'))
+          reject(new RequestError(1003, 'NEED_LOGIN'))
           return
         }
 
         // 其他业务错误
-        reject(new Error(response.message || '请求失败'))
+        reject(new RequestError(response.code, response.message || '请求失败'))
       },
       fail: (err) => {
         if (showLoading) {

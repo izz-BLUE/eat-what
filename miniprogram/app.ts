@@ -4,7 +4,8 @@ App({
     token: '',
     userId: 0,
     nickname: '',
-    avatarUrl: ''
+    avatarUrl: '',
+    pendingRecord: null as any
   },
 
   onLaunch() {

@@ -31,14 +31,22 @@ Page({
 
       wx.showToast({ title: '登录成功', icon: 'success' })
 
-      // 4. 返回上一页（如果有的话）
+      // 4. 检查是否有待记录菜品，直接进入记录页
       setTimeout(() => {
+        const pending = app.globalData.pendingRecord
+        app.globalData.pendingRecord = null
+        if (pending) {
+          wx.redirectTo({
+            url: `/pages/record/record?foodId=${pending.foodId}&foodName=${encodeURIComponent(pending.foodName)}&category=${encodeURIComponent(pending.category)}&mealType=${encodeURIComponent(pending.mealType || '')}`
+          })
+          return
+        }
+        // 返回上一页
         const pages = getCurrentPages()
         if (pages.length > 1) {
           wx.navigateBack()
         } else {
-          // 没有上一页，跳转到首页
-          wx.switchTab({ url: '/pages/index/index' })
+          wx.redirectTo({ url: '/pages/index/index' })
         }
       }, 1500)
     } catch (err: any) {
@@ -71,7 +79,7 @@ Page({
     if (pages.length > 1) {
       wx.navigateBack()
     } else {
-      wx.switchTab({ url: '/pages/index/index' })
+      wx.redirectTo({ url: '/pages/index/index' })
     }
   }
 })

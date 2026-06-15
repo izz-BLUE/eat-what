@@ -6,6 +6,7 @@ interface IApp {
     userId: number
     nickname: string
     avatarUrl: string
+    pendingRecord: any
   }
   saveLoginInfo(data: { token: string; userId: number; nickname: string; avatarUrl: string }): void
   clearLoginInfo(): void

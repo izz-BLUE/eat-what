@@ -1,6 +1,7 @@
 // pages/index/index.ts
 
 import { getRecommend, swapRecommend } from '../../services/api'
+import { RequestError } from '../../utils/request'
 import { RecommendData, MealType, PriceLevel, Taste } from '../../types/index'
 import { config } from '../../config/index'
 
@@ -23,7 +24,12 @@ const HEAVY_CATEGORIES = ['火锅', '烧烤', '川菜', '湘菜']
 Page({
   data: {
     mealTypes: ['早餐', '午餐', '晚餐', '夜宵'] as MealType[],
-    priceLevels: ['15元内', '15-25元', '25-40元', '不限'] as PriceLevel[],
+    priceLevels: [
+      { label: '15元内', value: '15以内' },
+      { label: '15-25元', value: '15-25' },
+      { label: '25-40元', value: '25-40' },
+      { label: '不限', value: '不限' }
+    ],
     tastes: ['不限', '清淡', '重口', '辣', '不辣'] as Taste[],
     commonCategoryOptions: [] as CategoryOption[],
     moreCategoryOptions: [] as CategoryOption[],
@@ -71,9 +77,9 @@ Page({
   },
 
   selectPriceLevel(e: WechatMiniprogram.TouchEvent) {
-    const value = e.currentTarget.dataset.value as PriceLevel
+    const value = e.currentTarget.dataset.value as string
     this.setData({
-      selectedPriceLevel: this.data.selectedPriceLevel === value ? '' : value
+      selectedPriceLevel: this.data.selectedPriceLevel === value ? '' : value as PriceLevel
     })
     this.resetRecommendState()
   },
@@ -159,12 +165,21 @@ Page({
       const priceDisplay = this.getPriceDisplay(result.food.priceLevel)
       this.setData({ recommendResult: result, priceDisplay })
     } catch (err: any) {
-      if (err.message === 'NEED_LOGIN' && retryCount < 1) {
-        this.getRecommend(retryCount + 1)
-        return
+      if (err instanceof RequestError) {
+        if (err.code === 1003 && retryCount < 1) {
+          await this.getRecommend(retryCount + 1)
+          return
+        }
+        if (err.code === 2002) {
+          this.setData({ errorMsg: '当前条件没有合适菜品，请调整分类或口味' })
+        } else if (err.code === 1003) {
+          this.setData({ errorMsg: '登录已过期，请重新登录后享受个性化推荐' })
+        } else {
+          this.setData({ errorMsg: err.message || '推荐失败，请重试' })
+        }
+      } else {
+        this.setData({ errorMsg: err.message || '网络异常，请重试' })
       }
-      // 后端返回"没有找到合适的菜品"即无候选
-      this.setData({ errorMsg: '当前条件没有合适菜品，请调整分类或口味' })
     } finally {
       this.setData({ loading: false })
     }
@@ -201,11 +216,17 @@ Page({
         swapCount: this.data.swapCount + 1
       })
     } catch (err: any) {
-      if (err.message === 'NEED_LOGIN') {
-        this.setData({ errorMsg: '登录已过期，请重新登录后享受个性化推荐' })
-        return
+      if (err instanceof RequestError) {
+        if (err.code === 1003) {
+          this.setData({ errorMsg: '登录已过期，请重新登录后享受个性化推荐' })
+        } else if (err.code === 2002) {
+          this.setData({ errorMsg: '当前条件没有合适菜品，请调整分类或口味' })
+        } else {
+          this.setData({ errorMsg: err.message || '推荐失败，请重试' })
+        }
+      } else {
+        this.setData({ errorMsg: err.message || '网络异常，请重试' })
       }
-      this.setData({ errorMsg: '当前条件没有合适菜品，请调整分类或口味' })
     } finally {
       this.setData({ loading: false })
     }
@@ -224,12 +245,24 @@ Page({
   eatIt() {
     if (!this.data.recommendResult) return
 
+    const food = this.data.recommendResult.food
+
     if (!app.isLoggedIn()) {
+      // 保存待记录菜品，登录后直接进入记录页
+      app.globalData.pendingRecord = {
+        foodId: food.id,
+        foodName: food.name,
+        category: food.category,
+        mealType: this.data.selectedMealType
+      }
       wx.navigateTo({ url: '/pages/login/login' })
       return
     }
 
-    const food = this.data.recommendResult.food
+    this.goToRecord(food)
+  },
+
+  goToRecord(food: { id: number; name: string; category: string }) {
     wx.navigateTo({
       url: `/pages/record/record?foodId=${food.id}&foodName=${encodeURIComponent(food.name)}&category=${encodeURIComponent(food.category)}&mealType=${encodeURIComponent(this.data.selectedMealType || '')}`
     })
