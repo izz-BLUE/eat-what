@@ -21,8 +21,8 @@ import java.util.stream.Collectors;
  *
  * 过滤顺序：
  * enabled → excludeFoodIds → blacklist → dislikes(含 type_tags/cuisine_tags 兼容)
- * → 分类硬过滤(type_tags + cuisine_tags OR) → 餐段硬过滤 → 口味硬过滤
- * → 预算软评分 → 最近吃过降权 → 随机因素 → Top 5 随机
+ * → 分类硬过滤(type_tags + cuisine_tags OR) → 餐段硬过滤 → 口味硬过滤 → 参考价位硬过滤
+ * → 最近吃过降权 → 随机因素 → Top 5 随机
  */
 @Service
 @RequiredArgsConstructor
@@ -98,29 +98,37 @@ public class RecommendService {
                     .collect(Collectors.toList());
         }
 
+        // 8. 参考价位硬过滤（精确整数匹配，空值/不限跳过）
+        if (StringUtils.hasText(request.getPriceLevel())) {
+            int targetLevel = priceLevelToInt(request.getPriceLevel());
+            candidates = candidates.stream()
+                    .filter(f -> f.getPriceLevel() != null && f.getPriceLevel() == targetLevel)
+                    .collect(Collectors.toList());
+        }
+
         // 无候选 → 返回 null（Controller 返回 2002）
         if (candidates.isEmpty()) {
             return null;
         }
 
-        // 8. 查询用户最近7天吃过的食物
+        // 9. 查询用户最近7天吃过的食物
         Map<Long, LocalDateTime> recentEatenMap = eatRecordService.getRecentEatenFoodMap(request.getUserId());
 
-        // 9. 计算每个菜品的得分
+        // 10. 计算每个菜品的得分
         List<ScoredFood> scoredFoods = candidates.stream()
                 .map(food -> calculateScore(food, request, recentEatenMap, now))
                 .collect(Collectors.toList());
 
-        // 10. 按得分排序，取 Top 5
+        // 11. 按得分排序，取 Top 5
         scoredFoods.sort((a, b) -> Integer.compare(b.score, a.score));
         List<ScoredFood> top5 = scoredFoods.stream()
                 .limit(5)
                 .collect(Collectors.toList());
 
-        // 11. 从 Top 5 中随机选一个
+        // 12. 从 Top 5 中随机选一个
         ScoredFood selected = top5.get(new Random().nextInt(top5.size()));
 
-        // 12. 构建响应
+        // 13. 构建响应
         FoodResponse foodResponse = foodService.toResponse(selected.food);
         return RecommendResponse.builder()
                 .food(foodResponse)
@@ -137,16 +145,14 @@ public class RecommendService {
         int score = 0;
         List<String> reasons = new ArrayList<>();
 
-        // 1. 预算软匹配：+25
-        int priceScore = calculatePriceScore(food, request.getPriceLevel());
-        if (priceScore > 0) {
-            score += priceScore;
-            reasons.add("符合预算");
-        }
-
-        // 2. 分类命中理由
+        // 1. 分类命中理由
         if (!CollectionUtils.isEmpty(request.getTypeTags()) || !CollectionUtils.isEmpty(request.getCuisineTags())) {
             reasons.add("符合偏好分类");
+        }
+
+        // 2. 参考价位命中理由（硬过滤已保证，只添加理由不加分）
+        if (StringUtils.hasText(request.getPriceLevel())) {
+            reasons.add("符合参考价位");
         }
 
         // 3. 最近吃过降权
@@ -234,34 +240,20 @@ public class RecommendService {
         }
     }
 
-    // ==================== 软评分方法 ====================
+    // ==================== 参考价位映射 ====================
 
     /**
-     * 计算预算软匹配得分
+     * 将价格档位字符串映射为 priceLevel 整数。
+     * 映射：15以内→1, 15-25→2, 25-40→3, 40以上→4
      */
-    private int calculatePriceScore(Food food, String priceLevel) {
-        if (!StringUtils.hasText(priceLevel)) {
-            return 0;
-        }
-
-        int foodPrice = food.getPriceLevel() != null ? food.getPriceLevel() : 0;
+    private int priceLevelToInt(String priceLevel) {
         switch (priceLevel) {
-            case "15以内":
-                if (foodPrice <= 1) return 25;
-                break;
-            case "15-25":
-                if (foodPrice == 2) return 25;
-                break;
-            case "25-40":
-                if (foodPrice == 3) return 25;
-                break;
-            case "40以上":
-                if (foodPrice >= 4) return 25;
-                break;
-            default:
-                return 0;
+            case "15以内": return 1;
+            case "15-25":  return 2;
+            case "25-40":  return 3;
+            case "40以上": return 4;
+            default:       return 0;
         }
-        return 0;
     }
 
     // ==================== 最近吃过降权 ====================

@@ -173,8 +173,8 @@ $env:WECHAT_MOCK_ENABLED="true"
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | mealType | string | 否 | 餐段：早餐、午餐、晚餐、夜宵 |
-| priceLevel | string | 否 | 价格偏好：15以内、15-25、25-40、不限 |
-| taste | string | 否 | 口味偏好：清淡、重口、辣、不辣 |
+| priceLevel | string | 否 | 参考价位：15以内、15-25、25-40、40以上（硬过滤，不选不限） |
+| taste | string | 否 | 口味偏好：清淡、辣、不辣 |
 | categories | string | 否 | 偏好分类，逗号分隔，最多3个，如：快餐,面食,粤菜 |
 
 **请求头**（可选）：
@@ -197,7 +197,7 @@ Authorization: Bearer {token}
       "imageUrl": ""
     },
     "score": 45,
-    "reasons": ["适合当前餐段", "符合预算", "最近几天没吃过，换换口味"]
+    "reasons": ["符合偏好分类", "符合参考价位", "最近几天没吃过，换换口味"]
   }
 }
 ```
@@ -214,7 +214,7 @@ Authorization: Bearer {token}
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | mealType | string | 否 | 餐段 |
-| priceLevel | string | 否 | 价格偏好 |
+| priceLevel | string | 否 | 参考价位：15以内、15-25、25-40、40以上（硬过滤） |
 | taste | string | 否 | 口味偏好 |
 | excludeFoodIds | string | 否 | 排除的食物 ID，逗号分隔，如：1,2,3 |
 | categories | string | 否 | 偏好分类，逗号分隔，最多3个 |
