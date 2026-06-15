@@ -1,70 +1,109 @@
 /* pages/profile/profile.wxss */
 
-.profile-card {
-  text-align: center;
-  padding: 64rpx 32rpx;
-  margin-bottom: 24rpx;
+.profile-page {
+  min-height: 100vh;
+  background-color: #FFF8EA;
+  padding: 0 32rpx;
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+}
+
+/* 顶部品牌区 */
+.profile-header {
+  display: flex;
+  align-items: center;
+  padding: 36rpx 0 28rpx;
 }
 
 .profile-avatar {
-  font-size: 96rpx;
-  margin-bottom: 16rpx;
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 24rpx;
+  background-color: #FFB000;
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .profile-nickname {
   font-size: 36rpx;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 8rpx;
+  color: #06452F;
+  display: block;
 }
 
 .profile-status {
   font-size: 24rpx;
-  color: #999;
-  margin-bottom: 32rpx;
+  color: #7A7468;
+  margin-top: 4rpx;
+  display: block;
 }
 
-.btn-login {
-  width: 300rpx;
-  margin: 0 auto;
+/* 登录按钮区域 */
+.profile-auth-action {
+  padding: 8rpx 0 0;
 }
 
-.btn-logout {
-  width: 240rpx;
-  margin: 0 auto;
-  color: #999;
-  border-color: #ddd;
+.btn-login-action {
+  width: 100%;
+  min-height: 96rpx;
 }
 
+.btn-logout-action {
+  text-align: center;
+  padding: 20rpx 0;
+  font-size: 26rpx;
+  color: #7A7468;
+}
+
+/* 未登录提示 */
+.profile-hint {
+  text-align: center;
+  padding: 12rpx 0 24rpx;
+  font-size: 24rpx;
+  color: #7A7468;
+}
+
+/* 功能菜单列表 */
 .menu-section {
-  background: #fff;
+  background-color: #FFFFFF;
   border-radius: 16rpx;
   overflow: hidden;
+  border: 1rpx solid #E8DFD0;
+  margin-top: 8rpx;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 32rpx;
-  border-bottom: 1rpx solid #f5f5f5;
+  padding: 36rpx 32rpx;
+  border-bottom: 1rpx solid #E8DFD0;
+  min-height: 80rpx;
 }
 
 .menu-item:last-child {
   border-bottom: none;
 }
 
-.menu-icon {
-  font-size: 40rpx;
-  margin-right: 24rpx;
+.menu-item:active {
+  background-color: #FFF8EA;
 }
 
 .menu-text {
   flex: 1;
   font-size: 30rpx;
-  color: #333;
+  color: #19382D;
 }
 
+/* 纯 CSS 箭头标记 */
 .menu-arrow {
-  font-size: 40rpx;
-  color: #ccc;
+  width: 14rpx;
+  height: 14rpx;
+  border-top: 2rpx solid #7A7468;
+  border-right: 2rpx solid #7A7468;
+  transform: rotate(45deg);
+  flex-shrink: 0;
 }

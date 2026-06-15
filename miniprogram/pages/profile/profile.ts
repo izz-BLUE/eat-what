@@ -5,6 +5,7 @@ const app = getApp<IApp>()
 Page({
   data: {
     nickname: '',
+    avatarUrl: '',
     isLoggedIn: false,
     _loginRedirecting: false
   },
@@ -12,6 +13,7 @@ Page({
   onShow() {
     this.setData({
       nickname: app.globalData.nickname || '未设置昵称',
+      avatarUrl: app.globalData.avatarUrl || '',
       isLoggedIn: app.isLoggedIn(),
       _loginRedirecting: false
     })

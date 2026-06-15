@@ -1,14 +1,15 @@
 <!--pages/history/history.wxml-->
-<view class="container">
+<view class="history-page">
   <!-- 1. 加载中 -->
-  <view class="loading-state" wx:if="{{loading}}">
+  <view class="loading" wx:if="{{loading}}">
     <text>加载中...</text>
   </view>
 
   <!-- 2. 未登录 -->
   <view class="empty-state" wx:elif="{{notLoggedIn}}">
+    <image class="empty-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
     <text>请先登录后查看历史记录</text>
-    <button class="btn-primary" bindtap="goToLogin" style="margin-top:24rpx;">去登录</button>
+    <button class="btn-primary" bindtap="goToLogin" style="margin-top: 32rpx;">去登录</button>
   </view>
 
   <!-- 3. 网络/业务错误 -->
@@ -18,45 +19,55 @@
 
   <!-- 4. 空列表 -->
   <view class="empty-state" wx:elif="{{records.length === 0}}">
+    <image class="empty-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
     <text>还没有吃过记录</text>
   </view>
 
-  <!-- 5. 正常列表 -->
+  <!-- 5. 正常列表 — 时间线式 -->
   <block wx:else>
-    <view class="record-item" wx:for="{{records}}" wx:key="id">
-      <view class="record-header">
-        <text class="record-name">{{item.foodName}}</text>
-        <text class="record-meal">「{{item.mealType}}」</text>
-      </view>
+    <view class="timeline-list">
+      <view class="timeline-item" wx:for="{{records}}" wx:key="id">
+        <!-- 左侧状态标记 -->
+        <view class="timeline-marker">
+          <view class="marker-dot {{item.status === 'DECIDED' ? 'marker-decided' : 'marker-eaten'}}"></view>
+          <view class="marker-line" wx:if="{{index < records.length - 1}}"></view>
+        </view>
 
-      <!-- 状态徽章 -->
-      <view class="status-badge {{item.status === 'DECIDED' ? 'decided' : 'eaten'}}">
-        {{item.status === 'DECIDED' ? '待用餐' : '已吃'}}
-      </view>
+        <!-- 右侧内容 -->
+        <view class="timeline-body">
+          <view class="timeline-header">
+            <text class="timeline-food-name">{{item.foodName}}</text>
+            <text class="timeline-meal">「{{item.mealType}}」</text>
+          </view>
 
-      <!-- 评分 -->
-      <view class="record-stars" wx:if="{{item.hasRating && item.status !== 'DECIDED'}}">
-        <text wx:for="{{5}}" wx:for-item="s" wx:key="*this" class="star {{item.rating >= s ? 'active' : ''}}">★</text>
-      </view>
+          <!-- 状态标签 -->
+          <view class="status-tag {{item.status === 'DECIDED' ? 'tag-decided' : 'tag-eaten'}}">
+            {{item.status === 'DECIDED' ? '待用餐' : '已吃'}}
+          </view>
 
-      <!-- 备注 -->
-      <view class="record-note" wx:if="{{item.hasNote}}">{{item.note}}</view>
+          <!-- 评分 -->
+          <view class="timeline-stars" wx:if="{{item.hasRating && item.status !== 'DECIDED'}}">
+            <text wx:for="{{5}}" wx:for-item="s" wx:key="*this" class="star-inline {{item.rating >= s ? 'star-filled' : ''}}">★</text>
+          </view>
 
-      <!-- 时间 -->
-      <view class="record-time">
-        <text wx:if="{{item.status === 'DECIDED'}}">决定时间：{{item.decidedAt}}</text>
-        <text wx:else>吃的时间：{{item.eatenAt}}</text>
-      </view>
+          <!-- 备注 -->
+          <view class="timeline-note" wx:if="{{item.hasNote}}">{{item.note}}</view>
 
-      <!-- 操作按钮 -->
-      <view class="record-actions">
-        <!-- 待用餐：吃完了 + 取消决定 -->
-        <block wx:if="{{item.status === 'DECIDED'}}">
-          <button class="btn-small btn-primary" bindtap="handleComplete" data-id="{{item.id}}">吃完了，评价</button>
-          <button class="btn-small btn-secondary" bindtap="handleCancelDecision" data-id="{{item.id}}">取消决定</button>
-        </block>
-        <!-- 已吃：修改评价 -->
-        <button class="btn-small btn-secondary" wx:elif="{{item.status === 'EATEN'}}" bindtap="handleEditReview" data-id="{{item.id}}">修改评价</button>
+          <!-- 时间 -->
+          <view class="timeline-time">
+            <text wx:if="{{item.status === 'DECIDED'}}">决定时间：{{item.decidedAt}}</text>
+            <text wx:else>吃的时间：{{item.eatenAt}}</text>
+          </view>
+
+          <!-- 操作按钮 -->
+          <view class="timeline-actions">
+            <block wx:if="{{item.status === 'DECIDED'}}">
+              <button class="btn-timeline btn-timeline-primary" bindtap="handleComplete" data-id="{{item.id}}">吃完了，评价</button>
+              <view class="btn-timeline btn-timeline-danger" bindtap="handleCancelDecision" data-id="{{item.id}}">取消决定</view>
+            </block>
+            <button class="btn-timeline btn-timeline-secondary" wx:elif="{{item.status === 'EATEN'}}" bindtap="handleEditReview" data-id="{{item.id}}">修改评价</button>
+          </view>
+        </view>
       </view>
     </view>
   </block>

@@ -9,10 +9,10 @@
     "pages/dislike/dislike"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#FF6B35",
+    "navigationBarBackgroundColor": "#FFB000",
     "navigationBarTitleText": "今天吃啥",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#f5f5f5"
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FFF8EA"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",

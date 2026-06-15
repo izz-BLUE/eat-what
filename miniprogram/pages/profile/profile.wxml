@@ -1,29 +1,44 @@
 <!--pages/profile/profile.wxml-->
-<view class="container">
-  <view class="card profile-card">
-    <view class="profile-avatar">🍽️</view>
-    <view class="profile-nickname">{{nickname}}</view>
-    <view class="profile-status">{{isLoggedIn ? '已登录' : '未登录'}}</view>
-
-    <button class="btn-primary btn-login" wx:if="{{!isLoggedIn}}" bindtap="goToLogin">微信登录</button>
-    <button class="btn-secondary btn-logout" wx:if="{{isLoggedIn}}" bindtap="handleLogout">退出登录</button>
+<view class="profile-page">
+  <!-- 顶部品牌区 -->
+  <view class="profile-header">
+    <image
+      class="profile-avatar brand-avatar-entrance"
+      src="{{isLoggedIn && avatarUrl ? avatarUrl : '/assets/images/brand-avatar.png'}}"
+      mode="aspectFit"
+    />
+    <view class="profile-info">
+      <text class="profile-nickname">{{nickname}}</text>
+      <text class="profile-status">{{isLoggedIn ? '已登录' : '未登录'}}</text>
+    </view>
   </view>
 
-  <view class="menu-section" wx:if="{{isLoggedIn}}">
+  <!-- 登录/退出按钮 -->
+  <view class="profile-auth-action">
+    <button class="btn-primary btn-login-action" wx:if="{{!isLoggedIn}}" bindtap="goToLogin">微信登录</button>
+    <view class="btn-logout-action" wx:if="{{isLoggedIn}}" bindtap="handleLogout">
+      <text>退出登录</text>
+    </view>
+  </view>
+
+  <!-- 未登录提示 -->
+  <view class="profile-hint" wx:if="{{!isLoggedIn}}">
+    <text>登录后可管理记录和饮食偏好</text>
+  </view>
+
+  <!-- 功能入口列表（始终显示） -->
+  <view class="menu-section">
     <view class="menu-item" bindtap="goToHistory">
-      <text class="menu-icon">📋</text>
       <text class="menu-text">吃过记录</text>
-      <text class="menu-arrow">›</text>
+      <view class="menu-arrow"></view>
     </view>
     <view class="menu-item" bindtap="goToBlacklist">
-      <text class="menu-icon">🚫</text>
       <text class="menu-text">黑名单</text>
-      <text class="menu-arrow">›</text>
+      <view class="menu-arrow"></view>
     </view>
     <view class="menu-item" bindtap="goToDislike">
-      <text class="menu-icon">⏸</text>
       <text class="menu-text">暂时不想吃</text>
-      <text class="menu-arrow">›</text>
+      <view class="menu-arrow"></view>
     </view>
   </view>
 </view>

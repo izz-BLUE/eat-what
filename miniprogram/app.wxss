@@ -1,18 +1,20 @@
-/* app.wxss - 全局样式 */
+/* app.wxss - 全局样式（品牌 UI） */
 
 page {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 28rpx;
-  color: #333;
-  background-color: #f5f5f5;
+  color: #19382D;
+  background-color: #FFF8EA;
 }
 
 .container {
-  padding: 32rpx;
+  padding: 24rpx 32rpx;
 }
 
+/* ========== 按钮 ========== */
+
 .btn-primary {
-  background-color: #FF6B35;
+  background-color: #F24A0D;
   color: #fff;
   border-radius: 16rpx;
   padding: 24rpx 48rpx;
@@ -20,37 +22,64 @@ page {
   font-weight: 600;
   text-align: center;
   border: none;
+  min-height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-primary[disabled] {
-  background-color: #ccc;
-  color: #999;
+  background-color: #E8DFD0;
+  color: #7A7468;
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
 }
 
 .btn-secondary {
-  background-color: #fff;
-  color: #FF6B35;
-  border: 2rpx solid #FF6B35;
+  background-color: #FFF8EA;
+  color: #06452F;
+  border: 2rpx solid #06452F;
   border-radius: 16rpx;
   padding: 24rpx 48rpx;
   font-size: 32rpx;
   font-weight: 600;
   text-align: center;
+  min-height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.btn-secondary[disabled] {
+  border-color: #E8DFD0;
+  color: #7A7468;
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+/* ========== 通用卡片 ========== */
+
 .card {
-  background-color: #fff;
+  background-color: #FFFFFF;
   border-radius: 16rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+  border: 1rpx solid #E8DFD0;
 }
+
+/* ========== 状态容器 ========== */
 
 .loading {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 48rpx;
+  padding: 64rpx 32rpx;
+  color: #7A7468;
+  font-size: 28rpx;
 }
 
 .empty-state {
@@ -59,7 +88,8 @@ page {
   align-items: center;
   justify-content: center;
   padding: 96rpx 32rpx;
-  color: #999;
+  color: #7A7468;
+  font-size: 28rpx;
 }
 
 .error-state {
@@ -67,6 +97,47 @@ page {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 96rpx 32rpx;
-  color: #ff4d4f;
+  padding: 64rpx 32rpx;
+  color: #D94A3A;
+  font-size: 28rpx;
+}
+
+/* ========== 品牌头像入场动画 ========== */
+
+@keyframes brandFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.brand-avatar-entrance {
+  animation: brandFadeIn 240ms ease-out;
+}
+
+/* ========== 推荐结果入场动画 ========== */
+
+@keyframes fadeUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(16rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up-in {
+  animation: fadeUpIn 240ms ease-out;
+}
+
+/* ========== 按压反馈 ========== */
+
+.pressable:active {
+  transform: scale(0.97);
 }

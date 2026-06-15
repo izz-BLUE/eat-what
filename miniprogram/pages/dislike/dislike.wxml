@@ -1,53 +1,65 @@
 <!--pages/dislike/dislike.wxml-->
-<view class="container">
+<view class="dislike-page">
   <!-- 添加不想吃（登录后可见） -->
-  <view class="card add-section" wx:if="{{!notLoggedIn}}">
-    <text class="section-title">不想吃——食物类型</text>
-    <view class="filter-options">
+  <view class="dislike-add-block" wx:if="{{!notLoggedIn}}">
+    <text class="dislike-section-title">不想吃——食物类型</text>
+    <view class="dislike-options">
       <view
         wx:for="{{typeTagOptions}}"
         wx:key="value"
-        class="cat-option {{selectedCategory === item.value ? 'active' : ''}}"
+        class="dislike-chip-touch"
         bindtap="selectCategory"
         data-value="{{item.value}}"
-      >{{item.label}}</view>
+      >
+        <view class="dislike-chip {{selectedCategory === item.value ? 'chip-active' : ''}}">{{item.label}}</view>
+      </view>
     </view>
 
-    <text class="section-title">不想吃——菜系/风格</text>
-    <view class="filter-options">
+    <text class="dislike-section-title">不想吃——菜系/风格</text>
+    <view class="dislike-options">
       <view
         wx:for="{{cuisineTagOptions}}"
         wx:key="value"
-        class="cat-option {{selectedCategory === item.value ? 'active' : ''}}"
+        class="dislike-chip-touch"
         bindtap="selectCategory"
         data-value="{{item.value}}"
-      >{{item.label}}</view>
+      >
+        <view class="dislike-chip {{selectedCategory === item.value ? 'chip-active' : ''}}">{{item.label}}</view>
+      </view>
     </view>
 
-    <text class="section-title">有效期</text>
-    <view class="filter-options">
+    <text class="dislike-section-title">有效期</text>
+    <view class="dislike-options">
       <view
         wx:for="{{dayOptions}}"
         wx:key="value"
-        class="cat-option {{selectedDays === item.value ? 'active' : ''}}"
+        class="dislike-chip-touch"
         bindtap="selectDays"
         data-value="{{item.value}}"
-      >{{item.label}}</view>
+      >
+        <view class="dislike-chip {{selectedDays === item.value ? 'chip-active' : ''}}">{{item.label}}</view>
+      </view>
     </view>
-    <button class="btn-primary" bindtap="handleAdd" disabled="{{adding}}" style="margin-top:32rpx;">
+    <button class="btn-primary" bindtap="handleAdd" disabled="{{adding}}" style="margin-top:28rpx;">
       {{adding ? '添加中...' : '添加'}}
     </button>
   </view>
 
+  <!-- 分隔 -->
+  <view class="dislike-divider" wx:if="{{!notLoggedIn && items.length > 0}}">
+    <text class="divider-title">当前限制列表</text>
+  </view>
+
   <!-- 1. 加载中 -->
-  <view class="loading-state" wx:if="{{loading}}">
+  <view class="loading" wx:if="{{loading}}">
     <text>加载中...</text>
   </view>
 
   <!-- 2. 未登录 -->
   <view class="empty-state" wx:elif="{{notLoggedIn}}">
+    <image class="empty-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
     <text>请先登录后查看不想吃列表</text>
-    <button class="btn-primary" bindtap="goToLogin" style="margin-top:24rpx;">去登录</button>
+    <button class="btn-primary" bindtap="goToLogin" style="margin-top: 32rpx;">去登录</button>
   </view>
 
   <!-- 3. 网络/业务错误 -->
@@ -55,21 +67,24 @@
     <text>{{errorMsg}}</text>
   </view>
 
-  <!-- 4. 空列表 -->
-  <view class="empty-state" wx:elif="{{items.length === 0}}">
+  <!-- 4. 空列表（已登录但无记录） -->
+  <view class="empty-state" wx:elif="{{items.length === 0 && !notLoggedIn && !loading && !errorMsg}}">
+    <image class="empty-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
     <text>最近没有暂时不想吃的分类</text>
   </view>
 
   <!-- 5. 正常列表 -->
   <block wx:else>
-    <view class="dislike-item" wx:for="{{items}}" wx:key="id">
-      <view class="item-info">
-        <text class="item-cat">{{item.category}}</text>
-        <text class="item-expire">至 {{item.expiresAt}}</text>
+    <view class="list-section">
+      <view class="list-row" wx:for="{{items}}" wx:key="id">
+        <view class="list-row-content">
+          <text class="list-row-cat">{{item.category}}</text>
+          <text class="list-row-expire">至 {{item.expiresAt}}</text>
+        </view>
+        <view class="btn-danger-text" bindtap="handleRemove" data-id="{{item.id}}" data-cat="{{item.category}}">
+          {{removing === item.id ? '解除中' : '解除'}}
+        </view>
       </view>
-      <button class="btn-remove" bindtap="handleRemove" data-id="{{item.id}}" data-cat="{{item.category}}" disabled="{{removing === item.id}}">
-        {{removing === item.id ? '解除中' : '解除'}}
-      </button>
     </view>
   </block>
 </view>

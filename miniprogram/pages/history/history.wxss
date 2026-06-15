@@ -1,88 +1,178 @@
 /* pages/history/history.wxss */
 
-.record-item {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 32rpx;
-  margin-bottom: 16rpx;
+.history-page {
+  min-height: 100vh;
+  background-color: #FFF8EA;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
 }
 
-.record-header {
+/* 空状态头像 */
+.empty-avatar {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+/* ========== 时间线列表 ========== */
+
+.timeline-list {
+  padding: 8rpx 0;
+}
+
+.timeline-item {
   display: flex;
+  align-items: flex-start;
+}
+
+/* 左侧标记 */
+.timeline-marker {
+  width: 48rpx;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  padding-top: 8rpx;
+}
+
+.marker-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.marker-dot.marker-decided {
+  background-color: #06452F;
+}
+
+.marker-dot.marker-eaten {
+  background-color: #7A7468;
+}
+
+.marker-line {
+  width: 2rpx;
+  flex: 1;
+  min-height: 40rpx;
+  background-color: #E8DFD0;
+  margin-top: 8rpx;
+}
+
+/* 右侧内容 */
+.timeline-body {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 36rpx;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: baseline;
   flex-wrap: wrap;
   gap: 8rpx;
-  margin-bottom: 12rpx;
-}
-
-.record-name {
-  font-size: 34rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-.record-meal {
-  font-size: 26rpx;
-  color: #FF6B35;
-  background: #FFF3E8;
-  padding: 2rpx 12rpx;
-  border-radius: 6rpx;
-}
-
-.record-stars {
-  margin-left: auto;
-}
-
-.star {
-  font-size: 28rpx;
-  color: #ddd;
-}
-
-.star.active {
-  color: #FFD700;
-}
-
-.record-note {
-  font-size: 26rpx;
-  color: #666;
   margin-bottom: 8rpx;
-  word-break: break-all;
 }
 
-.record-time {
+.timeline-food-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #19382D;
+}
+
+.timeline-meal {
   font-size: 24rpx;
-  color: #999;
+  color: #F24A0D;
 }
 
-/* 状态徽章 */
-.status-badge {
+/* 状态标签 */
+.status-tag {
   display: inline-block;
   font-size: 22rpx;
-  padding: 2rpx 12rpx;
+  padding: 4rpx 14rpx;
   border-radius: 12rpx;
   margin-bottom: 8rpx;
 }
 
-.status-badge.decided {
-  color: #4CAF50;
-  background-color: #E8F5E9;
+.status-tag.tag-decided {
+  color: #06452F;
+  background-color: #E8DFD0;
 }
 
-.status-badge.eaten {
-  color: #999;
-  background-color: #f5f5f5;
+.status-tag.tag-eaten {
+  color: #7A7468;
+  background-color: #F4EFE6;
 }
 
-/* 操作按钮区 */
-.record-actions {
-  margin-top: 16rpx;
+/* 评分星星 */
+.timeline-stars {
+  margin-bottom: 6rpx;
+}
+
+.star-inline {
+  font-size: 26rpx;
+  color: #E8DFD0;
+}
+
+.star-inline.star-filled {
+  color: #FFB000;
+}
+
+/* 备注 */
+.timeline-note {
+  font-size: 26rpx;
+  color: #19382D;
+  margin-bottom: 4rpx;
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+/* 时间 */
+.timeline-time {
+  font-size: 24rpx;
+  color: #7A7468;
+  margin-bottom: 12rpx;
+}
+
+/* 操作按钮 */
+.timeline-actions {
   display: flex;
   gap: 16rpx;
+  flex-wrap: wrap;
 }
 
-.btn-small {
+.btn-timeline {
   font-size: 24rpx;
-  padding: 8rpx 24rpx;
+  padding: 10rpx 24rpx;
   border-radius: 8rpx;
+  min-height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-timeline:active {
+  transform: scale(0.97);
+}
+
+.btn-timeline-primary {
+  background-color: #F24A0D;
+  color: #fff;
   border: none;
+}
+
+.btn-timeline-secondary {
+  background-color: #FFFFFF;
+  color: #06452F;
+  border: 1rpx solid #06452F;
+}
+
+.btn-timeline-danger {
+  color: #D94A3A;
+  font-size: 24rpx;
+  padding: 10rpx 24rpx;
+  min-height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
