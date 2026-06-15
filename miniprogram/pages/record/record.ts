@@ -51,6 +51,11 @@ Page({
 
   async submitRecord() {
     // 校验
+    if (!this.data.foodId || this.data.foodId <= 0) {
+      wx.showToast({ title: '菜品信息无效', icon: 'none' })
+      setTimeout(() => wx.redirectTo({ url: '/pages/index/index' }), 1500)
+      return
+    }
     if (!this.data.selectedMealType) {
       wx.showToast({ title: '请选择餐段', icon: 'none' })
       return

@@ -517,6 +517,24 @@ class RecommendServiceTest {
     }
 
     @Test
+    void recommend_tasteSpicy_microSpicyGetsFlavorReason() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTaste("辣");
+
+        // 只有微辣标签的食物
+        Food food1 = createFood(1L, "烤肉", "烧烤", "微辣,香", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(1L, response.getFood().getId());
+        assertTrue(response.getReasons().contains("符合口味偏好"));
+    }
+
+    @Test
     void recommend_tasteStrong_allowsSaltyAndFragrant() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("晚餐");

@@ -185,7 +185,7 @@ Page({
     }
   },
 
-  async swapRecommend() {
+  async swapRecommend(retryCount = 0) {
     if (this.data.swapCount >= config.maxSwapCount) {
       wx.showToast({ title: '没有更多推荐了', icon: 'none' })
       return
@@ -217,9 +217,11 @@ Page({
       })
     } catch (err: any) {
       if (err instanceof RequestError) {
-        if (err.code === 1003) {
-          this.setData({ errorMsg: '登录已过期，请重新登录后享受个性化推荐' })
-        } else if (err.code === 2002) {
+        if (err.code === 1003 && retryCount < 1) {
+          await this.swapRecommend(retryCount + 1)
+          return
+        }
+        if (err.code === 2002) {
           this.setData({ errorMsg: '当前条件没有合适菜品，请调整分类或口味' })
         } else {
           this.setData({ errorMsg: err.message || '推荐失败，请重试' })

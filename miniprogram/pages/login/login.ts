@@ -73,13 +73,19 @@ Page({
     })
   },
 
-  // 返回首页
+  // 返回首页（暂不登录，清除 pendingRecord）
   goBack() {
+    app.globalData.pendingRecord = null
     const pages = getCurrentPages()
     if (pages.length > 1) {
       wx.navigateBack()
     } else {
       wx.redirectTo({ url: '/pages/index/index' })
     }
+  },
+
+  // 页面卸载时清除 pendingRecord
+  onUnload() {
+    app.globalData.pendingRecord = null
   }
 })

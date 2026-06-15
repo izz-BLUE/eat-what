@@ -335,7 +335,7 @@ public class RecommendService {
                         || (tags.contains("咸") && tags.contains("香"))) return 20;
                 break;
             case "辣":
-                if (tags.contains("辣") || tags.contains("麻")) return 20;
+                if (tags.contains("辣") || tags.contains("微辣")) return 20;
                 break;
             case "不辣":
                 if (!tags.contains("辣") && !tags.contains("麻")) return 20;
