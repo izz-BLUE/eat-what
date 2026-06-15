@@ -23,9 +23,24 @@ public class Food {
     private String name;
 
     /**
-     * 分类（快餐、火锅、川菜等）
+     * 分类（展示用，保留兼容旧接口）
      */
     private String category;
+
+    /**
+     * 食物类型标签，逗号分隔（快餐、小吃、面食、火锅、烧烤、甜品）
+     */
+    private String typeTags;
+
+    /**
+     * 菜系/风格标签，逗号分隔（家常菜、川菜、湘菜、粤菜、日料、西餐）
+     */
+    private String cuisineTags;
+
+    /**
+     * 适用餐段，逗号分隔（早餐、午餐、晚餐、夜宵）
+     */
+    private String mealTypes;
 
     /**
      * 口味标签（辣、甜、咸等），逗号分隔

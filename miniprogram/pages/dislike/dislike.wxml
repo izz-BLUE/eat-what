@@ -2,16 +2,28 @@
 <view class="container">
   <!-- 添加不想吃（登录后可见） -->
   <view class="card add-section" wx:if="{{!notLoggedIn}}">
-    <text class="section-title">添加限制</text>
+    <text class="section-title">不想吃——食物类型</text>
     <view class="filter-options">
       <view
-        wx:for="{{categories}}"
-        wx:key="*this"
-        class="cat-option {{selectedCategory === item ? 'active' : ''}}"
+        wx:for="{{typeTagOptions}}"
+        wx:key="value"
+        class="cat-option {{selectedCategory === item.value ? 'active' : ''}}"
         bindtap="selectCategory"
-        data-value="{{item}}"
-      >{{item}}</view>
+        data-value="{{item.value}}"
+      >{{item.label}}</view>
     </view>
+
+    <text class="section-title">不想吃——菜系/风格</text>
+    <view class="filter-options">
+      <view
+        wx:for="{{cuisineTagOptions}}"
+        wx:key="value"
+        class="cat-option {{selectedCategory === item.value ? 'active' : ''}}"
+        bindtap="selectCategory"
+        data-value="{{item.value}}"
+      >{{item.label}}</view>
+    </view>
+
     <text class="section-title">有效期</text>
     <view class="filter-options">
       <view

@@ -22,9 +22,24 @@ public class FoodResponse {
     private String name;
 
     /**
-     * 分类
+     * 分类（展示用）
      */
     private String category;
+
+    /**
+     * 食物类型标签，逗号分隔
+     */
+    private String typeTags;
+
+    /**
+     * 菜系/风格标签，逗号分隔
+     */
+    private String cuisineTags;
+
+    /**
+     * 适用餐段，逗号分隔
+     */
+    private String mealTypes;
 
     /**
      * 口味标签，逗号分隔

@@ -5,6 +5,7 @@ import {
   LoginData,
   RecommendData,
   RecommendParams,
+  RecommendOptionsData,
   EatRecordData,
   EatRecordRequest,
   DecideRecordRequest,
@@ -24,7 +25,14 @@ export function login(code: string, nickname?: string, avatarUrl?: string) {
 }
 
 /**
- * 一键推荐
+ * 获取推荐选项元数据（无需 token）
+ */
+export function getRecommendOptions() {
+  return get<RecommendOptionsData>('/api/v1/meta/recommend-options')
+}
+
+/**
+ * 一键推荐（发送 typeTags/cuisineTags，不再发送 categories）
  */
 export function getRecommend(params?: RecommendParams) {
   return get<RecommendData>('/api/v1/recommend', params)

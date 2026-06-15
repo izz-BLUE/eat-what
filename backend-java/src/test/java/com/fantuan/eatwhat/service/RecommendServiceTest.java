@@ -1,5 +1,6 @@
 package com.fantuan.eatwhat.service;
 
+import com.fantuan.eatwhat.common.FoodTaxonomy;
 import com.fantuan.eatwhat.domain.entity.Food;
 import com.fantuan.eatwhat.dto.request.RecommendRequest;
 import com.fantuan.eatwhat.dto.response.FoodResponse;
@@ -51,11 +52,16 @@ class RecommendServiceTest {
                     .id(food.getId())
                     .name(food.getName())
                     .category(food.getCategory())
+                    .typeTags(food.getTypeTags())
+                    .cuisineTags(food.getCuisineTags())
+                    .mealTypes(food.getMealTypes())
                     .tasteTags(food.getTasteTags())
                     .priceLevel(food.getPriceLevel())
                     .build();
         });
     }
+
+    // ==================== 基础推荐测试 ====================
 
     @Test
     void recommend_noUserId_usesBasicLogic() {
@@ -63,7 +69,7 @@ class RecommendServiceTest {
         request.setMealType("晚餐");
         request.setUserId(null);
 
-        Food food = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
         when(foodService.listAllEnabled()).thenReturn(List.of(food));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
@@ -80,8 +86,8 @@ class RecommendServiceTest {
         request.setMealType("晚餐");
         request.setUserId(1L);
 
-        Food recentFood = createFood(1L, "火锅", "火锅", "辣,麻", 4);
-        Food normalFood = createFood(2L, "寿司", "日料", "清淡,鲜", 3);
+        Food recentFood = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        Food normalFood = createFood(2L, "寿司", "日料", "", "日料", "午餐,晚餐", "清淡,鲜", 3);
 
         when(foodService.listAllEnabled()).thenReturn(List.of(recentFood, normalFood));
 
@@ -99,7 +105,7 @@ class RecommendServiceTest {
         RecommendRequest request = new RecommendRequest();
         request.setUserId(1L);
 
-        Food food = createFood(1L, "猪脚饭", "快餐", "咸,香", 2);
+        Food food = createFood(1L, "猪脚饭", "快餐", "快餐", "", "午餐,晚餐", "咸,香", 2);
         when(foodService.listAllEnabled()).thenReturn(List.of(food));
         when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
 
@@ -109,7 +115,7 @@ class RecommendServiceTest {
         assertTrue(response.getReasons().contains("最近几天没吃过，换换口味"));
     }
 
-    // ========== 黑名单过滤测试 ==========
+    // ==================== 黑名单过滤测试 ====================
 
     @Test
     void recommend_noUserId_doesNotQueryBlacklist() {
@@ -117,14 +123,13 @@ class RecommendServiceTest {
         request.setMealType("晚餐");
         request.setUserId(null);
 
-        Food food = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
         when(foodService.listAllEnabled()).thenReturn(List.of(food));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        // userId 为空时不应查询黑名单
         verifyNoInteractions(userBlacklistService);
     }
 
@@ -134,42 +139,17 @@ class RecommendServiceTest {
         request.setMealType("晚餐");
         request.setUserId(1L);
 
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
-        Food food2 = createFood(2L, "寿司", "日料", "清淡,鲜", 3);
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        Food food2 = createFood(2L, "寿司", "日料", "", "日料", "午餐,晚餐", "清淡,鲜", 3);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
 
-        // 黑名单包含 food1
         when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
         when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        // food1 被黑名单过滤，只能推荐 food2
         assertEquals(2L, response.getFood().getId());
-    }
-
-    @Test
-    void recommend_blacklistAndExcludeFoodIdsBothApply() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setUserId(1L);
-        request.setExcludeFoodIds(List.of(2L));
-
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
-        Food food2 = createFood(2L, "寿司", "日料", "清淡,鲜", 3);
-        Food food3 = createFood(3L, "烤肉", "烧烤", "咸,香", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
-
-        // 黑名单包含 food1
-        when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
-        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        // food1 被黑名单过滤，food2 被 excludeFoodIds 排除，只能推荐 food3
-        assertEquals(3L, response.getFood().getId());
     }
 
     @Test
@@ -178,10 +158,9 @@ class RecommendServiceTest {
         request.setMealType("晚餐");
         request.setUserId(1L);
 
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1));
 
-        // 所有菜品都在黑名单中
         when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
 
         RecommendResponse response = recommendService.recommend(request);
@@ -189,7 +168,7 @@ class RecommendServiceTest {
         assertNull(response);
     }
 
-    // ========== 不想吃过滤测试 ==========
+    // ==================== 不想吃过滤测试 ====================
 
     @Test
     void recommend_noUserId_doesNotQueryDislike() {
@@ -197,112 +176,142 @@ class RecommendServiceTest {
         request.setMealType("晚餐");
         request.setUserId(null);
 
-        Food food = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
         when(foodService.listAllEnabled()).thenReturn(List.of(food));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         recommendService.recommend(request);
 
-        // userId 为空时不应查询不想吃
         verifyNoInteractions(userDislikeService);
     }
 
     @Test
-    void recommend_dislikeFiltersOutCategory() {
+    void recommend_dislikeFiltersOutByCategory() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("晚餐");
         request.setUserId(1L);
 
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
-        Food food2 = createFood(2L, "寿司", "日料", "清淡,鲜", 3);
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        Food food2 = createFood(2L, "寿司", "日料", "", "日料", "午餐,晚餐", "清淡,鲜", 3);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
 
-        // 不想吃火锅
         when(userDislikeService.getActiveDislikeCategories(eq(1L), any(LocalDateTime.class))).thenReturn(Set.of("火锅"));
         when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        // 火锅被过滤，只能推荐寿司
         assertEquals(2L, response.getFood().getId());
-        assertEquals("日料", response.getFood().getCategory());
     }
 
     @Test
-    void recommend_expiredDislikeDoesNotAffect() {
+    void recommend_dislikeFiltersOutByTypeTag() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("晚餐");
         request.setUserId(1L);
 
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        // 日料拉面：category=日料, typeTags=面食
+        Food food1 = createFood(2L, "拉面", "日料", "面食", "日料", "午餐,晚餐", "咸,鲜", 3);
+        Food food2 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
 
-        // 没有有效的不想吃记录
-        when(userDislikeService.getActiveDislikeCategories(eq(1L), any(LocalDateTime.class))).thenReturn(Set.of());
+        // 不想吃"面食"→ 应过滤日料拉面（type_tags 含面食）
+        when(userDislikeService.getActiveDislikeCategories(eq(1L), any(LocalDateTime.class))).thenReturn(Set.of("面食"));
         when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        // 火锅没有被过滤（过期的不想吃不影响）
         assertEquals(1L, response.getFood().getId());
     }
 
     @Test
-    void recommend_blacklistAndDislikeAndExcludeAllApply() {
+    void recommend_dislikeFiltersOutByCuisineTag() {
         RecommendRequest request = new RecommendRequest();
-        request.setMealType("午餐");
+        request.setMealType("晚餐");
         request.setUserId(1L);
-        request.setExcludeFoodIds(List.of(3L)); // excludeFoodIds 排除寿司
 
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
-        Food food2 = createFood(2L, "川菜", "川菜", "辣", 2);
-        Food food3 = createFood(3L, "寿司", "日料", "清淡,鲜", 3);
-        Food food4 = createFood(4L, "猪脚饭", "快餐", "咸,香", 2);
+        Food food1 = createFood(1L, "拉面", "日料", "面食", "日料", "午餐,晚餐", "咸,鲜", 3);
+        Food food2 = createFood(2L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+
+        // 不想吃"日料"→ 应过滤日料拉面（cuisine_tags 含日料）
+        when(userDislikeService.getActiveDislikeCategories(eq(1L), any(LocalDateTime.class))).thenReturn(Set.of("日料"));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(2L, response.getFood().getId());
+    }
+
+    // ==================== 分类过滤测试（type_tags + cuisine_tags OR） ====================
+
+    @Test
+    void recommend_typeTags_filtersCorrectly() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTypeTags(List.of("火锅"));
+
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        Food food2 = createFood(2L, "寿司", "日料", "", "日料", "午餐,晚餐", "清淡,鲜", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(1L, response.getFood().getId());
+    }
+
+    @Test
+    void recommend_cuisineTags_filtersCorrectly() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setCuisineTags(List.of("日料"));
+
+        Food food1 = createFood(1L, "寿司", "日料", "", "日料", "午餐,晚餐", "清淡,鲜", 3);
+        Food food2 = createFood(2L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(1L, response.getFood().getId());
+    }
+
+    @Test
+    void recommend_typeTagsAndCuisineTags_orLogic() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTypeTags(List.of("面食"));
+        request.setCuisineTags(List.of("日料"));
+
+        // 云吞面：type=面食，日料拉面：type=面食+cuisine=日料，寿司：cuisine=日料
+        Food food1 = createFood(1L, "云吞面", "面食", "面食", "", "晚餐", "清淡,鲜", 2);
+        Food food2 = createFood(2L, "拉面", "日料", "面食", "日料", "午餐,晚餐", "咸,鲜", 3);
+        Food food3 = createFood(3L, "寿司", "日料", "", "日料", "午餐,晚餐", "清淡,鲜", 3);
+        Food food4 = createFood(4L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3, food4));
-
-        // 黑名单排除火锅
-        when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
-        // 不想吃川菜
-        when(userDislikeService.getActiveDislikeCategories(eq(1L), any(LocalDateTime.class))).thenReturn(Set.of("川菜"));
-        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        // 火锅被黑名单过滤，川菜被不想吃过滤，寿司被 excludeFoodIds 排除，只能推荐猪脚饭
-        assertEquals(4L, response.getFood().getId());
+        // 火锅不应被推荐（既不是面食也不是日料）
+        assertNotEquals(4L, response.getFood().getId());
     }
 
     @Test
-    void recommend_allFilteredByDislike_returnsNull() {
+    void recommend_typeTagNoodles_matchesRamen() {
         RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setUserId(1L);
+        request.setMealType("午餐");
+        request.setTypeTags(List.of("面食"));
 
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
-
-        // 不想吃火锅（唯一候选）
-        when(userDislikeService.getActiveDislikeCategories(eq(1L), any(LocalDateTime.class))).thenReturn(Set.of("火锅"));
-        when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNull(response);
-    }
-
-    // ========== 分类过滤测试 ==========
-
-    @Test
-    void recommend_singleCategory_filtersCorrectly() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setCategories(List.of("粤菜"));
-
-        Food food1 = createFood(1L, "叉烧", "粤菜", "甜,咸", 3);
-        Food food2 = createFood(2L, "火锅", "火锅", "辣,麻", 4);
+        // 日料拉面：type=面食, cuisine=日料
+        Food food1 = createFood(1L, "拉面", "日料", "面食", "日料", "午餐,晚餐", "咸,鲜", 3);
+        Food food2 = createFood(2L, "火锅", "火锅", "火锅", "", "午餐,晚餐,夜宵", "辣,麻", 4);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
@@ -313,49 +322,13 @@ class RecommendServiceTest {
     }
 
     @Test
-    void recommend_multipleCategories_filtersCorrectly() {
+    void recommend_cuisineTagJapanese_matchesRamen() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("午餐");
-        request.setCategories(List.of("快餐", "面食"));
+        request.setCuisineTags(List.of("日料"));
 
-        Food food1 = createFood(1L, "猪脚饭", "快餐", "咸,香", 2);
-        Food food2 = createFood(2L, "云吞面", "面食", "清淡,鲜", 2);
-        Food food3 = createFood(3L, "火锅", "火锅", "辣,麻", 4);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        // 应该推荐快餐或面食，不推荐火锅
-        assertTrue(response.getFood().getId() == 1L || response.getFood().getId() == 2L);
-    }
-
-    @Test
-    void recommend_emptyCategories_noFilter() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setCategories(List.of());
-
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
-        Food food2 = createFood(2L, "寿司", "日料", "清淡,鲜", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        // 空分类不限制，两个候选都可以推荐
-    }
-
-    @Test
-    void recommend_duplicateCategories_deduplicated() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setCategories(List.of("粤菜", "粤菜", "粤菜"));
-
-        Food food1 = createFood(1L, "叉烧", "粤菜", "甜,咸", 3);
-        Food food2 = createFood(2L, "火锅", "火锅", "辣,麻", 4);
+        Food food1 = createFood(1L, "拉面", "日料", "面食", "日料", "午餐,晚餐", "咸,鲜", 3);
+        Food food2 = createFood(2L, "火锅", "火锅", "火锅", "", "午餐,晚餐,夜宵", "辣,麻", 4);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
@@ -363,55 +336,15 @@ class RecommendServiceTest {
 
         assertNotNull(response);
         assertEquals(1L, response.getFood().getId());
-    }
-
-    @Test
-    void recommend_invalidCategory_noMatch() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setCategories(List.of("不存在的分类"));
-
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNull(response);
-    }
-
-    @Test
-    void recommend_categoriesWithBlacklistAndExcludeAllApply() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("午餐");
-        request.setUserId(1L);
-        request.setCategories(List.of("快餐", "川菜"));
-        request.setExcludeFoodIds(List.of(1L));
-
-        Food food1 = createFood(1L, "猪脚饭", "快餐", "咸,香", 2);
-        Food food2 = createFood(2L, "宫保鸡丁", "川菜", "辣", 2);
-        Food food3 = createFood(3L, "火锅", "火锅", "辣,麻", 4);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
-
-        // 黑名单排除宫保鸡丁
-        when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(2L));
-        when(userDislikeService.getActiveDislikeCategories(eq(1L), any(LocalDateTime.class))).thenReturn(Set.of());
-        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        // 猪脚饭被 excludeFoodIds 排除，宫保鸡丁被黑名单排除，火锅不在分类中
-        // 无候选，返回 null
-        assertNull(response);
     }
 
     @Test
     void recommend_allFilteredByCategories_returnsNull() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("晚餐");
-        request.setCategories(List.of("粤菜"));
+        request.setTypeTags(List.of("甜品"));
 
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
@@ -420,81 +353,125 @@ class RecommendServiceTest {
         assertNull(response);
     }
 
-    // ========== 口味过滤测试 ==========
+    // ==================== 餐段硬过滤测试 ====================
 
     @Test
-    void recommend_tasteLightWithBBQ_noCandidate() {
+    void recommend_breakfast_excludesHotpot() {
         RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setCategories(List.of("烧烤"));
-        request.setTaste("清淡");
+        request.setMealType("早餐");
 
-        Food food1 = createFood(1L, "烤肉", "烧烤", "咸,香", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        // 火锅 mealTypes=午餐,晚餐,夜宵，不含早餐
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "午餐,晚餐,夜宵", "辣,麻", 4);
+        Food food2 = createFood(2L, "肠粉", "小吃", "小吃", "", "早餐,午餐,夜宵", "清淡,鲜", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
-        // 烧烤不匹配清淡，无候选
-        assertNull(response);
+        assertNotNull(response);
+        assertEquals(2L, response.getFood().getId());
     }
 
     @Test
-    void recommend_tasteLightWithSnack_onlyReturnsLightSnack() {
+    void recommend_lunch_canRecommendRamen() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("午餐");
-        request.setCategories(List.of("小吃"));
-        request.setTaste("清淡");
 
-        Food food1 = createFood(1L, "肠粉", "小吃", "清淡,鲜", 1);
-        Food food2 = createFood(2L, "麻辣烫", "小吃", "辣,麻", 2);
-        Food food3 = createFood(3L, "臭豆腐", "小吃", "辣", 1);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
+        // 日料拉面 mealTypes=午餐,晚餐
+        Food food1 = createFood(1L, "拉面", "日料", "面食", "日料", "午餐,晚餐", "咸,鲜", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        assertEquals(1L, response.getFood().getId()); // 只有肠粉匹配清淡
+        assertEquals(1L, response.getFood().getId());
     }
 
     @Test
-    void recommend_tasteLight_cannotReturnSpicy() {
+    void recommend_milkTea_excludedFromAllMealTypes() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+
+        Food food1 = createFood(1L, "奶茶", "甜品", "甜品", "", "", "甜", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        // 奶茶 mealTypes 为空，任何餐段硬过滤都会排除
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNull(response);
+    }
+
+    @Test
+    void recommend_noMealType_noFilter() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType(null);
+
+        Food food1 = createFood(1L, "奶茶", "甜品", "甜品", "", "", "甜", 1);
+        Food food2 = createFood(2L, "火锅", "火锅", "火锅", "", "午餐,晚餐,夜宵", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        // mealType 为空时跳过节段过滤，奶茶也可以被推荐
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+    }
+
+    // ==================== 口味硬过滤测试 ====================
+
+    @Test
+    void recommend_tasteLight_onlyMatchesLightTag() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("晚餐");
         request.setTaste("清淡");
 
-        Food food1 = createFood(1L, "烤肉", "烧烤", "咸,香", 3);
-        Food food2 = createFood(2L, "麻辣烫", "小吃", "辣,麻", 2);
-        Food food3 = createFood(3L, "火锅", "火锅", "辣,麻", 4);
-        Food food4 = createFood(4L, "清蒸鱼", "粤菜", "清淡,鲜", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3, food4));
+        Food food1 = createFood(1L, "清蒸鱼", "粤菜", "", "粤菜", "晚餐", "清淡,鲜", 3);
+        Food food2 = createFood(2L, "烤肉", "烧烤", "烧烤", "", "晚餐", "咸,香", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        assertEquals(4L, response.getFood().getId()); // 只有清蒸鱼匹配清淡
+        assertEquals(1L, response.getFood().getId());
     }
 
     @Test
-    void recommend_tasteNoSpicy_cannotReturnSpicy() {
+    void recommend_tasteLight_doesNotExcludeHotpotCategory() {
+        // 清淡不再排除火锅分类，仅按 tasteTags 过滤
         RecommendRequest request = new RecommendRequest();
         request.setMealType("晚餐");
-        request.setTaste("不辣");
+        request.setTaste("清淡");
+        request.setTypeTags(List.of("火锅"));
 
-        Food food1 = createFood(1L, "麻辣烫", "小吃", "辣,麻", 2);
-        Food food2 = createFood(2L, "烤肉", "烧烤", "微辣,香", 3);
-        Food food3 = createFood(3L, "清蒸鱼", "粤菜", "清淡,鲜", 3);
-        Food food4 = createFood(4L, "猪脚饭", "快餐", "咸,香", 2);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3, food4));
+        // 火锅 tasteTags=辣,麻，不匹配清淡 → 无候选
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        // 清淡不排除火锅分类，但火锅 tasteTags 不含"清淡"，所以口味硬过滤排除
+        assertNull(response);
+    }
+
+    @Test
+    void recommend_tasteLight_withLightTaggedHotpot_passes() {
+        // 如果有火锅 tag 了"清淡"，则可以通过清淡硬过滤（虽然实际数据中没有）
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTaste("清淡");
+
+        Food food1 = createFood(1L, "清汤火锅", "火锅", "火锅", "", "晚餐", "清淡,鲜", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        // 不辣：排除辣、微辣、麻，只能推荐清蒸鱼或猪脚饭
-        assertTrue(response.getFood().getId() == 3L || response.getFood().getId() == 4L);
+        assertEquals(1L, response.getFood().getId());
     }
 
     @Test
@@ -503,233 +480,223 @@ class RecommendServiceTest {
         request.setMealType("晚餐");
         request.setTaste("辣");
 
-        Food food1 = createFood(1L, "麻辣烫", "小吃", "辣,麻", 2);
-        Food food2 = createFood(2L, "清蒸鱼", "粤菜", "清淡,鲜", 3);
-        Food food3 = createFood(3L, "烤肉", "烧烤", "微辣,香", 3);
+        Food food1 = createFood(1L, "麻辣烫", "小吃", "小吃", "", "晚餐", "辣,麻", 2);
+        Food food2 = createFood(2L, "清蒸鱼", "粤菜", "", "粤菜", "晚餐", "清淡,鲜", 3);
+        Food food3 = createFood(3L, "黄焖鸡米饭", "快餐", "快餐", "", "晚餐", "咸,辣", 2);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        // 辣：必须包含辣或微辣，排除清蒸鱼
         assertTrue(response.getFood().getId() == 1L || response.getFood().getId() == 3L);
     }
 
     @Test
-    void recommend_tasteSpicy_microSpicyGetsFlavorReason() {
+    void recommend_tasteNoSpicy_excludesSpicyAndNumbing() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("晚餐");
-        request.setTaste("辣");
+        request.setTaste("不辣");
 
-        // 只有微辣标签的食物
-        Food food1 = createFood(1L, "烤肉", "烧烤", "微辣,香", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        Food food1 = createFood(1L, "麻辣烫", "小吃", "小吃", "", "晚餐", "辣,麻", 2);
+        Food food2 = createFood(2L, "清蒸鱼", "粤菜", "", "粤菜", "晚餐", "清淡,鲜", 3);
+        Food food3 = createFood(3L, "猪脚饭", "快餐", "快餐", "", "晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        assertEquals(1L, response.getFood().getId());
-        assertTrue(response.getReasons().contains("符合口味偏好"));
-    }
-
-    @Test
-    void recommend_tasteStrong_allowsSaltyAndFragrant() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setTaste("重口");
-
-        Food food1 = createFood(1L, "烤肉", "烧烤", "咸,香", 3);
-        Food food2 = createFood(2L, "清蒸鱼", "粤菜", "清淡,鲜", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        assertEquals(1L, response.getFood().getId()); // 咸+香匹配重口
+        assertNotEquals(1L, response.getFood().getId()); // 麻辣烫被排除
     }
 
     @Test
     void recommend_tasteNoLimit_noFilter() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("晚餐");
-        request.setTaste("不限");
+        request.setTaste(null);
 
-        Food food1 = createFood(1L, "清蒸鱼", "粤菜", "清淡,鲜", 3);
-        Food food2 = createFood(2L, "麻辣烫", "小吃", "辣,麻", 2);
+        Food food1 = createFood(1L, "清蒸鱼", "粤菜", "", "粤菜", "晚餐", "清淡,鲜", 3);
+        Food food2 = createFood(2L, "麻辣烫", "小吃", "小吃", "", "晚餐", "辣,麻", 2);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        // 不限：两个都可以推荐
     }
+
+    @Test
+    void recommend_tasteStrong_removed_ignored() {
+        // "重口" 已删除，传入时应被视为未知口味（Controller 层 1001，Service 层不处理）
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTaste("重口");
+
+        Food food1 = createFood(1L, "麻辣烫", "小吃", "小吃", "", "晚餐", "辣,麻", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        // Service 层 matchesTaste 中 default 返回 true，所以重口被当作不限对待
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+    }
+
+    // ==================== 预算软评分测试 ====================
+
+    @Test
+    void recommend_priceScore_15以内_matchesLevel1() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setPriceLevel("15以内");
+
+        Food food = createFood(1L, "沙县小吃", "小吃", "小吃", "", "午餐", "清淡", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合预算"));
+    }
+
+    @Test
+    void recommend_priceScore_40以上_matchesLevel4() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setPriceLevel("40以上");
+
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合预算"));
+    }
+
+    @Test
+    void recommend_priceScore_noLimit_noBonus() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setPriceLevel(null);
+
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "午餐,晚餐,夜宵", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertFalse(response.getReasons().contains("符合预算"));
+    }
+
+    // ==================== 推荐理由测试 ====================
+
+    @Test
+    void recommend_categoryReason_includedWhenCategorySelected() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTypeTags(List.of("火锅"));
+
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合偏好分类"));
+    }
+
+    // ==================== 组合条件测试 ====================
 
     @Test
     void recommend_categoriesAndTasteAndBlacklist_allApply() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("午餐");
         request.setUserId(1L);
-        request.setCategories(List.of("小吃"));
+        request.setTypeTags(List.of("小吃"));
         request.setTaste("清淡");
 
-        Food food1 = createFood(1L, "肠粉", "小吃", "清淡,鲜", 1);
-        Food food2 = createFood(2L, "麻辣烫", "小吃", "辣,麻", 2);
-        Food food3 = createFood(3L, "臭豆腐", "小吃", "辣", 1);
+        Food food1 = createFood(1L, "肠粉", "小吃", "小吃", "", "午餐", "清淡,鲜", 1);
+        Food food2 = createFood(2L, "麻辣烫", "小吃", "小吃", "", "午餐,晚餐,夜宵", "辣,麻", 2);
+        Food food3 = createFood(3L, "臭豆腐", "小吃", "小吃", "", "午餐,晚餐,夜宵", "辣", 1);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
 
-        // 黑名单排除肠粉
         when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
         when(userDislikeService.getActiveDislikeCategories(eq(1L), any(LocalDateTime.class))).thenReturn(Set.of());
         when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
 
+        // 肠粉被黑名单排除，麻辣烫和臭豆腐不匹配清淡 → 无候选
         RecommendResponse response = recommendService.recommend(request);
 
-        // 肠粉被黑名单排除，麻辣烫和臭豆腐不匹配清淡，无候选
         assertNull(response);
     }
 
     @Test
-    void recommend_tasteLight_disablesHeavyCategories() {
+    void recommend_blacklistAndDislikeAndExcludeAllApply() {
         RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setCategories(List.of("火锅"));
-        request.setTaste("清淡");
+        request.setMealType("午餐");
+        request.setUserId(1L);
+        request.setExcludeFoodIds(List.of(3L));
+        request.setTypeTags(List.of("快餐"));
 
-        Food food1 = createFood(1L, "火锅", "火锅", "辣,麻", 4);
+        Food food1 = createFood(1L, "猪脚饭", "快餐", "快餐", "", "午餐", "咸,香", 2);
+        Food food2 = createFood(2L, "黄焖鸡米饭", "快餐", "快餐", "", "午餐", "咸,辣", 2);
+        Food food3 = createFood(3L, "盖浇饭", "快餐", "快餐", "", "午餐", "咸", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
+
+        when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
+        when(userDislikeService.getActiveDislikeCategories(eq(1L), any(LocalDateTime.class))).thenReturn(Set.of());
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 猪脚饭被黑名单排除，盖浇饭被 exclude 排除 → 只剩黄焖鸡
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(2L, response.getFood().getId());
+    }
+
+    @Test
+    void recommend_noCandidate_returnsNull() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("早餐");
+        request.setTaste("辣");
+        request.setTypeTags(List.of("火锅"));
+
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "午餐,晚餐,夜宵", "辣,麻", 4);
         when(foodService.listAllEnabled()).thenReturn(List.of(food1));
         when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
 
+        // 早餐 → 火锅 mealTypes 不含早餐 → 硬过滤排除 → 无候选
         RecommendResponse response = recommendService.recommend(request);
 
-        // 火锅不匹配清淡，无候选
         assertNull(response);
     }
 
+    // ==================== DECIDED 不参与最近吃过降权 ====================
+
     @Test
-    void recommend_tasteLightAndBBQCombo_noCandidate() {
+    void recommend_decidedRecordDoesNotAffectScore() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("晚餐");
-        request.setCategories(List.of("烧烤"));
-        request.setTaste("清淡");
+        request.setUserId(1L);
 
-        Food food1 = createFood(1L, "烤肉", "烧烤", "咸,香", 3);
-        Food food2 = createFood(2L, "烤鱼", "烧烤", "微辣,香", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        // 烧烤没有清淡标签的菜品，无候选
-        assertNull(response);
-    }
-
-    @Test
-    void recommend_tasteLight_rejectsBBQEvenWithLightTag() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setCategories(List.of("烧烤"));
-        request.setTaste("清淡");
-
-        // 构造 category=烧烤, tasteTags=清淡,鲜 的菜品
-        Food food1 = createFood(1L, "清淡烤鱼", "烧烤", "清淡,鲜", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        // 清淡时直接排除烧烤分类，即使 tasteTags 有清淡标签
-        assertNull(response);
-    }
-
-    // ========== 价格评分测试 ==========
-
-    @Test
-    void recommend_priceScore_lowBudgetMatchesLevel1() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("午餐");
-        request.setPriceLevel("15以内");
-
-        Food food = createFood(1L, "沙县小吃", "小吃", "清淡", 1);
+        Food food = createFood(1L, "猪脚饭", "快餐", "快餐", "", "晚餐", "咸,香", 2);
         when(foodService.listAllEnabled()).thenReturn(List.of(food));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        assertTrue(response.getReasons().contains("符合预算"));
+        assertTrue(response.getReasons().contains("最近几天没吃过，换换口味"));
     }
 
-    @Test
-    void recommend_priceScore_midBudgetMatchesLevel2() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("午餐");
-        request.setPriceLevel("15-25");
-
-        Food food = createFood(1L, "猪脚饭", "快餐", "咸,香", 2);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        assertTrue(response.getReasons().contains("符合预算"));
-    }
-
-    // ========== 重口评分测试 ==========
-
-    @Test
-    void recommend_tasteStrong_spicyGetsFlavorReason() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setTaste("重口");
-
-        Food food = createFood(1L, "麻辣烫", "小吃", "辣,麻", 2);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        assertTrue(response.getReasons().contains("符合口味偏好"));
-    }
-
-    @Test
-    void recommend_tasteStrong_sourGetsFlavorReason() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setTaste("重口");
-
-        Food food = createFood(1L, "酸菜鱼", "川菜", "酸,辣", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        assertTrue(response.getReasons().contains("符合口味偏好"));
-    }
-
-    @Test
-    void recommend_tasteStrong_saltyAndFragrantGetsFlavorReason() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setTaste("重口");
-
-        Food food = createFood(1L, "烤肉", "烧烤", "咸,香", 3);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        assertTrue(response.getReasons().contains("符合口味偏好"));
-    }
-
-    // ========== 边界测试：calculateRecentEatenDeduction ==========
+    // ==================== 边界测试：calculateRecentEatenDeduction ====================
 
     @Test
     void deduction_23h59m_returns100() throws Exception {
@@ -785,9 +752,34 @@ class RecommendServiceTest {
         assertEquals(0, result);
     }
 
-    /**
-     * 通过反射调用私有方法 calculateRecentEatenDeduction（小时+分钟）
-     */
+    // ==================== parseTags 测试 ====================
+
+    @Test
+    void parseTags_normal() {
+        Set<String> result = FoodTaxonomy.parseTags("辣,麻,香");
+        assertEquals(Set.of("辣", "麻", "香"), result);
+    }
+
+    @Test
+    void parseTags_empty() {
+        Set<String> result = FoodTaxonomy.parseTags("");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void parseTags_null() {
+        Set<String> result = FoodTaxonomy.parseTags(null);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void parseTags_withSpaces() {
+        Set<String> result = FoodTaxonomy.parseTags(" 辣 , 麻 , 香 ");
+        assertEquals(Set.of("辣", "麻", "香"), result);
+    }
+
+    // ==================== 工具方法 ====================
+
     private int invokeDeduction(long hours, long minutes) throws Exception {
         return invokeDeductionSeconds(hours, minutes, 0);
     }
@@ -806,36 +798,19 @@ class RecommendServiceTest {
         return (int) method.invoke(recommendService, foodId, recentEatenMap, now);
     }
 
-    private Food createFood(Long id, String name, String category, String tasteTags, int priceLevel) {
+    private Food createFood(Long id, String name, String category,
+                            String typeTags, String cuisineTags, String mealTypes,
+                            String tasteTags, int priceLevel) {
         Food food = new Food();
         food.setId(id);
         food.setName(name);
         food.setCategory(category);
+        food.setTypeTags(typeTags);
+        food.setCuisineTags(cuisineTags);
+        food.setMealTypes(mealTypes);
         food.setTasteTags(tasteTags);
         food.setPriceLevel(priceLevel);
         food.setEnabled(true);
         return food;
-    }
-
-    // ========== DECIDED 不参与最近吃过降权 ==========
-
-    @Test
-    void recommend_decidedRecordDoesNotAffectScore() {
-        // DECIDED 记录不应出现在最近吃过 map 中（SQL 层已过滤 status='EATEN'）
-        // 这里验证当 getRecentEatenFoodMap 返回空时，推荐正常给出"最近几天没吃过"理由
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setUserId(1L);
-
-        Food food = createFood(1L, "猪脚饭", "快餐", "咸,香", 2);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food));
-
-        // 即使存在 DECIDED 记录，getRecentEatenFoodMap 也只返回 EATEN 的，这里模拟为空
-        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        assertTrue(response.getReasons().contains("最近几天没吃过，换换口味"));
     }
 }

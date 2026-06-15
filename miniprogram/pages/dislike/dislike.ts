@@ -2,11 +2,11 @@
 
 import { getDislikes, addDislike, removeDislike } from '../../services/api'
 import { RequestError } from '../../utils/request'
-import { DislikeData } from '../../types/index'
+import { DislikeData, RecommendOptionsData, RecommendOptionItem } from '../../types/index'
+import { fetchRecommendOptions, getFallbackOptions } from '../../services/recommend-options'
 
 const app = getApp<IApp>()
 
-const ALL_CATEGORIES = ['快餐', '小吃', '面食', '西餐', '日料', '烧烤', '火锅', '川菜', '家常菜', '粤菜', '湘菜', '甜品']
 const DAY_OPTIONS = [
   { label: '1天', value: 1 },
   { label: '3天', value: 3 },
@@ -17,7 +17,8 @@ const DAY_OPTIONS = [
 Page({
   data: {
     items: [] as DislikeData[],
-    categories: ALL_CATEGORIES,
+    typeTagOptions: [] as RecommendOptionItem[],
+    cuisineTagOptions: [] as RecommendOptionItem[],
     dayOptions: DAY_OPTIONS,
     selectedCategory: '',
     selectedDays: 3,
@@ -29,6 +30,17 @@ Page({
     _loginRedirecting: false
   },
 
+  onLoad() {
+    // 立即用 fallback 渲染分类选项
+    const fallback = getFallbackOptions()
+    this.setData({
+      typeTagOptions: fallback.typeTags,
+      cuisineTagOptions: fallback.cuisineTags
+    })
+    // 异步拉取后端元数据
+    this.loadOptions()
+  },
+
   onShow() {
     if (!app.isLoggedIn()) {
       this.setData({ loading: false, notLoggedIn: true, errorMsg: '', items: [] })
@@ -37,6 +49,18 @@ Page({
     this.setData({ notLoggedIn: false })
     this._loginRedirecting = false
     this.loadData()
+  },
+
+  async loadOptions() {
+    try {
+      const fresh = await fetchRecommendOptions()
+      this.setData({
+        typeTagOptions: fresh.typeTags,
+        cuisineTagOptions: fresh.cuisineTags
+      })
+    } catch (e) {
+      // fallback 已渲染
+    }
   },
 
   async loadData() {

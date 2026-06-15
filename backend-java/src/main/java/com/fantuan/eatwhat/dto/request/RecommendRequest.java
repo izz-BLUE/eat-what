@@ -11,17 +11,17 @@ import java.util.List;
 public class RecommendRequest {
 
     /**
-     * 餐段：早餐、午餐、晚餐、夜宵
+     * 餐段：早餐、午餐、晚餐、夜宵（空=不限）
      */
     private String mealType;
 
     /**
-     * 价格偏好：15以内、15-25、25-40、不限
+     * 价格偏好：15以内、15-25、25-40、40以上（空=不限）
      */
     private String priceLevel;
 
     /**
-     * 口味偏好：清淡、重口、辣、不辣
+     * 口味偏好：清淡、辣、不辣（空=不限）
      */
     private String taste;
 
@@ -36,7 +36,17 @@ public class RecommendRequest {
     private Long userId;
 
     /**
-     * 偏好分类列表（硬过滤，最多3个）
+     * 食物类型筛选（多选，OR）
+     */
+    private List<String> typeTags;
+
+    /**
+     * 菜系筛选（多选，OR）
+     */
+    private List<String> cuisineTags;
+
+    /**
+     * 旧分类参数（兼容），值会自动分发到 typeTags 或 cuisineTags
      */
     private List<String> categories;
 }
