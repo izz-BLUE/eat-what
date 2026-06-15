@@ -20,15 +20,17 @@ Page({
   data: {
     records: [] as HistoryItem[],
     loading: true,
+    notLoggedIn: false,
     errorMsg: '',
     _loginRedirecting: false
   },
 
   onShow() {
     if (!app.isLoggedIn()) {
-      this.setData({ loading: false })
+      this.setData({ loading: false, notLoggedIn: true, errorMsg: '', records: [] })
       return
     }
+    this.setData({ notLoggedIn: false })
     this._loginRedirecting = false
     this.loadData()
   },

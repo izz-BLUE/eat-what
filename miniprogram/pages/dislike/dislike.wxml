@@ -1,7 +1,7 @@
 <!--pages/dislike/dislike.wxml-->
 <view class="container">
-  <!-- 添加不想吃 -->
-  <view class="card add-section">
+  <!-- 添加不想吃（登录后可见） -->
+  <view class="card add-section" wx:if="{{!notLoggedIn}}">
     <text class="section-title">添加限制</text>
     <view class="filter-options">
       <view
@@ -27,11 +27,30 @@
     </button>
   </view>
 
-  <!-- 当前不想吃列表 -->
-  <view class="loading" wx:if="{{loading}}"><text>加载中...</text></view>
-  <view class="empty-state" wx:elif="{{items.length === 0}}"><text>最近没有暂时不想吃的分类</text></view>
-  <block wx:for="{{items}}" wx:key="id">
-    <view class="dislike-item">
+  <!-- 1. 加载中 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 2. 未登录 -->
+  <view class="empty-state" wx:elif="{{notLoggedIn}}">
+    <text>请先登录后查看不想吃列表</text>
+    <button class="btn-primary" bindtap="goToLogin" style="margin-top:24rpx;">去登录</button>
+  </view>
+
+  <!-- 3. 网络/业务错误 -->
+  <view class="error-state" wx:elif="{{errorMsg}}">
+    <text>{{errorMsg}}</text>
+  </view>
+
+  <!-- 4. 空列表 -->
+  <view class="empty-state" wx:elif="{{items.length === 0}}">
+    <text>最近没有暂时不想吃的分类</text>
+  </view>
+
+  <!-- 5. 正常列表 -->
+  <block wx:else>
+    <view class="dislike-item" wx:for="{{items}}" wx:key="id">
       <view class="item-info">
         <text class="item-cat">{{item.category}}</text>
         <text class="item-expire">至 {{item.expiresAt}}</text>

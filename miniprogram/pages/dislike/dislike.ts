@@ -22,6 +22,7 @@ Page({
     selectedCategory: '',
     selectedDays: 3,
     loading: true,
+    notLoggedIn: false,
     adding: false,
     removing: 0,
     errorMsg: '',
@@ -30,9 +31,10 @@ Page({
 
   onShow() {
     if (!app.isLoggedIn()) {
-      this.setData({ loading: false })
+      this.setData({ loading: false, notLoggedIn: true, errorMsg: '', items: [] })
       return
     }
+    this.setData({ notLoggedIn: false })
     this._loginRedirecting = false
     this.loadData()
   },

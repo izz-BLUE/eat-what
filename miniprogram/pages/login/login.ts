@@ -47,8 +47,13 @@ Page({
         if (pendingBlacklist) {
           try {
             await addBlacklist({ foodId: pendingBlacklist.foodId, reason: pendingBlacklist.reason })
+            // 写入 pendingResult 供首页 onShow 消费
+            app.globalData.pendingResult = {
+              type: 'blacklist',
+              foodId: pendingBlacklist.foodId,
+              foodName: pendingBlacklist.foodName || ''
+            }
             app.globalData.pendingBlacklist = null // 成功后才清除
-            wx.showToast({ title: '已加入黑名单', icon: 'success' })
           } catch (e: any) {
             // 失败时保留 pendingBlacklist，不清除
             wx.showToast({ title: '加入黑名单失败', icon: 'none' })

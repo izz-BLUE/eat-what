@@ -17,6 +17,7 @@ Page({
   data: {
     items: [] as BlacklistItem[],
     loading: true,
+    notLoggedIn: false,
     errorMsg: '',
     removing: 0,
     _loginRedirecting: false
@@ -24,9 +25,10 @@ Page({
 
   onShow() {
     if (!app.isLoggedIn()) {
-      this.setData({ loading: false })
+      this.setData({ loading: false, notLoggedIn: true, errorMsg: '', items: [] })
       return
     }
+    this.setData({ notLoggedIn: false })
     this._loginRedirecting = false
     this.loadData()
   },

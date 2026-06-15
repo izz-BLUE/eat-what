@@ -51,6 +51,23 @@ Page({
     this.refreshCategoryOptions()
   },
 
+  onShow() {
+    // 消费登录后的待处理结果（只消费一次）
+    const result = app.globalData.pendingResult
+    if (!result) return
+    app.globalData.pendingResult = null
+
+    if (result.type === 'blacklist') {
+      // 清空当前推荐结果
+      this.setData({ recommendResult: null, swapCount: 0 })
+      // 将 foodId 加入排除列表
+      if (!this.data.excludeFoodIds.includes(result.foodId)) {
+        this.data.excludeFoodIds.push(result.foodId)
+      }
+      wx.showToast({ title: '已加入黑名单', icon: 'success' })
+    }
+  },
+
   // 刷新分类选项状态
   refreshCategoryOptions() {
     const selected = this.data.selectedCategories
@@ -279,7 +296,7 @@ Page({
     if (!app.isLoggedIn()) {
       // 设置 pendingBlacklist 时清除 pendingRecord（互斥）
       app.globalData.pendingRecord = null
-      app.globalData.pendingBlacklist = { foodId: food.id, reason: '不喜欢' }
+      app.globalData.pendingBlacklist = { foodId: food.id, foodName: food.name, reason: '不喜欢' }
       wx.navigateTo({ url: '/pages/login/login' })
       return
     }
