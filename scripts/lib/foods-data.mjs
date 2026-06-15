@@ -277,7 +277,6 @@ export function validateFoods(rows, taxonomy = null, opts = {}) {
   const allCuisineTags = new Set(t.cuisineTags);
   const allMealTypes = new Set(t.mealTypes);
   const allTasteTags = new Set(t.tasteTags);
-  const allowlist = new Set(t.emptyMealTypesAllowlist || []);
 
   // 逐行校验
   for (const row of rows) {
@@ -312,14 +311,9 @@ export function validateFoods(rows, taxonomy = null, opts = {}) {
       }
     }
 
-    // ---------- 9. enabled=true 的菜品 meal_types 不得为空，白名单除外 ----------
-    if (row.enabled === 'true' && mealVals.length === 0 && !allowlist.has(n)) {
-      errors.push(`${fileName}:${row.line}: name="${n}" enabled=true 但 meal_types 为空且不在白名单中`);
-    }
-
-    // ---------- 10. 空 meal_types 白名单检查 ----------
-    if (mealVals.length === 0 && !allowlist.has(n)) {
-      errors.push(`${fileName}:${row.line}: name="${n}" meal_types 为空但不在白名单中`);
+    // ---------- 9. enabled=true 的菜品 meal_types 不得为空 ----------
+    if (row.enabled === 'true' && mealVals.length === 0) {
+      errors.push(`${fileName}:${row.line}: name="${n}" enabled=true 但 meal_types 为空`);
     }
 
     // ---------- 11. taste_tags 非空且全部属于词典 ----------

@@ -85,6 +85,80 @@ function makeCSVLine(name, category, type_tags, cuisine_tags, meal_types, taste_
 }
 
 // ============================================================
+// 辅助：动态计算覆盖统计
+// ============================================================
+
+/**
+ * 从 parseFoodsCSV() 返回的数据动态计算完整覆盖矩阵。
+ * 所有数字均从数据实时计算，严禁手工统计。
+ */
+function computeCoverageStats(enabledRows) {
+  const taxonomy = readTaxonomy();
+
+  const typeTagCounts = {};
+  for (const tag of taxonomy.typeTags) {
+    typeTagCounts[tag] = { count: 0, names: [] };
+  }
+  const cuisineTagCounts = {};
+  for (const tag of taxonomy.cuisineTags) {
+    cuisineTagCounts[tag] = { count: 0, names: [] };
+  }
+  const mealTypeCounts = {};
+  for (const tag of taxonomy.mealTypes) {
+    mealTypeCounts[tag] = { count: 0, names: [] };
+  }
+  const priceLevelCounts = { '1': { count: 0, names: [] }, '2': { count: 0, names: [] }, '3': { count: 0, names: [] }, '4': { count: 0, names: [] } };
+  let qingdanCount = 0;
+  let laCount = 0;
+  let bulaCount = 0;
+
+  for (const row of enabledRows) {
+    const types = parseMultiValue(row.type_tags);
+    const cuisines = parseMultiValue(row.cuisine_tags);
+    const meals = parseMultiValue(row.meal_types);
+    const tastes = parseMultiValue(row.taste_tags);
+
+    for (const tag of types) {
+      if (typeTagCounts[tag]) {
+        typeTagCounts[tag].count++;
+        typeTagCounts[tag].names.push(row.name);
+      }
+    }
+    for (const tag of cuisines) {
+      if (cuisineTagCounts[tag]) {
+        cuisineTagCounts[tag].count++;
+        cuisineTagCounts[tag].names.push(row.name);
+      }
+    }
+    for (const tag of meals) {
+      if (mealTypeCounts[tag]) {
+        mealTypeCounts[tag].count++;
+        mealTypeCounts[tag].names.push(row.name);
+      }
+    }
+    if (priceLevelCounts[row.price_level]) {
+      priceLevelCounts[row.price_level].count++;
+      priceLevelCounts[row.price_level].names.push(row.name);
+    }
+
+    if (tastes.includes('清淡')) qingdanCount++;
+    if (tastes.includes('辣')) laCount++;
+    if (!tastes.includes('辣')) bulaCount++;
+  }
+
+  return {
+    total: enabledRows.length,
+    typeTagCounts,
+    cuisineTagCounts,
+    mealTypeCounts,
+    priceLevelCounts,
+    qingdanCount,
+    laCount,
+    bulaCount,
+  };
+}
+
+// ============================================================
 // 测试：CSV 解析与数据正确性
 // ============================================================
 
@@ -125,14 +199,11 @@ describe('CSV 解析与数据正确性', () => {
     assert.ok(Array.isArray(taxonomy.typeTags));
     assert.ok(Array.isArray(taxonomy.cuisineTags));
     assert.ok(Array.isArray(taxonomy.userTasteFilters));
-    assert.ok(Array.isArray(taxonomy.emptyMealTypesAllowlist));
-    assert.ok(typeof taxonomy.emptyMealTypesReason === 'string');
 
     assert.deepEqual(taxonomy.mealTypes, ['早餐', '午餐', '晚餐', '夜宵']);
     assert.deepEqual(taxonomy.priceLevels, [1, 2, 3, 4]);
     assert.deepEqual(taxonomy.budgetValues, ['15以内', '15-25', '25-40', '40以上']);
     assert.deepEqual(taxonomy.userTasteFilters, ['清淡', '辣', '不辣']);
-    assert.deepEqual(taxonomy.emptyMealTypesAllowlist, ['奶茶']);
   });
 
   // --- 4. 所有标签精确匹配 ---
@@ -158,12 +229,14 @@ describe('CSV 解析与数据正确性', () => {
     }
   });
 
-  // --- 5. 奶茶空 meal_types 白名单正确 ---
-  it('5. 奶茶空 meal_types 在白名单中', () => {
+  // --- 5. 奶茶有合理餐段 ---
+  it('5. 奶茶具有晚餐|夜宵餐段', () => {
     const milkTea = realRows.find(r => r.name === '奶茶');
     assert.ok(milkTea, '未找到奶茶');
-    assert.equal(milkTea.meal_types, '', '奶茶 meal_types 应为空');
-    assert.ok(taxonomy.emptyMealTypesAllowlist.includes('奶茶'), '奶茶应在白名单中');
+    assert.notEqual(milkTea.meal_types, '', '奶茶 meal_types 不应为空');
+    assert.ok(milkTea.meal_types.includes('晚餐'), '奶茶应包含晚餐');
+    assert.ok(milkTea.meal_types.includes('夜宵'), '奶茶应包含夜宵');
+    assert.equal(taxonomy.emptyMealTypesAllowlist, undefined, 'emptyMealTypesAllowlist 应已删除');
   });
 
   // --- 6. name 唯一 ---
@@ -171,6 +244,355 @@ describe('CSV 解析与数据正确性', () => {
     const names = realRows.map(r => r.name);
     const unique = new Set(names);
     assert.equal(unique.size, names.length, `存在重复 name: ${names.length - unique.size} 个重复`);
+  });
+});
+
+// ============================================================
+// 测试：动态覆盖统计 + 一致性断言
+// ============================================================
+
+describe('动态覆盖统计与一致性断言', () => {
+  let taxonomy;
+  let enabledRows;
+  let stats;
+
+  before(() => {
+    clearTaxonomyCache();
+    taxonomy = readTaxonomy();
+    const result = readFoodsCSV();
+    enabledRows = result.rows.filter(r => r.enabled === 'true');
+    stats = computeCoverageStats(enabledRows);
+  });
+
+  // ==================== 一致性断言 ====================
+
+  it('一致性：各 priceLevel 数量之和等于启用菜总数', () => {
+    const sum = Object.values(stats.priceLevelCounts).reduce((s, v) => s + v.count, 0);
+    assert.equal(sum, stats.total,
+      `priceLevel 合计 ${sum} ≠ 启用菜总数 ${stats.total}`);
+  });
+
+  it('一致性：每个 mealType 数量等于 CSV 中包含该餐段的实际行数', () => {
+    for (const [tag, info] of Object.entries(stats.mealTypeCounts)) {
+      const actual = enabledRows.filter(r => parseMultiValue(r.meal_types).includes(tag)).length;
+      assert.equal(info.count, actual,
+        `mealType "${tag}" 动态计数 ${info.count} ≠ 实际行数 ${actual}`);
+    }
+  });
+
+  it('一致性：覆盖报告中的菜名列表长度等于对应数量', () => {
+    for (const [tag, info] of Object.entries(stats.typeTagCounts)) {
+      assert.equal(info.names.length, info.count,
+        `typeTag "${tag}" names列表 ${info.names.length} ≠ count ${info.count}`);
+    }
+    for (const [tag, info] of Object.entries(stats.cuisineTagCounts)) {
+      assert.equal(info.names.length, info.count,
+        `cuisineTag "${tag}" names列表 ${info.names.length} ≠ count ${info.count}`);
+    }
+    for (const [tag, info] of Object.entries(stats.mealTypeCounts)) {
+      assert.equal(info.names.length, info.count,
+        `mealType "${tag}" names列表 ${info.names.length} ≠ count ${info.count}`);
+    }
+    for (const [level, info] of Object.entries(stats.priceLevelCounts)) {
+      assert.equal(info.names.length, info.count,
+        `priceLevel ${level} names列表 ${info.names.length} ≠ count ${info.count}`);
+    }
+  });
+
+  it('一致性：typeTag 和 cuisineTag 计数无空标签干扰', () => {
+    for (const row of enabledRows) {
+      const types = parseMultiValue(row.type_tags);
+      const cuisines = parseMultiValue(row.cuisine_tags);
+      for (const tag of types) {
+        assert.ok(taxonomy.typeTags.includes(tag),
+          `${row.name} type_tag "${tag}" 不在词典中，不应计入统计`);
+      }
+      for (const tag of cuisines) {
+        assert.ok(taxonomy.cuisineTags.includes(tag),
+          `${row.name} cuisine_tag "${tag}" 不在词典中，不应计入统计`);
+      }
+    }
+  });
+
+  // ==================== 覆盖矩阵（动态计算） ====================
+
+  it('每个 typeTag 至少 5 道启用菜（动态统计）', () => {
+    for (const [tag, info] of Object.entries(stats.typeTagCounts)) {
+      assert.ok(info.count >= 5,
+        `typeTag "${tag}" 仅 ${info.count} 道菜（${info.names.join(', ')}），需要至少 5 道`);
+    }
+  });
+
+  it('每个 cuisineTag 至少 5 道启用菜（动态统计）', () => {
+    for (const [tag, info] of Object.entries(stats.cuisineTagCounts)) {
+      assert.ok(info.count >= 5,
+        `cuisineTag "${tag}" 仅 ${info.count} 道菜（${info.names.join(', ')}），需要至少 5 道`);
+    }
+  });
+
+  it('每个 mealType 至少 10 道候选（动态统计）', () => {
+    for (const [tag, info] of Object.entries(stats.mealTypeCounts)) {
+      assert.ok(info.count >= 10,
+        `mealType "${tag}" 仅 ${info.count} 道菜（${info.names.join(', ')}），需要至少 10 道`);
+    }
+  });
+
+  it('清淡、辣、不辣各至少 10 道（动态统计）', () => {
+    assert.ok(stats.qingdanCount >= 10, `"清淡" 仅 ${stats.qingdanCount} 道，需要至少 10 道`);
+    assert.ok(stats.laCount >= 10, `"辣" 仅 ${stats.laCount} 道，需要至少 10 道`);
+    assert.ok(stats.bulaCount >= 10, `"不辣" 仅 ${stats.bulaCount} 道，需要至少 10 道`);
+  });
+
+  it('甜品至少 5 道且均有餐段（动态统计）', () => {
+    const desserts = enabledRows.filter(r => parseMultiValue(r.type_tags).includes('甜品'));
+    assert.ok(desserts.length >= 5, `甜品仅 ${desserts.length} 道，需要至少 5 道`);
+    for (const d of desserts) {
+      const meals = parseMultiValue(d.meal_types);
+      assert.ok(meals.length > 0, `甜品 "${d.name}" meal_types 为空`);
+    }
+  });
+
+  it('所有启用菜 meal_types 非空（动态统计）', () => {
+    for (const row of enabledRows) {
+      const meals = parseMultiValue(row.meal_types);
+      assert.ok(meals.length > 0, `"${row.name}" 是启用菜但 meal_types 为空`);
+    }
+  });
+
+  it('priceLevel 1-4 各至少 3 道（动态统计）', () => {
+    for (const [level, info] of Object.entries(stats.priceLevelCounts)) {
+      assert.ok(info.count >= 3,
+        `priceLevel ${level} 仅 ${info.count} 道（${info.names.join(', ')}），需要至少 3 道`);
+    }
+  });
+});
+
+// ============================================================
+// 测试：高风险菜品逐道期望映射
+// ============================================================
+
+describe('高风险菜品逐道期望映射', () => {
+  let enabledRows;
+  let rowMap;
+
+  before(() => {
+    const result = readFoodsCSV();
+    enabledRows = result.rows.filter(r => r.enabled === 'true');
+    rowMap = new Map(enabledRows.map(r => [r.name, r]));
+  });
+
+  // ==================== 正断言：精确分类 ====================
+
+  it('包子：typeTags=小吃，无 cuisineTags', () => {
+    const r = rowMap.get('包子');
+    assert.ok(r, '包子应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), ['小吃']);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), []);
+  });
+
+  it('烤串：tasteTags=咸|香，不含辣', () => {
+    const r = rowMap.get('烤串');
+    assert.ok(r, '烤串应存在');
+    const tastes = parseMultiValue(r.taste_tags);
+    assert.ok(tastes.includes('咸'));
+    assert.ok(tastes.includes('香'));
+    assert.ok(!tastes.includes('辣'), '烤串 taste 不应含辣');
+  });
+
+  it('西式烤鸡：无 typeTags，cuisineTags=西餐', () => {
+    const r = rowMap.get('西式烤鸡');
+    assert.ok(r, '西式烤鸡应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), []);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), ['西餐']);
+  });
+
+  it('台式卤肉饭：typeTags=快餐，无 cuisineTags', () => {
+    const r = rowMap.get('台式卤肉饭');
+    assert.ok(r, '台式卤肉饭应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), ['快餐']);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), []);
+  });
+
+  it('鳗鱼饭：无 typeTags，cuisineTags=日料', () => {
+    const r = rowMap.get('鳗鱼饭');
+    assert.ok(r, '鳗鱼饭应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), []);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), ['日料']);
+  });
+
+  it('牛肉面：typeTags=面食，无 cuisineTags', () => {
+    const r = rowMap.get('牛肉面');
+    assert.ok(r, '牛肉面应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), ['面食']);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), []);
+  });
+
+  it('馄饨：typeTags=小吃，无 cuisineTags', () => {
+    const r = rowMap.get('馄饨');
+    assert.ok(r, '馄饨应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), ['小吃']);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), []);
+  });
+
+  it('广式皮蛋瘦肉粥：小吃 + 粤菜', () => {
+    const r = rowMap.get('广式皮蛋瘦肉粥');
+    assert.ok(r, '广式皮蛋瘦肉粥应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), ['小吃']);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), ['粤菜']);
+  });
+
+  it('广式烧卖：小吃 + 粤菜', () => {
+    const r = rowMap.get('广式烧卖');
+    assert.ok(r, '广式烧卖应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), ['小吃']);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), ['粤菜']);
+  });
+
+  it('川味烤鱼：烧烤 + 川菜，taste=辣|麻', () => {
+    const r = rowMap.get('川味烤鱼');
+    assert.ok(r, '川味烤鱼应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), ['烧烤']);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), ['川菜']);
+    const tastes = parseMultiValue(r.taste_tags);
+    assert.ok(tastes.includes('辣'));
+    assert.ok(tastes.includes('麻'));
+  });
+
+  it('湘味蒜苗腊肉：无 typeTags，cuisineTags=湘菜', () => {
+    const r = rowMap.get('湘味蒜苗腊肉');
+    assert.ok(r, '湘味蒜苗腊肉应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), []);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), ['湘菜']);
+  });
+
+  it('农家一碗香：无 typeTags，cuisineTags=湘菜，taste=辣|咸', () => {
+    const r = rowMap.get('农家一碗香');
+    assert.ok(r, '农家一碗香应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), []);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), ['湘菜']);
+    const tastes = parseMultiValue(r.taste_tags);
+    assert.ok(tastes.includes('辣'));
+    assert.ok(tastes.includes('咸'));
+  });
+
+  it('剁椒鱼头：tasteTags=辣|鲜，不含酸', () => {
+    const r = rowMap.get('剁椒鱼头');
+    assert.ok(r, '剁椒鱼头应存在');
+    const tastes = parseMultiValue(r.taste_tags);
+    assert.ok(tastes.includes('辣'));
+    assert.ok(tastes.includes('鲜'));
+    assert.ok(!tastes.includes('酸'), '剁椒鱼头 taste 不应含酸');
+  });
+
+  it('油条：mealTypes 仅早餐', () => {
+    const r = rowMap.get('油条');
+    assert.ok(r, '油条应存在');
+    assert.deepEqual(parseMultiValue(r.meal_types), ['早餐']);
+  });
+
+  it('豆浆：tasteTags=清淡，不含甜', () => {
+    const r = rowMap.get('豆浆');
+    assert.ok(r, '豆浆应存在');
+    const tastes = parseMultiValue(r.taste_tags);
+    assert.deepEqual(tastes, ['清淡'], '豆浆 taste 应为清淡');
+  });
+
+  it('咸豆腐脑：tasteTags=咸|鲜，不含清淡', () => {
+    const r = rowMap.get('咸豆腐脑');
+    assert.ok(r, '咸豆腐脑应存在');
+    const tastes = parseMultiValue(r.taste_tags);
+    assert.ok(tastes.includes('咸'));
+    assert.ok(tastes.includes('鲜'));
+    assert.ok(!tastes.includes('清淡'), '咸豆腐脑不应含清淡');
+  });
+
+  it('家常豆腐：无 typeTags，cuisineTags=家常菜', () => {
+    const r = rowMap.get('家常豆腐');
+    assert.ok(r, '家常豆腐应存在');
+    assert.deepEqual(parseMultiValue(r.type_tags), []);
+    assert.deepEqual(parseMultiValue(r.cuisine_tags), ['家常菜']);
+  });
+
+  // ==================== 负断言：关键误分类标签不存在 ====================
+
+  it('负断言：包子不含家常菜', () => {
+    const r = rowMap.get('包子');
+    assert.ok(!parseMultiValue(r.cuisine_tags).includes('家常菜'),
+      '包子不应含 cuisineTag=家常菜');
+  });
+
+  it('负断言：台式卤肉饭不含家常菜', () => {
+    const r = rowMap.get('台式卤肉饭');
+    assert.ok(!parseMultiValue(r.cuisine_tags).includes('家常菜'),
+      '台式卤肉饭不应含 cuisineTag=家常菜');
+  });
+
+  it('负断言：牛肉面不含家常菜', () => {
+    const r = rowMap.get('牛肉面');
+    assert.ok(!parseMultiValue(r.cuisine_tags).includes('家常菜'),
+      '牛肉面不应含 cuisineTag=家常菜');
+  });
+
+  it('负断言：馄饨不含家常菜', () => {
+    const r = rowMap.get('馄饨');
+    assert.ok(!parseMultiValue(r.cuisine_tags).includes('家常菜'),
+      '馄饨不应含 cuisineTag=家常菜');
+  });
+
+  it('负断言：鳗鱼饭不含快餐', () => {
+    const r = rowMap.get('鳗鱼饭');
+    assert.ok(!parseMultiValue(r.type_tags).includes('快餐'),
+      '鳗鱼饭不应含 typeTag=快餐');
+  });
+
+  it('负断言：烤串不含辣', () => {
+    const r = rowMap.get('烤串');
+    assert.ok(!parseMultiValue(r.taste_tags).includes('辣'),
+      '烤串不应含辣');
+  });
+
+  it('负断言：西式烤鸡不含烧烤', () => {
+    const r = rowMap.get('西式烤鸡');
+    assert.ok(!parseMultiValue(r.type_tags).includes('烧烤'),
+      '西式烤鸡不应含烧烤 typeTag');
+  });
+
+  it('负断言：普通烤制食品不会自动包含烧烤', () => {
+    const r = rowMap.get('西式烤鸡');
+    assert.ok(r, '西式烤鸡应存在');
+    assert.ok(!parseMultiValue(r.type_tags).includes('烧烤'),
+      '西式烤鸡（烤制但不属烧烤消费场景）不应含烧烤');
+  });
+
+  it('负断言：干锅牛蛙已不存在', () => {
+    assert.ok(!rowMap.has('干锅牛蛙'), '干锅牛蛙应已被替换为农家一碗香');
+  });
+
+  // ==================== 甜品餐段审计 ====================
+
+  it('甜品餐段审计：冰淇淋仅晚餐|夜宵', () => {
+    const r = rowMap.get('冰淇淋');
+    const meals = parseMultiValue(r.meal_types);
+    assert.deepEqual(meals, ['晚餐', '夜宵'], '冰淇淋应在晚餐和夜宵，不应在午餐');
+    assert.ok(!meals.includes('午餐'), '冰淇淋不应含午餐——冰淇淋不宜作为午餐推荐');
+  });
+
+  it('甜品餐段审计：奶茶仅晚餐|夜宵', () => {
+    const r = rowMap.get('奶茶');
+    const meals = parseMultiValue(r.meal_types);
+    assert.deepEqual(meals, ['晚餐', '夜宵'], '奶茶应在晚餐和夜宵，不应在午餐');
+    assert.ok(!meals.includes('午餐'), '奶茶不应含午餐——奶茶不宜作为午餐正餐推荐');
+  });
+
+  it('甜品餐段审计：蛋糕、双皮奶、糖水、提拉米苏均含午餐|晚餐|夜宵', () => {
+    for (const name of ['蛋糕', '双皮奶', '糖水', '提拉米苏']) {
+      const r = rowMap.get(name);
+      assert.ok(r, `${name} 应存在`);
+      const meals = parseMultiValue(r.meal_types);
+      assert.ok(meals.includes('午餐'), `${name} 应含午餐（餐后甜品属真实消费场景）`);
+      assert.ok(meals.includes('晚餐'), `${name} 应含晚餐`);
+      assert.ok(meals.includes('夜宵'), `${name} 应含夜宵`);
+    }
   });
 });
 
@@ -191,11 +613,9 @@ describe('回归：数量灵活性', () => {
   });
 
   // --- 31 道合法菜可通过校验 ---
-  it('31 道合法菜通过校验（不硬编码 30）', () => {
+  it('31 道合法菜通过校验（不硬编码数量）', () => {
     createTmpDir();
     let content = makeCSVHeader() + '\n';
-    // 生成 31 道菜
-    const baseRow = ['测试菜', '快餐', '小吃', '', '午餐|晚餐', '辣', '1', 'true'];
     for (let i = 0; i < 31; i++) {
       content += makeCSVLine(`测试菜${i}`, `快餐`, `小吃`, ``, `午餐|晚餐`, `辣`, `1`, `true`) + '\n';
     }
@@ -203,10 +623,8 @@ describe('回归：数量灵活性', () => {
     const { rows, errors: parseErrors } = parseFoodsCSV(content, p);
     assert.equal(parseErrors.length, 0, '31 道菜解析应无错误: ' + parseErrors.join('; '));
     const errors = validateFoods(rows, taxonomy, { skipSortCheck: true });
-    // 不应包含 "期望 30" 这类固定数量错误
-    assert.ok(!errors.some(e => e.includes('期望 30')), '不应包含硬编码 30 限制');
+    assert.ok(!errors.some(e => e.includes('期望 30')), '不应包含硬编码数量限制');
     assert.ok(!errors.some(e => e.includes('至少需要 1')), '31 道菜应通过至少 1 道检查');
-    // 只可能有排序警告（未按 Unicode 排）
     const nonSortErrors = errors.filter(e => !e.includes('排序不正确'));
     assert.equal(nonSortErrors.length, 0, '31 道合法菜不应有非排序错误: ' + nonSortErrors.join('; '));
   });
@@ -322,7 +740,7 @@ describe('错误检测：校验失败场景', () => {
     assert.ok(errors.some(e => e.includes('price_level')), `应报告非法 price_level: ${errors.join('; ')}`);
   });
 
-  // --- 15b. price_level "2abc" 失败（严格字符串匹配） ---
+  // --- 15b. price_level "2abc" 失败 ---
   it('15b. price_level "2abc" 校验失败（严格字符串，不允许 parseInt 宽松解析）', () => {
     createTmpDir();
     const content = makeCSVHeader() + '\n' + makeCSVLine('白切鸡', '粤菜', '', '粤菜', '午餐|晚餐', '清淡|鲜', '2abc', 'true');
@@ -333,7 +751,7 @@ describe('错误检测：校验失败场景', () => {
     assert.ok(errors.some(e => e.includes('price_level')), `"2abc" 应校验失败: ${errors.join('; ')}`);
   });
 
-  // --- 15c. price_level "2.5" 失败（禁止小数） ---
+  // --- 15c. price_level "2.5" 失败 ---
   it('15c. price_level "2.5" 校验失败（禁止小数）', () => {
     createTmpDir();
     const content = makeCSVHeader() + '\n' + makeCSVLine('白切鸡', '粤菜', '', '粤菜', '午餐|晚餐', '清淡|鲜', '2.5', 'true');
@@ -344,7 +762,7 @@ describe('错误检测：校验失败场景', () => {
     assert.ok(errors.some(e => e.includes('price_level')), `"2.5" 应校验失败: ${errors.join('; ')}`);
   });
 
-  // --- 15d. price_level "02" 失败（禁止前导零） ---
+  // --- 15d. price_level "02" 失败 ---
   it('15d. price_level "02" 校验失败（禁止前导零）', () => {
     createTmpDir();
     const content = makeCSVHeader() + '\n' + makeCSVLine('白切鸡', '粤菜', '', '粤菜', '午餐|晚餐', '清淡|鲜', '02', 'true');
@@ -441,26 +859,21 @@ describe('Migration SQL 生成', () => {
   // --- 20. 扫描 migration 目录检测版本号冲突 ---
   it('20. findExistingMigration 检测同版本不同描述的文件冲突', () => {
     createTmpDir();
-    // 创建一个 V8 文件
     const p = resolve(tmpMigrationDir, 'V8__other_description.sql');
     writeFileSync(p, '-- dummy', 'utf-8');
     assert.ok(existsSync(p));
 
-    // 同版本 + 不同描述 → 应检测到冲突
     const conflict = findExistingMigration('V8', tmpMigrationDir);
     assert.equal(conflict, 'V8__other_description.sql',
       '应检测到已有 V8__other_description.sql');
 
-    // 同版本 + 相同描述 → 路径检查应拒绝（精确匹配）
     const exactPath = migrationOutputPath('V8', 'test_exists', tmpMigrationDir);
     writeFileSync(exactPath, '-- dummy', 'utf-8');
     assert.ok(existsSync(exactPath), '精确路径也应被占用');
 
-    // 不同版本 → 无冲突
     const noConflict = findExistingMigration('V9', tmpMigrationDir);
     assert.equal(noConflict, null, 'V9 不应有冲突');
 
-    // 带前缀版本号（如 V8 vs 8）
     const conflict2 = findExistingMigration('8', tmpMigrationDir);
     assert.equal(conflict2, 'V8__other_description.sql',
       '不带 V 前缀的版本号 8 也应检测到冲突');
@@ -473,7 +886,7 @@ describe('Migration SQL 生成', () => {
     assert.throws(() => generateMigrationSQL(rows, '', 'test'), /无效的版本号/);
   });
 
-  // --- 22. 非法 CSV 不生成文件 ---
+  // --- 22. 非法 CSV 不通过 validateFoods ---
   it('22. 包含校验错误的 CSV 不应通过 validateFoods', () => {
     const badRows = [{
       line: 2, name: '测试菜', category: '快餐',
@@ -483,8 +896,6 @@ describe('Migration SQL 生成', () => {
     const errors = validateFoods(badRows, taxonomy, { skipSortCheck: true });
     assert.ok(errors.length > 0, '包含未知标签的数据应校验失败');
   });
-
-  // ==================== 回归测试 ====================
 
   // --- V7 被生成器拒绝 ---
   it('V7 版本被生成器拒绝', () => {
@@ -519,7 +930,7 @@ describe('Migration SQL 生成', () => {
     assert.ok(!sql.includes('ALTER TABLE'), '不应包含 ALTER TABLE');
   });
 
-  // --- name 重复时唯一约束测试失败 ---
+  // --- name 重复时校验失败 ---
   it('重复 name 时校验失败（模拟唯一约束违反）', () => {
     createTmpDir();
     const content = makeCSVHeader() + '\n'
@@ -561,37 +972,30 @@ describe('CLI 集成：run() 冲突拒绝', () => {
     cleanupTmpDir();
   });
 
-  // --- CLI 拒绝同版本 V8（真实调用 run 函数，不直接调 findExistingMigration） ---
   it('CLI run() 拒绝同版本 V8：已有 V8__existing.sql 时禁止生成另一个 V8', () => {
     createTmpDir();
 
-    // 写一个合法的最小 CSV
     const csvContent = makeCSVHeader() + '\n'
       + makeCSVLine('测试菜A', '快餐', '小吃', '', '午餐|晚餐', '辣', '1', 'true') + '\n'
       + makeCSVLine('测试菜B', '快餐', '小吃', '', '午餐|晚餐', '辣', '1', 'true');
     const csvPath = writeTmpCSV('cli-test.csv', csvContent);
 
-    // 预先在 migration 目录中创建 V8__existing.sql
     const existingPath = resolve(tmpMigrationDir, 'V8__existing.sql');
     writeFileSync(existingPath, '-- dummy migration', 'utf-8');
     assert.ok(existsSync(existingPath), 'V8__existing.sql 应已创建');
 
-    // 记录创建前的文件列表
     const filesBefore = readdirSync(tmpMigrationDir).filter(f => f.endsWith('.sql'));
     assert.equal(filesBefore.length, 1, '初始应有 1 个 sql 文件');
 
-    // 捕获 stderr
     const stderrLines = [];
     const stderr = (msg) => { stderrLines.push(msg); };
 
-    // 实际调用 run()
     const result = run(['V8', 'test_migration'], {
       migrationDir: tmpMigrationDir,
       csvPath: csvPath,
       stderr: stderr,
     });
 
-    // 断言：应失败
     assert.equal(result.ok, false, 'run() 应返回 ok=false');
     assert.ok(result.error, '应有错误消息');
     assert.ok(
@@ -599,28 +1003,22 @@ describe('CLI 集成：run() 冲突拒绝', () => {
       `错误消息应提及版本冲突: ${result.error}`
     );
 
-    // 断言：不是 ReferenceError
     assert.ok(!result.error.includes('ReferenceError'), '不应是 ReferenceError');
     assert.ok(!result.error.includes('is not defined'), '不应是未定义变量错误');
 
-    // 断言：stderr 中应包含冲突信息
     const stderrText = stderrLines.join('\n');
     assert.ok(
       stderrText.includes('V8') && stderrText.includes('已存在'),
       `stderr 应包含版本冲突信息: ${stderrText}`
     );
 
-    // 断言：没有生成第二个 V8 文件
     const filesAfter = readdirSync(tmpMigrationDir).filter(f => f.endsWith('.sql'));
     assert.equal(filesAfter.length, 1, '不应生成第二个文件');
     assert.equal(filesAfter[0], 'V8__existing.sql', '原有文件不受影响');
     assert.ok(!existsSync(resolve(tmpMigrationDir, 'V8__test_migration.sql')),
       '不应生成 V8__test_migration.sql');
-
-    console.log('✅ CLI run() 正确拒绝同版本冲突');
   });
 
-  // --- CLI 成功生成 V9（同一 migration 目录中 V8 已存在但不冲突） ---
   it('CLI run() 成功生成 V9：同一目录已有 V8 时 V9 不受阻止', () => {
     createTmpDir();
 
@@ -629,7 +1027,6 @@ describe('CLI 集成：run() 冲突拒绝', () => {
       + makeCSVLine('测试菜B', '快餐', '小吃', '', '午餐|晚餐', '辣', '1', 'true');
     const csvPath = writeTmpCSV('cli-test2.csv', csvContent);
 
-    // 预先创建 V8__existing.sql
     writeFileSync(resolve(tmpMigrationDir, 'V8__existing.sql'), '-- dummy', 'utf-8');
 
     const stderrLines = [];
@@ -647,11 +1044,8 @@ describe('CLI 集成：run() 冲突拒绝', () => {
     assert.equal(result.count, 2, '应有 2 道菜');
     assert.ok(existsSync(result.outputPath), 'V9 文件应存在');
 
-    // 两个文件都存在
     const files = readdirSync(tmpMigrationDir).filter(f => f.endsWith('.sql'));
     assert.equal(files.length, 2, '应有 V8 和 V9 两个文件');
-
-    console.log('✅ CLI run() 成功生成 V9（V8 不冲突）');
   });
 });
 

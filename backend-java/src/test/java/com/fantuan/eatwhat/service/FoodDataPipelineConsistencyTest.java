@@ -258,25 +258,17 @@ class FoodDataPipelineConsistencyTest {
     }
 
     /**
-     * 测试：奶茶空 meal_types 正确
+     * 测试：所有启用菜品 meal_types 非空（奶茶不再享有白名单例外）
      */
     @Test
-    void milkTeaHasEmptyMealTypes() {
-        FoodRow milkTea = csvRows.stream()
-                .filter(r -> "奶茶".equals(r.name))
-                .findFirst()
-                .orElse(null);
-        assertNotNull(milkTea, "CSV 中未找到奶茶");
-        assertEquals("", milkTea.mealTypes, "奶茶 meal_types 应为空");
-
-        // 验证白名单
-        JsonNode allowlist = taxonomyJson.get("emptyMealTypesAllowlist");
-        assertNotNull(allowlist, "taxonomy JSON 缺少 emptyMealTypesAllowlist");
-        List<String> allowlistNames = jsonArrayToList(allowlist);
-        assertTrue(allowlistNames.contains("奶茶"),
-                "奶茶应在 emptyMealTypesAllowlist 中");
-
-        System.out.println("✅ 奶茶空 meal_types 白名单验证通过");
+    void allEnabledFoodsHaveMealTypes() {
+        for (FoodRow row : csvRows) {
+            if (row.enabled) {
+                assertFalse(row.mealTypes.isEmpty(),
+                        row.name + " 是启用菜但 meal_types 为空");
+            }
+        }
+        System.out.println("✅ 所有启用菜品 meal_types 非空");
     }
 
     /**

@@ -543,10 +543,227 @@ class RecommendServiceTest {
         assertNotNull(response);
     }
 
-    // ==================== 预算软评分测试 ====================
+    // ==================== 参考价位硬过滤测试 ====================
 
     @Test
-    void recommend_priceScore_15以内_matchesLevel1() {
+    void recommend_priceLevel_15以内_onlyReturnsLevel1() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setPriceLevel("15以内");
+
+        Food food1 = createFood(1L, "沙县小吃", "小吃", "小吃", "", "午餐", "清淡", 1);
+        Food food2 = createFood(2L, "黄焖鸡米饭", "快餐", "快餐", "", "午餐", "咸,辣", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(1, response.getFood().getPriceLevel(),
+                "15以内 只能返回 priceLevel=1，实际: " + response.getFood().getPriceLevel());
+    }
+
+    @Test
+    void recommend_priceLevel_15以内_excludesLevel3() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setPriceLevel("15以内");
+
+        Food food1 = createFood(1L, "寿司", "日料", "", "日料", "午餐", "清淡,鲜", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        // 寿司 priceLevel=3，15以内硬过滤排除 → 无候选
+        RecommendResponse response = recommendService.recommend(request);
+        assertNull(response);
+    }
+
+    @Test
+    void recommend_priceLevel_15_25_onlyReturnsLevel2() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setPriceLevel("15-25");
+
+        Food food1 = createFood(1L, "猪脚饭", "快餐", "快餐", "", "晚餐", "咸,香", 2);
+        Food food2 = createFood(2L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(2, response.getFood().getPriceLevel(),
+                "15-25 只能返回 priceLevel=2，实际: " + response.getFood().getPriceLevel());
+    }
+
+    @Test
+    void recommend_priceLevel_25_40_onlyReturnsLevel3() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setPriceLevel("25-40");
+
+        Food food1 = createFood(1L, "清蒸鱼", "粤菜", "", "粤菜", "晚餐", "清淡,鲜", 3);
+        Food food2 = createFood(2L, "兰州拉面", "面食", "面食", "", "晚餐", "清淡", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(3, response.getFood().getPriceLevel(),
+                "25-40 只能返回 priceLevel=3，实际: " + response.getFood().getPriceLevel());
+    }
+
+    @Test
+    void recommend_priceLevel_40以上_onlyReturnsLevel4() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setPriceLevel("40以上");
+
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        Food food2 = createFood(2L, "猪脚饭", "快餐", "快餐", "", "晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(4, response.getFood().getPriceLevel(),
+                "40以上 只能返回 priceLevel=4，实际: " + response.getFood().getPriceLevel());
+    }
+
+    @Test
+    void recommend_priceLevel_noLimit_noFilter() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setPriceLevel(null);
+
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "午餐,晚餐,夜宵", "辣,麻", 4);
+        Food food2 = createFood(2L, "沙县小吃", "小吃", "小吃", "", "午餐", "清淡", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // 空值不限，火锅(4)和沙县(1)都可能返回
+    }
+
+    @Test
+    void recommend_priceLevel_emptyString_noFilter() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setPriceLevel("");
+
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "午餐,晚餐,夜宵", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+    }
+
+    @Test
+    void recommend_priceLevel_noCandidate_returnsNull() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setPriceLevel("15以内");
+
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        // 4 不属于 15以内 → 无候选
+        RecommendResponse response = recommendService.recommend(request);
+        assertNull(response, "15以内选无可选时应返回 null（Controller code=2002）");
+    }
+
+    @Test
+    void recommend_priceLevel_withCategoriesAndMealType_andLogic() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setPriceLevel("15以内");
+        request.setTypeTags(List.of("小吃"));
+
+        Food food1 = createFood(1L, "沙县小吃", "小吃", "小吃", "", "午餐", "清淡", 1);
+        Food food2 = createFood(2L, "猪脚饭", "快餐", "快餐", "", "午餐", "咸,香", 2);
+        Food food3 = createFood(3L, "凉皮", "小吃", "小吃", "", "午餐,晚餐,夜宵", "辣,酸", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(1, response.getFood().getPriceLevel(),
+                "分类+餐段+价格组合 AND：必须 priceLevel=1");
+        assertTrue(response.getFood().getTypeTags() != null
+                && response.getFood().getTypeTags().contains("小吃"),
+                "分类+餐段+价格 AND：必须 typeTags 含小吃");
+    }
+
+    @Test
+    void recommend_priceLevel_swapAlsoEnforcesPrice() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setPriceLevel("25-40");
+        request.setExcludeFoodIds(List.of(1L));
+
+        Food food1 = createFood(1L, "清蒸鱼", "粤菜", "", "粤菜", "晚餐", "清淡,鲜", 3);
+        Food food2 = createFood(2L, "拉面", "日料", "面食", "日料", "晚餐", "咸,鲜", 3);
+        Food food3 = createFood(3L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(3, response.getFood().getPriceLevel(),
+                "swap 也遵守价位，排除清蒸鱼后应返回拉面(3)非火锅(4)");
+        assertNotEquals(1L, response.getFood().getId(), "应排除清蒸鱼");
+    }
+
+    @Test
+    void recommend_priceLevel_excludeAllCandidates_returnsNull() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setPriceLevel("15以内");
+        request.setExcludeFoodIds(List.of(1L, 2L));
+
+        Food food1 = createFood(1L, "沙县小吃", "小吃", "小吃", "", "晚餐", "清淡", 1);
+        Food food2 = createFood(2L, "兰州拉面", "面食", "面食", "", "晚餐", "清淡", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        // 排除所有 15以内 候选
+        RecommendResponse response = recommendService.recommend(request);
+        assertNull(response, "excludeFoodIds 排除该档位全部候选后应返回 null");
+    }
+
+    @Test
+    void recommend_priceLevel_continuousRecommendNeverReturnsOtherLevel() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setPriceLevel("40以上");
+
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        Food food2 = createFood(2L, "麻辣火锅", "火锅", "火锅", "川菜", "晚餐", "辣,麻", 4);
+        Food food3 = createFood(3L, "猪脚饭", "快餐", "快餐", "", "晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2, food3));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        // 连续推荐 10 次，不应出现非 4 的菜品
+        for (int i = 0; i < 10; i++) {
+            RecommendResponse response = recommendService.recommend(request);
+            assertNotNull(response, "40以上 hard filter 应有候选");
+            assertEquals(4, response.getFood().getPriceLevel(),
+                    "连续推荐 #" + (i + 1) + " 出现 priceLevel=" + response.getFood().getPriceLevel()
+                    + " (" + response.getFood().getName() + ")，应为4");
+        }
+    }
+
+    @Test
+    void recommend_priceLevel_addsReason() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("午餐");
         request.setPriceLevel("15以内");
@@ -558,27 +775,12 @@ class RecommendServiceTest {
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        assertTrue(response.getReasons().contains("符合预算"));
+        assertTrue(response.getReasons().contains("符合参考价位"),
+                "应包含'符合参考价位'理由，实际: " + response.getReasons());
     }
 
     @Test
-    void recommend_priceScore_40以上_matchesLevel4() {
-        RecommendRequest request = new RecommendRequest();
-        request.setMealType("晚餐");
-        request.setPriceLevel("40以上");
-
-        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
-        when(foodService.listAllEnabled()).thenReturn(List.of(food));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
-
-        RecommendResponse response = recommendService.recommend(request);
-
-        assertNotNull(response);
-        assertTrue(response.getReasons().contains("符合预算"));
-    }
-
-    @Test
-    void recommend_priceScore_noLimit_noBonus() {
+    void recommend_priceLevel_noLimit_noPriceReason() {
         RecommendRequest request = new RecommendRequest();
         request.setMealType("午餐");
         request.setPriceLevel(null);
@@ -590,7 +792,8 @@ class RecommendServiceTest {
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        assertFalse(response.getReasons().contains("符合预算"));
+        assertFalse(response.getReasons().contains("符合参考价位"),
+                "不限价位时不应有'符合参考价位'理由");
     }
 
     // ==================== 推荐理由测试 ====================

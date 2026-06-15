@@ -46,7 +46,7 @@ public class RecommendController {
             return ApiResponse.fail(1001, "无效的餐段: " + mealType);
         }
         if (priceLevel != null && !priceLevel.isEmpty() && !RecommendDict.isValidPriceLevel(priceLevel)) {
-            return ApiResponse.fail(1001, "无效的预算: " + priceLevel);
+            return ApiResponse.fail(1001, "无效的参考价位: " + priceLevel);
         }
         if (taste != null && !taste.isEmpty() && !RecommendDict.isValidTaste(taste)) {
             return ApiResponse.fail(1001, "无效的口味: " + taste);
@@ -137,7 +137,7 @@ public class RecommendController {
             return ApiResponse.fail(1001, "无效的餐段: " + mealType);
         }
         if (priceLevel != null && !priceLevel.isEmpty() && !RecommendDict.isValidPriceLevel(priceLevel)) {
-            return ApiResponse.fail(1001, "无效的预算: " + priceLevel);
+            return ApiResponse.fail(1001, "无效的参考价位: " + priceLevel);
         }
         if (taste != null && !taste.isEmpty() && !RecommendDict.isValidTaste(taste)) {
             return ApiResponse.fail(1001, "无效的口味: " + taste);
