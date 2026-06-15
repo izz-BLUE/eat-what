@@ -1,0 +1,63 @@
+<!--pages/dislike/dislike.wxml-->
+<view class="container">
+  <!-- 添加不想吃（登录后可见） -->
+  <view class="card add-section" wx:if="{{!notLoggedIn}}">
+    <text class="section-title">添加限制</text>
+    <view class="filter-options">
+      <view
+        wx:for="{{categories}}"
+        wx:key="*this"
+        class="cat-option {{selectedCategory === item ? 'active' : ''}}"
+        bindtap="selectCategory"
+        data-value="{{item}}"
+      >{{item}}</view>
+    </view>
+    <text class="section-title">有效期</text>
+    <view class="filter-options">
+      <view
+        wx:for="{{dayOptions}}"
+        wx:key="value"
+        class="cat-option {{selectedDays === item.value ? 'active' : ''}}"
+        bindtap="selectDays"
+        data-value="{{item.value}}"
+      >{{item.label}}</view>
+    </view>
+    <button class="btn-primary" bindtap="handleAdd" disabled="{{adding}}" style="margin-top:32rpx;">
+      {{adding ? '添加中...' : '添加'}}
+    </button>
+  </view>
+
+  <!-- 1. 加载中 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 2. 未登录 -->
+  <view class="empty-state" wx:elif="{{notLoggedIn}}">
+    <text>请先登录后查看不想吃列表</text>
+    <button class="btn-primary" bindtap="goToLogin" style="margin-top:24rpx;">去登录</button>
+  </view>
+
+  <!-- 3. 网络/业务错误 -->
+  <view class="error-state" wx:elif="{{errorMsg}}">
+    <text>{{errorMsg}}</text>
+  </view>
+
+  <!-- 4. 空列表 -->
+  <view class="empty-state" wx:elif="{{items.length === 0}}">
+    <text>最近没有暂时不想吃的分类</text>
+  </view>
+
+  <!-- 5. 正常列表 -->
+  <block wx:else>
+    <view class="dislike-item" wx:for="{{items}}" wx:key="id">
+      <view class="item-info">
+        <text class="item-cat">{{item.category}}</text>
+        <text class="item-expire">至 {{item.expiresAt}}</text>
+      </view>
+      <button class="btn-remove" bindtap="handleRemove" data-id="{{item.id}}" data-cat="{{item.category}}" disabled="{{removing === item.id}}">
+        {{removing === item.id ? '解除中' : '解除'}}
+      </button>
+    </view>
+  </block>
+</view>

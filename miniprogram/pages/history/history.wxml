@@ -1,0 +1,38 @@
+<!--pages/history/history.wxml-->
+<view class="container">
+  <!-- 1. 加载中 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 2. 未登录 -->
+  <view class="empty-state" wx:elif="{{notLoggedIn}}">
+    <text>请先登录后查看历史记录</text>
+    <button class="btn-primary" bindtap="goToLogin" style="margin-top:24rpx;">去登录</button>
+  </view>
+
+  <!-- 3. 网络/业务错误 -->
+  <view class="error-state" wx:elif="{{errorMsg}}">
+    <text>{{errorMsg}}</text>
+  </view>
+
+  <!-- 4. 空列表 -->
+  <view class="empty-state" wx:elif="{{records.length === 0}}">
+    <text>还没有吃过记录</text>
+  </view>
+
+  <!-- 5. 正常列表 -->
+  <block wx:else>
+    <view class="record-item" wx:for="{{records}}" wx:key="id">
+      <view class="record-header">
+        <text class="record-name">{{item.foodName}}</text>
+        <text class="record-meal">「{{item.mealType}}」</text>
+        <view class="record-stars" wx:if="{{item.hasRating}}">
+          <text wx:for="{{5}}" wx:for-item="s" wx:key="*this" class="star {{item.rating >= s ? 'active' : ''}}">★</text>
+        </view>
+      </view>
+      <view class="record-note" wx:if="{{item.hasNote}}">{{item.note}}</view>
+      <view class="record-time">{{item.eatenAt}}</view>
+    </view>
+  </block>
+</view>

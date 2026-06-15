@@ -5,7 +5,9 @@ App({
     userId: 0,
     nickname: '',
     avatarUrl: '',
-    pendingRecord: null as any
+    pendingRecord: null as any,
+    pendingBlacklist: null as any,
+    pendingResult: null as PendingResult | null
   },
 
   onLaunch() {

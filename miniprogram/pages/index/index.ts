@@ -1,6 +1,6 @@
 // pages/index/index.ts
 
-import { getRecommend, swapRecommend } from '../../services/api'
+import { getRecommend, swapRecommend, addBlacklist } from '../../services/api'
 import { RequestError } from '../../utils/request'
 import { RecommendData, MealType, PriceLevel, Taste } from '../../types/index'
 import { config } from '../../config/index'
@@ -49,6 +49,23 @@ Page({
 
   onLoad() {
     this.refreshCategoryOptions()
+  },
+
+  onShow() {
+    // 消费登录后的待处理结果（只消费一次）
+    const result = app.globalData.pendingResult
+    if (!result) return
+    app.globalData.pendingResult = null
+
+    if (result.type === 'blacklist') {
+      // 清空当前推荐结果
+      this.setData({ recommendResult: null, swapCount: 0 })
+      // 将 foodId 加入排除列表
+      if (!this.data.excludeFoodIds.includes(result.foodId)) {
+        this.data.excludeFoodIds.push(result.foodId)
+      }
+      wx.showToast({ title: '已加入黑名单', icon: 'success' })
+    }
   },
 
   // 刷新分类选项状态
@@ -250,7 +267,8 @@ Page({
     const food = this.data.recommendResult.food
 
     if (!app.isLoggedIn()) {
-      // 保存待记录菜品，登录后直接进入记录页
+      // 设置 pendingRecord 时清除 pendingBlacklist（互斥）
+      app.globalData.pendingBlacklist = null
       app.globalData.pendingRecord = {
         foodId: food.id,
         foodName: food.name,
@@ -268,5 +286,42 @@ Page({
     wx.navigateTo({
       url: `/pages/record/record?foodId=${food.id}&foodName=${encodeURIComponent(food.name)}&category=${encodeURIComponent(food.category)}&mealType=${encodeURIComponent(this.data.selectedMealType || '')}`
     })
+  },
+
+  async addToBlacklist() {
+    if (!this.data.recommendResult) return
+    if (this.data.loading) return // 防止重复请求
+    const food = this.data.recommendResult.food
+
+    if (!app.isLoggedIn()) {
+      // 设置 pendingBlacklist 时清除 pendingRecord（互斥）
+      app.globalData.pendingRecord = null
+      app.globalData.pendingBlacklist = { foodId: food.id, foodName: food.name, reason: '不喜欢' }
+      wx.navigateTo({ url: '/pages/login/login' })
+      return
+    }
+
+    this.setData({ loading: true })
+    try {
+      await addBlacklist({ foodId: food.id, reason: '不喜欢' })
+      wx.showToast({ title: '已加入黑名单', icon: 'success' })
+      // 将当前 foodId 加入排除列表并清空结果
+      if (!this.data.excludeFoodIds.includes(food.id)) {
+        this.data.excludeFoodIds.push(food.id)
+      }
+      this.setData({ recommendResult: null, swapCount: 0 })
+    } catch (err: any) {
+      if (err instanceof RequestError && err.code === 1003) {
+        wx.navigateTo({ url: '/pages/login/login' })
+        return
+      }
+      wx.showToast({ title: err.message || '操作失败', icon: 'none' })
+    } finally {
+      this.setData({ loading: false })
+    }
+  },
+
+  goToProfile() {
+    wx.navigateTo({ url: '/pages/profile/profile' })
   }
 })

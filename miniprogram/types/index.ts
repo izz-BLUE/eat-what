@@ -66,7 +66,44 @@ export interface EatRecordRequest {
 export type MealType = '早餐' | '午餐' | '晚餐' | '夜宵'
 
 /** 价格选项 */
-export type PriceLevel = '15元内' | '15-25元' | '25-40元' | '不限'
+export type PriceLevel = '15以内' | '15-25' | '25-40' | '不限'
 
 /** 口味选项 */
 export type Taste = '不限' | '清淡' | '重口' | '辣' | '不辣'
+
+/** 黑名单条目 */
+export interface BlacklistData {
+  id: number
+  foodId: number
+  foodName: string
+  category: string
+  reason: string
+  createdAt: string
+}
+
+/** 加入黑名单请求 */
+export interface BlacklistAddRequest {
+  foodId: number
+  reason: string
+}
+
+/** 不想吃条目 */
+export interface DislikeData {
+  id: number
+  category: string
+  expiresAt: string
+  createdAt: string
+}
+
+/** 添加不想吃请求 */
+export interface DislikeAddRequest {
+  category: string
+  days: number
+}
+
+/** 待处理操作 */
+export interface PendingBlacklist {
+  foodId: number
+  foodName: string
+  reason: string
+}

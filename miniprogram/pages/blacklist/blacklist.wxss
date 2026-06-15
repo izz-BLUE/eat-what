@@ -1,0 +1,55 @@
+/* pages/blacklist/blacklist.wxss */
+
+.blacklist-item {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 16rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.item-category {
+  font-size: 26rpx;
+  color: #FF6B35;
+  background: #FFF3E8;
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.item-reason {
+  font-size: 26rpx;
+  color: #666;
+  margin-top: 8rpx;
+  word-break: break-all;
+}
+
+.item-time {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.btn-remove {
+  font-size: 26rpx;
+  color: #ff4d4f;
+  background: #fff;
+  border: 1rpx solid #ff4d4f;
+  border-radius: 8rpx;
+  padding: 8rpx 24rpx;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}

@@ -2,7 +2,11 @@
   "pages": [
     "pages/index/index",
     "pages/login/login",
-    "pages/record/record"
+    "pages/record/record",
+    "pages/profile/profile",
+    "pages/history/history",
+    "pages/blacklist/blacklist",
+    "pages/dislike/dislike"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FF6B35",

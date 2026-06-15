@@ -1,6 +1,6 @@
 // pages/login/login.ts
 
-import { login } from '../../services/api'
+import { login, addBlacklist } from '../../services/api'
 
 const app = getApp<IApp>()
 
@@ -31,17 +31,42 @@ Page({
 
       wx.showToast({ title: '登录成功', icon: 'success' })
 
-      // 4. 检查是否有待记录菜品，直接进入记录页
-      setTimeout(() => {
-        const pending = app.globalData.pendingRecord
+      // 4. 检查是否有待办操作
+      setTimeout(async () => {
+        // 优先处理待记录菜品
+        const pendingRecord = app.globalData.pendingRecord
         app.globalData.pendingRecord = null
-        if (pending) {
+        if (pendingRecord) {
           wx.redirectTo({
-            url: `/pages/record/record?foodId=${pending.foodId}&foodName=${encodeURIComponent(pending.foodName)}&category=${encodeURIComponent(pending.category)}&mealType=${encodeURIComponent(pending.mealType || '')}`
+            url: `/pages/record/record?foodId=${pendingRecord.foodId}&foodName=${encodeURIComponent(pendingRecord.foodName)}&category=${encodeURIComponent(pendingRecord.category)}&mealType=${encodeURIComponent(pendingRecord.mealType || '')}`
           })
           return
         }
-        // 返回上一页
+
+        // 处理待拉黑
+        const pendingBlacklist = app.globalData.pendingBlacklist
+        let blacklistFailed = false
+        if (pendingBlacklist) {
+          try {
+            await addBlacklist({ foodId: pendingBlacklist.foodId, reason: pendingBlacklist.reason })
+            // 成功：写入 pendingResult 供首页 onShow 消费
+            app.globalData.pendingResult = {
+              type: 'blacklist',
+              foodId: pendingBlacklist.foodId,
+              foodName: pendingBlacklist.foodName || ''
+            }
+            app.globalData.pendingBlacklist = null
+          } catch (e: any) {
+            // 失败：保留 pendingBlacklist，显示错误，停留此页不跳转
+            blacklistFailed = true
+            this.setData({ errorMsg: '加入黑名单失败，请重试' })
+          }
+        }
+
+        // 黑名单失败时停留登录页，允许重试
+        if (blacklistFailed) return
+
+        // 成功：返回上一页
         const pages = getCurrentPages()
         if (pages.length > 1) {
           wx.navigateBack()
@@ -73,9 +98,10 @@ Page({
     })
   },
 
-  // 返回首页（暂不登录，清除 pendingRecord）
+  // 返回首页（暂不登录，清除 pending 状态）
   goBack() {
     app.globalData.pendingRecord = null
+    app.globalData.pendingBlacklist = null
     const pages = getCurrentPages()
     if (pages.length > 1) {
       wx.navigateBack()
@@ -84,8 +110,9 @@ Page({
     }
   },
 
-  // 页面卸载时清除 pendingRecord
+  // 页面卸载时清除 pending 状态
   onUnload() {
     app.globalData.pendingRecord = null
+    app.globalData.pendingBlacklist = null
   }
 })

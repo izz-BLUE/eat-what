@@ -8,6 +8,15 @@
 .title-section {
   text-align: center;
   padding: 48rpx 0 32rpx;
+  position: relative;
+}
+
+.profile-link {
+  position: absolute;
+  right: 0;
+  top: 48rpx;
+  font-size: 28rpx;
+  color: #FF6B35;
 }
 
 .title {
