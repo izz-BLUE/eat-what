@@ -1,14 +1,15 @@
 <!--pages/blacklist/blacklist.wxml-->
-<view class="container">
+<view class="list-page">
   <!-- 1. 加载中 -->
-  <view class="loading-state" wx:if="{{loading}}">
+  <view class="loading" wx:if="{{loading}}">
     <text>加载中...</text>
   </view>
 
   <!-- 2. 未登录 -->
   <view class="empty-state" wx:elif="{{notLoggedIn}}">
+    <image class="empty-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
     <text>请先登录后查看黑名单</text>
-    <button class="btn-primary" bindtap="goToLogin" style="margin-top:24rpx;">去登录</button>
+    <button class="btn-primary" bindtap="goToLogin" style="margin-top: 32rpx;">去登录</button>
   </view>
 
   <!-- 3. 网络/业务错误 -->
@@ -18,21 +19,24 @@
 
   <!-- 4. 空列表 -->
   <view class="empty-state" wx:elif="{{items.length === 0}}">
+    <image class="empty-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
     <text>黑名单还是空的</text>
   </view>
 
   <!-- 5. 正常列表 -->
   <block wx:else>
-    <view class="blacklist-item" wx:for="{{items}}" wx:key="id">
-      <view class="item-content">
-        <view class="item-name">{{item.foodName}}</view>
-        <text class="item-category" wx:if="{{item.category}}">{{item.category}}</text>
-        <view class="item-reason" wx:if="{{item.reason}}">原因：{{item.reason}}</view>
-        <view class="item-time">{{item.createdAt}}</view>
+    <view class="list-section">
+      <view class="list-row" wx:for="{{items}}" wx:key="id">
+        <view class="list-row-content">
+          <view class="list-row-name">{{item.foodName}}</view>
+          <text class="list-row-category" wx:if="{{item.category}}">{{item.category}}</text>
+          <view class="list-row-reason" wx:if="{{item.reason}}">原因：{{item.reason}}</view>
+          <view class="list-row-time">{{item.createdAt}}</view>
+        </view>
+        <view class="btn-danger-text" bindtap="handleRemove" data-id="{{item.id}}" data-name="{{item.foodName}}">
+          {{removing === item.id ? '移除中' : '移出'}}
+        </view>
       </view>
-      <button class="btn-remove" bindtap="handleRemove" data-id="{{item.id}}" data-name="{{item.foodName}}" disabled="{{removing === item.id}}">
-        {{removing === item.id ? '移除中' : '移出'}}
-      </button>
     </view>
   </block>
 </view>
