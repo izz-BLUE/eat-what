@@ -42,9 +42,5 @@
     "清淡",
     "辣",
     "不辣"
-  ],
-  "emptyMealTypesAllowlist": [
-    "奶茶"
-  ],
-  "emptyMealTypesReason": "暂未支持下午茶餐段，奶茶不进入四餐段推荐"
+  ]
 }

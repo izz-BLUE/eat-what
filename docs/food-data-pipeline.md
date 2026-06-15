@@ -208,8 +208,8 @@ ON DUPLICATE KEY UPDATE category = VALUES(category)
 | 6 | type_tags 全属于词典 |
 | 7 | cuisine_tags 全属于词典 |
 | 8 | meal_types 全属于词典 |
-| 9 | enabled=true 的菜品 meal_types 不得为空（白名单除外） |
-| 10 | 空 meal_types 白名单当前只能是奶茶 |
+| 9 | enabled=true 的菜品 meal_types 不得为空 |
+| 10 | 甜品根据真实消费场景配置餐段（奶茶属于午餐|晚餐|夜宵） |
 | 11 | taste_tags 非空且全部属于词典 |
 | 12 | 多值字段必须使用 `\|` |
 | 13 | 多值字段不允许重复值 |

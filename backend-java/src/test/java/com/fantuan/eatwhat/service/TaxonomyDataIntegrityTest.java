@@ -60,10 +60,10 @@ class TaxonomyDataIntegrityTest {
         }
     }
 
-    // ==================== 除奶茶外 mealTypes 非空 ====================
+    // ==================== 所有启用菜 mealTypes 非空 ====================
 
     @Test
-    void allFoodsExceptMilkTeaHaveMealTypes() {
+    void allFoodsHaveMealTypes() {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT name, meal_types FROM foods WHERE enabled = 1");
 
@@ -71,25 +71,21 @@ class TaxonomyDataIntegrityTest {
             String name = (String) row.get("name");
             String mealTypes = (String) row.get("meal_types");
 
-            if ("奶茶".equals(name)) {
-                assertTrue(mealTypes == null || mealTypes.isEmpty(),
-                        "奶茶 mealTypes 应为空，实际: " + mealTypes);
-            } else {
-                assertNotNull(mealTypes, "菜品 [" + name + "] mealTypes 不应为 null");
-                assertFalse(mealTypes.isEmpty(),
-                        "菜品 [" + name + "] mealTypes 不应为空");
-            }
+            assertNotNull(mealTypes, "菜品 [" + name + "] mealTypes 不应为 null");
+            assertFalse(mealTypes.isEmpty(),
+                    "菜品 [" + name + "] mealTypes 不应为空");
         }
     }
 
-    // ==================== 奶茶 mealTypes 为空 ====================
+    // ==================== 奶茶具有合理餐段 ====================
 
     @Test
-    void milkTeaMealTypesEmpty() {
+    void milkTeaHasMealTypes() {
         String mealTypes = jdbcTemplate.queryForObject(
                 "SELECT meal_types FROM foods WHERE name = '奶茶' AND enabled = 1", String.class);
-        assertTrue(mealTypes == null || mealTypes.isEmpty(),
-                "奶茶 mealTypes 应为空，实际: " + mealTypes);
+        assertNotNull(mealTypes, "奶茶 mealTypes 不应为 null");
+        assertFalse(mealTypes.isEmpty(),
+                "奶茶 mealTypes 不应为空（已配置晚餐|夜宵），实际: " + mealTypes);
     }
 
     // ==================== 日料拉面 typeTags 精确包含面食、cuisineTags 精确包含日料 ====================
