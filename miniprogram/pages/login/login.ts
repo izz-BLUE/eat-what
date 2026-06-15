@@ -11,6 +11,8 @@ Page({
   },
 
   async handleLogin() {
+    // 防止重复点击
+    if (this.data.loading) return
     this.setData({ loading: true, errorMsg: '' })
 
     try {
@@ -29,55 +31,55 @@ Page({
         avatarUrl: result.avatarUrl
       })
 
-      wx.showToast({ title: '登录成功', icon: 'success' })
+      // 4. 优先处理待记录菜品
+      const pendingRecord = app.globalData.pendingRecord
+      app.globalData.pendingRecord = null
+      if (pendingRecord) {
+        wx.showToast({ title: '登录成功', icon: 'success' })
+        wx.redirectTo({
+          url: `/pages/record/record?foodId=${pendingRecord.foodId}&foodName=${encodeURIComponent(pendingRecord.foodName)}&category=${encodeURIComponent(pendingRecord.category)}&mealType=${encodeURIComponent(pendingRecord.mealType || '')}`
+        })
+        return // 已导航，不继续 setData
+      }
 
-      // 4. 检查是否有待办操作
-      setTimeout(async () => {
-        // 优先处理待记录菜品
-        const pendingRecord = app.globalData.pendingRecord
-        app.globalData.pendingRecord = null
-        if (pendingRecord) {
-          wx.redirectTo({
-            url: `/pages/record/record?foodId=${pendingRecord.foodId}&foodName=${encodeURIComponent(pendingRecord.foodName)}&category=${encodeURIComponent(pendingRecord.category)}&mealType=${encodeURIComponent(pendingRecord.mealType || '')}`
-          })
-          return
-        }
-
-        // 处理待拉黑
-        const pendingBlacklist = app.globalData.pendingBlacklist
-        let blacklistFailed = false
-        if (pendingBlacklist) {
-          try {
-            await addBlacklist({ foodId: pendingBlacklist.foodId, reason: pendingBlacklist.reason })
-            // 成功：写入 pendingResult 供首页 onShow 消费
-            app.globalData.pendingResult = {
-              type: 'blacklist',
-              foodId: pendingBlacklist.foodId,
-              foodName: pendingBlacklist.foodName || ''
-            }
-            app.globalData.pendingBlacklist = null
-          } catch (e: any) {
-            // 失败：保留 pendingBlacklist，显示错误，停留此页不跳转
-            blacklistFailed = true
-            this.setData({ errorMsg: '加入黑名单失败，请重试' })
+      // 5. 处理待拉黑
+      const pendingBlacklist = app.globalData.pendingBlacklist
+      if (pendingBlacklist) {
+        try {
+          await addBlacklist({ foodId: pendingBlacklist.foodId, reason: pendingBlacklist.reason })
+          // 成功：写入 pendingResult 供首页 onShow 消费
+          app.globalData.pendingResult = {
+            type: 'blacklist',
+            foodId: pendingBlacklist.foodId,
+            foodName: pendingBlacklist.foodName || ''
           }
+          app.globalData.pendingBlacklist = null
+        } catch (e: any) {
+          // 失败：保留 pendingBlacklist，停留登录页允许重试
+          this.setData({ loading: false, errorMsg: e.message || '加入黑名单失败，请重试' })
+          return // 不导航，不继续
         }
-
-        // 黑名单失败时停留登录页，允许重试
-        if (blacklistFailed) return
-
-        // 成功：返回上一页
+        // 成功：导航回首页
+        wx.showToast({ title: '登录成功', icon: 'success' })
         const pages = getCurrentPages()
         if (pages.length > 1) {
           wx.navigateBack()
         } else {
           wx.redirectTo({ url: '/pages/index/index' })
         }
-      }, 1500)
+        return
+      }
+
+      // 6. 普通登录：返回上一页
+      wx.showToast({ title: '登录成功', icon: 'success' })
+      const pages = getCurrentPages()
+      if (pages.length > 1) {
+        wx.navigateBack()
+      } else {
+        wx.redirectTo({ url: '/pages/index/index' })
+      }
     } catch (err: any) {
-      this.setData({ errorMsg: err.message || '登录失败，请重试' })
-    } finally {
-      this.setData({ loading: false })
+      this.setData({ loading: false, errorMsg: err.message || '登录失败，请重试' })
     }
   },
 
