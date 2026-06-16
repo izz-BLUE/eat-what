@@ -1,4 +1,22 @@
 <!--pages/index/index.wxml-->
+<wxs module="tag">
+  module.exports = {
+    /**
+     * 将逗号分隔字符串拆分为数组，用于标签展示。
+     * 示例："辣,麻,香" → ["辣","麻","香"]
+     */
+    split: function(str) {
+      if (!str) return [];
+      var parts = str.split(',');
+      var result = [];
+      for (var i = 0; i < parts.length; i++) {
+        var s = parts[i].trim();
+        if (s) result.push(s);
+      }
+      return result;
+    }
+  }
+</wxs>
 <view class="page-container">
   <!-- 顶部品牌区（精简） -->
   <view class="brand-header">
@@ -124,7 +142,21 @@
     <view class="decision-block">
       <view class="decision-status">今天就吃</view>
       <view class="decision-food-name">{{mealDecision.foodName}}</view>
-      <view class="decision-food-category">{{mealDecision.category}}</view>
+
+      <!-- 类型/菜系标签 -->
+      <view class="result-tags" wx:if="{{mealDecision.typeTags || mealDecision.cuisineTags}}">
+        <text wx:for="{{tag.split(mealDecision.typeTags)}}" wx:key="*this" class="result-tag result-tag-type">{{item}}</text>
+        <text wx:for="{{tag.split(mealDecision.cuisineTags)}}" wx:key="*this" class="result-tag result-tag-cuisine">{{item}}</text>
+      </view>
+      <view class="result-tags" wx:elif="{{mealDecision.category}}">
+        <text class="result-tag result-tag-type">{{mealDecision.category}}</text>
+      </view>
+
+      <!-- 口味标签 -->
+      <view class="result-tags" wx:if="{{mealDecision.tasteTags}}">
+        <text wx:for="{{tag.split(mealDecision.tasteTags)}}" wx:key="*this" class="result-tag result-tag-taste">{{item}}</text>
+      </view>
+
       <view class="decision-time">决定时间：{{decisionTimeDisplay}}</view>
     </view>
   </view>
@@ -133,15 +165,28 @@
   <view class="result-area fade-up-in" wx:elif="{{recommendResult}}">
     <view class="result-block">
       <view class="result-food-name">{{recommendResult.food.name}}</view>
-      <view class="result-tags">
-        <text class="result-tag result-tag-category">{{recommendResult.food.category}}</text>
-        <text class="result-tag result-tag-taste" wx:if="{{recommendResult.food.tasteTags}}">{{recommendResult.food.tasteTags}}</text>
+
+      <!-- 类型/菜系标签：拆分展示，与旧 category 互斥 -->
+      <view class="result-tags" wx:if="{{recommendResult.food.typeTags || recommendResult.food.cuisineTags}}">
+        <text wx:for="{{tag.split(recommendResult.food.typeTags)}}" wx:key="*this" class="result-tag result-tag-type">{{item}}</text>
+        <text wx:for="{{tag.split(recommendResult.food.cuisineTags)}}" wx:key="*this" class="result-tag result-tag-cuisine">{{item}}</text>
       </view>
+      <view class="result-tags" wx:elif="{{recommendResult.food.category}}">
+        <text class="result-tag result-tag-type">{{recommendResult.food.category}}</text>
+      </view>
+
+      <!-- 口味标签：拆分展示，独立分组 -->
+      <view class="result-tags result-tags-taste" wx:if="{{recommendResult.food.tasteTags}}">
+        <text wx:for="{{tag.split(recommendResult.food.tasteTags)}}" wx:key="*this" class="result-tag result-tag-taste">{{item}}</text>
+      </view>
+
       <view class="result-price">参考价位：{{priceDisplay}}</view>
       <view class="result-price-note">具体价格因门店、份量和用餐方式而异</view>
+
+      <!-- 推荐理由：后端 reasons 数组逐条展示 -->
       <view class="result-reasons" wx:if="{{recommendResult.reasons.length > 0}}">
         <text class="result-reason-label">推荐理由</text>
-        <text wx:for="{{recommendResult.reasons}}" wx:key="*this" class="result-reason-item">· {{item}}</text>
+        <text wx:for="{{recommendResult.reasons}}" wx:key="*this" class="result-reason-item">{{item}}</text>
       </view>
     </view>
   </view>
