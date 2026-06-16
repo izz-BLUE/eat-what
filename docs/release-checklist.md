@@ -161,7 +161,12 @@ npm run foods:test
 npm run e2e:recommend
 # 预期：16 total, 16 passed, 0 failed
 
-# 6. 代码冲突检查
+# 6. 评分偏好 API 验收（会创建测试用户和 eat_records）
+npm run e2e:rating-preference
+# 预期：4 total, 4 passed, 0 failed
+# 注意：本脚本会写入测试数据，仅适合 dev/test 环境，不建议生产运行
+
+# 7. 代码冲突检查
 git diff --check
 # 预期：无输出（无冲突）
 ```

@@ -7,6 +7,7 @@
     "foods:validate": "node scripts/validate-foods.mjs",
     "foods:generate": "node scripts/generate-food-migration.mjs",
     "foods:test": "node --test scripts/test/*.test.mjs",
-    "e2e:recommend": "node scripts/e2e/recommendation-e2e.mjs"
+    "e2e:recommend": "node scripts/e2e/recommendation-e2e.mjs",
+    "e2e:rating-preference": "node scripts/e2e/rating-preference-e2e.mjs"
   }
 }
