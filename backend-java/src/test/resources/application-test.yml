@@ -30,3 +30,7 @@ wechat:
   app-id: wx_test_app_id
   app-secret: wx_test_app_secret
   mock-enabled: true
+
+# 管理后台配置（测试环境默认 token）
+admin:
+  token: test-admin-token
