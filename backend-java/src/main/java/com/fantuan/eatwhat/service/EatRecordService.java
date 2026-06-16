@@ -286,6 +286,22 @@ public class EatRecordService {
     // ==================== 推荐辅助 ====================
 
     /**
+     * 查询用户有评分的已吃记录（仅 EATEN 状态，rating 非空）
+     *
+     * 用于推荐算法的评分偏好加权：高分记录的标签给候选菜加分，
+     * 低分记录的标签给候选菜降权。
+     *
+     * @param userId 用户ID，null 时返回空列表
+     * @return 有评分的 EATEN 记录列表
+     */
+    public List<EatRecord> getRatedEatenRecords(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        return eatRecordMapper.selectRatedEatenRecords(userId);
+    }
+
+    /**
      * 查询用户最近7天吃过的食物及其最近吃的时间（仅 EATEN 状态）
      *
      * @param userId 用户ID

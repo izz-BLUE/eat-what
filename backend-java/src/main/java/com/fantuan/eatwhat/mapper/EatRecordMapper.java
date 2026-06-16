@@ -40,4 +40,14 @@ public interface EatRecordMapper extends BaseMapper<EatRecord> {
             "WHERE user_id = #{userId} AND status = 'DECIDED' " +
             "FOR UPDATE")
     EatRecord selectDecidedForUpdate(@Param("userId") Long userId);
+
+    /**
+     * 查询用户有评分的已吃记录（仅 EATEN 状态，rating 非空）
+     *
+     * @param userId 用户ID
+     * @return 有评分的已吃记录列表
+     */
+    @Select("SELECT * FROM eat_records " +
+            "WHERE user_id = #{userId} AND status = 'EATEN' AND rating IS NOT NULL")
+    List<EatRecord> selectRatedEatenRecords(@Param("userId") Long userId);
 }
