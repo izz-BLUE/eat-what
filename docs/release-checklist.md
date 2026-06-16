@@ -157,7 +157,11 @@ npm run foods:validate
 npm run foods:test
 # 预期：81 pass, 0 fail
 
-# 5. 代码冲突检查
+# 5. 推荐 API 回归验收
+npm run e2e:recommend
+# 预期：16 total, 16 passed, 0 failed
+
+# 6. 代码冲突检查
 git diff --check
 # 预期：无输出（无冲突）
 ```
