@@ -145,24 +145,49 @@ public class RecommendService {
         int score = 0;
         List<String> reasons = new ArrayList<>();
 
-        // 1. 分类命中理由
-        if (!CollectionUtils.isEmpty(request.getTypeTags()) || !CollectionUtils.isEmpty(request.getCuisineTags())) {
-            reasons.add("符合偏好分类");
+        // 1. 餐段匹配理由
+        if (StringUtils.hasText(request.getMealType())) {
+            reasons.add("适合「" + request.getMealType() + "」时段");
         }
 
-        // 2. 参考价位命中理由（硬过滤已保证，只添加理由不加分）
+        // 2. 口味匹配理由
+        if (StringUtils.hasText(request.getTaste())) {
+            reasons.add("口味匹配「" + request.getTaste() + "」");
+        }
+
+        // 3. 分类命中理由（找出具体命中的标签）
+        if (!CollectionUtils.isEmpty(request.getTypeTags())) {
+            Set<String> foodTypes = FoodTaxonomy.parseTags(food.getTypeTags());
+            for (String t : request.getTypeTags()) {
+                if (foodTypes.contains(t)) {
+                    reasons.add("属于「" + t + "」");
+                    break; // 每种维度只取第一个命中标签
+                }
+            }
+        }
+        if (!CollectionUtils.isEmpty(request.getCuisineTags())) {
+            Set<String> foodCuisines = FoodTaxonomy.parseTags(food.getCuisineTags());
+            for (String c : request.getCuisineTags()) {
+                if (foodCuisines.contains(c)) {
+                    reasons.add("菜系「" + c + "」");
+                    break;
+                }
+            }
+        }
+
+        // 4. 参考价位命中理由（显示具体价位）
         if (StringUtils.hasText(request.getPriceLevel())) {
-            reasons.add("符合参考价位");
+            reasons.add("价位匹配「" + request.getPriceLevel() + "」");
         }
 
-        // 3. 最近吃过降权
+        // 5. 最近吃过降权
         int recentEatenDeduction = calculateRecentEatenDeduction(food.getId(), recentEatenMap, now);
         if (recentEatenDeduction == 0) {
             reasons.add("最近几天没吃过，换换口味");
         }
         score += recentEatenDeduction;
 
-        // 4. 随机因素：0-19
+        // 6. 随机因素：0-19
         int randomScore = new Random().nextInt(20);
         score += randomScore;
 

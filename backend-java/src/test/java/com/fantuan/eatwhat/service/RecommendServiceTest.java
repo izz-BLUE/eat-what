@@ -77,7 +77,7 @@ class RecommendServiceTest {
 
         assertNotNull(response);
         assertNotNull(response.getFood());
-        assertTrue(response.getScore() > 0);
+        assertTrue(response.getScore() >= 0, "score 应 >=0（随机因素可能为0）");
     }
 
     @Test
@@ -775,8 +775,8 @@ class RecommendServiceTest {
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        assertTrue(response.getReasons().contains("符合参考价位"),
-                "应包含'符合参考价位'理由，实际: " + response.getReasons());
+        assertTrue(response.getReasons().contains("价位匹配「15以内」"),
+                "应包含具体价位理由，实际: " + response.getReasons());
     }
 
     @Test
@@ -792,8 +792,8 @@ class RecommendServiceTest {
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        assertFalse(response.getReasons().contains("符合参考价位"),
-                "不限价位时不应有'符合参考价位'理由");
+        assertFalse(response.getReasons().stream().anyMatch(r -> r.contains("价位")),
+                "不限价位时不应有价位相关理由");
     }
 
     // ==================== 推荐理由测试 ====================
@@ -811,7 +811,121 @@ class RecommendServiceTest {
         RecommendResponse response = recommendService.recommend(request);
 
         assertNotNull(response);
-        assertTrue(response.getReasons().contains("符合偏好分类"));
+        assertTrue(response.getReasons().contains("属于「火锅」"),
+                "应包含具体分类理由，实际: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_mealType_addsReason() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+
+        Food food = createFood(1L, "猪脚饭", "快餐", "快餐", "", "午餐,晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("适合「午餐」时段"),
+                "选择餐段时应包含餐段理由，实际: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_tasteSpicy_addsReason() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTaste("辣");
+
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("口味匹配「辣」"),
+                "选择口味时应包含口味理由，实际: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_tasteNotSpicy_addsReason() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setTaste("不辣");
+
+        Food food = createFood(1L, "清蒸鱼", "粤菜", "", "粤菜", "晚餐", "清淡,鲜", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("口味匹配「不辣」"),
+                "选择不辣时应包含口味理由，实际: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_cuisineTag_addsSpecificReason() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setCuisineTags(List.of("日料"));
+
+        Food food = createFood(1L, "寿司", "日料", "", "日料", "晚餐", "清淡,鲜", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("菜系「日料」"),
+                "选择菜系时应包含具体菜系理由，实际: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_noFilters_onlyFreshnessReason() {
+        RecommendRequest request = new RecommendRequest();
+
+        Food food = createFood(1L, "猪脚饭", "快餐", "快餐", "", "午餐,晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // 不传任何筛选条件时，不应出现餐段、口味、分类、价位相关理由
+        assertFalse(response.getReasons().stream().anyMatch(r -> r.contains("时段")),
+                "未选餐段不应出现时段理由: " + response.getReasons());
+        assertFalse(response.getReasons().stream().anyMatch(r -> r.startsWith("口味匹配")),
+                "未选口味不应出现口味理由: " + response.getReasons());
+        assertFalse(response.getReasons().stream().anyMatch(r -> r.contains("属于")),
+                "未选分类不应出现分类理由: " + response.getReasons());
+        assertFalse(response.getReasons().stream().anyMatch(r -> r.contains("菜系")),
+                "未选菜系不应出现菜系理由: " + response.getReasons());
+        assertFalse(response.getReasons().stream().anyMatch(r -> r.startsWith("价位匹配")),
+                "未选价位不应出现价位理由: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_allFilters_produceMultipleReasons() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setTaste("清淡");
+        request.setPriceLevel("15以内");
+        request.setTypeTags(List.of("小吃"));
+
+        Food food = createFood(1L, "肠粉", "小吃", "小吃", "", "午餐", "清淡,鲜", 1);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("适合「午餐」时段"));
+        assertTrue(response.getReasons().contains("口味匹配「清淡」"));
+        assertTrue(response.getReasons().contains("属于「小吃」"));
+        assertTrue(response.getReasons().contains("价位匹配「15以内」"),
+                "全部筛选条件命中时应有 4 条匹配理由，实际: " + response.getReasons());
     }
 
     // ==================== 组合条件测试 ====================
