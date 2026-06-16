@@ -15,6 +15,8 @@
 - **不想吃**：临时排除某类食物
 - **饭局投票**：多人聚餐，投票决定吃什么
 - **意见反馈**：提交使用建议或问题反馈，无需登录即可使用
+- **管理后台**：反馈审核与状态管理（API 级别，供开发者使用）
+- **菜品数据管线**：CSV → Flyway 迁移自动化，含校验和测试
 
 **第一版定位**：菜品/食物推荐，不是餐厅推荐。推荐的是"吃什么"，不是"去哪吃"。
 
@@ -104,12 +106,13 @@ Invoke-RestMethod "http://localhost:8080/api/v1/recommend?mealType=晚餐" `
 - `SPRING_PROFILES_ACTIVE`：激活 dev Profile（启用微信 Mock）
 - `JWT_SECRET`：JWT 签名密钥，至少 32 字节
 - `WECHAT_MOCK_ENABLED`：启用微信 Mock 模式（仅 dev/test 生效）
+- `ADMIN_TOKEN`：管理后台认证 token（dev 默认 `dev-admin-token`，生产必须配置）
 
 **数据库说明**：
 - 使用 Docker MySQL 8.0，容器名：eat-what-mysql
 - 数据库名：eat_what，用户名：eatwhat，密码：eatwhat_dev
 - 使用 Flyway 管理数据库脚本
-- 首次启动会自动创建表结构和初始化 30 种食物测试数据
+- 首次启动会自动创建表结构和初始化 73 种食物测试数据（通过 Flyway 迁移脚本，由 `npm run foods:generate` 生成）
 - 迁移脚本位于 `src/main/resources/db/migration/`
 - 请勿手动修改数据库结构，所有变更通过 Flyway 脚本管理
 
@@ -149,7 +152,7 @@ docker compose down -v && docker compose up -d
 
 **小程序功能**：
 - 首页：选择餐段/价格/口味/分类，点击"今天吃啥"获取推荐
-- 换一个：最多连续换 5 次
+- 换一个：最多连续换 10 次
 - 我就吃它：记录用餐信息（需登录）
 - 历史记录：查看吃过记录
 - 黑名单管理：加入/移出黑名单
@@ -175,6 +178,8 @@ docker compose down -v && docker compose up -d
 - [数据库设计](./docs/database.md) - 表结构和字段说明
 - [推荐算法](./docs/recommendation.md) - 规则打分算法设计
 - [接口文档](./docs/api.md) - RESTful API 定义
+- [菜品数据管线](./docs/food-data-pipeline.md) - foods.csv → Flyway 迁移生成
+- [分类审计](./docs/recommend-taxonomy-audit.md) - 推荐分类字段审计报告
 
 ## 版本规划
 

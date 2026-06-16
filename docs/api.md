@@ -71,6 +71,7 @@
 $env:SPRING_PROFILES_ACTIVE="dev"
 $env:JWT_SECRET="eat-what-dev-jwt-secret-at-least-32-bytes"
 $env:WECHAT_MOCK_ENABLED="true"
+$env:ADMIN_TOKEN="dev-admin-token"
 ```
 
 ---
@@ -92,14 +93,14 @@ $env:WECHAT_MOCK_ENABLED="true"
 | 9 | /api/v1/record/{id}/decision | DELETE | 必须登录 | 取消决定（删除 DECIDED 记录） |
 | 10 | /api/v1/record/{id} | GET | 必须登录 | 获取单条记录详情 |
 | 11 | /api/v1/record/list | GET | 必须登录 | 吃过记录列表 |
-| 7 | /api/v1/blacklist/add | POST | 必须登录 | 加入黑名单 |
-| 8 | /api/v1/blacklist/list | GET | 必须登录 | 黑名单列表 |
-| 9 | /api/v1/blacklist/{blacklistId} | DELETE | 必须登录 | 移出黑名单 |
-| 10 | /api/v1/dislike/add | POST | 必须登录 | 添加不想吃 |
-| 11 | /api/v1/dislike/list | GET | 必须登录 | 不想吃列表 |
-| 12 | /api/v1/dislike/{dislikeId} | DELETE | 必须登录 | 解除不想吃 |
-| 13 | /api/v1/feedback | POST | 无需登录 | 提交意见反馈 |
-| 14 | /api/health | GET | 无需登录 | 健康检查 |
+| 12 | /api/v1/blacklist/add | POST | 必须登录 | 加入黑名单 |
+| 13 | /api/v1/blacklist/list | GET | 必须登录 | 黑名单列表 |
+| 14 | /api/v1/blacklist/{blacklistId} | DELETE | 必须登录 | 移出黑名单 |
+| 15 | /api/v1/dislike/add | POST | 必须登录 | 添加不想吃 |
+| 16 | /api/v1/dislike/list | GET | 必须登录 | 不想吃列表 |
+| 17 | /api/v1/dislike/{dislikeId} | DELETE | 必须登录 | 解除不想吃 |
+| 18 | /api/v1/feedback | POST | 无需登录 | 提交意见反馈 |
+| 19 | /api/health | GET | 无需登录 | 健康检查 |
 
 ### 管理后台（仅供开发者使用）
 
@@ -815,7 +816,7 @@ X-Admin-Token: dev-admin-token
 
 ## 后续阶段接口（需要登录）
 
-### 13. 发起投票（后续阶段）
+### 19. 发起投票（后续阶段）
 
 **POST** `/api/v1/vote/create`
 
@@ -823,7 +824,7 @@ X-Admin-Token: dev-admin-token
 
 ---
 
-### 14. 获取投票详情（后续阶段）
+### 20. 获取投票详情（后续阶段）
 
 **GET** `/api/v1/vote/{voteId}`
 
@@ -831,7 +832,7 @@ X-Admin-Token: dev-admin-token
 
 ---
 
-### 15. 投票（后续阶段）
+### 21. 投票（后续阶段）
 
 **POST** `/api/v1/vote/{voteId}/vote`
 
