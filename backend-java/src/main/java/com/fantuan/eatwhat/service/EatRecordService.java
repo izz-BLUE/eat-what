@@ -15,6 +15,8 @@ import com.fantuan.eatwhat.mapper.EatRecordMapper;
 import com.fantuan.eatwhat.mapper.FoodMapper;
 import com.fantuan.eatwhat.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,15 +25,20 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
  * 吃过记录服务
  *
- * 并发安全策略：
- * 所有会创建、完成、取消、清理 DECIDED 的方法都先通过
- * SELECT ... FOR UPDATE 锁定 users 行，确保同一用户的
- * DECIDED 生命周期操作串行执行。
+ * 并发安全策略（双层锁）：
+ * 1. 应用层按 userId 的 ReentrantLock — 保证同用户 DECIDED 生命周期操作串行，
+ *    不依赖数据库 FOR UPDATE 的实现差异（H2 vs MySQL）。
+ * 2. 数据库 SELECT ... FOR UPDATE — MySQL 环境下的二级保护，保留不动。
+ *
+ * 受保护方法：createDecision / createRecord / completeRecord / cancelDecision
  */
 @Service
 @RequiredArgsConstructor
@@ -41,16 +48,50 @@ public class EatRecordService {
     private final FoodMapper foodMapper;
     private final UserMapper userMapper;
 
+    /** 自注入，用于从应用锁内部调用 @Transactional 方法穿透 AOP 代理 */
+    @Lazy
+    @Autowired
+    private EatRecordService self;
+
+    /** 按 userId 的串行锁，仅包住 DECIDED 生命周期变更 */
+    private final ConcurrentHashMap<Long, ReentrantLock> userLocks = new ConcurrentHashMap<>();
+
+    /**
+     * 返回可穿透 @Transactional 代理的自身引用。
+     * 在 Spring 容器中返回代理 self；在 Mockito 测试中（self==null）回退到 this。
+     */
+    private EatRecordService tx() {
+        return self != null ? self : this;
+    }
+
+    /**
+     * 在用户锁内执行操作。
+     * 锁在 Supplier 返回后才释放，确保 @Transactional 方法的事务在锁覆盖范围内提交。
+     */
+    private <T> T withUserLock(Long userId, Supplier<T> action) {
+        ReentrantLock lock = userLocks.computeIfAbsent(userId, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            return action.get();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     // ==================== 旧接口（兼容） ====================
 
     /**
      * 创建吃过记录（直接标记为 EATEN，保留旧接口兼容）
      *
-     * 先锁用户行，再清理已有 DECIDED，最后创建 EATEN。
+     * 先获取用户锁，再在事务内清理已有 DECIDED，最后创建 EATEN。
      * 避免与 decide 并发时留下孤儿 DECIDED。
      */
-    @Transactional
     public EatRecordResponse createRecord(Long userId, EatRecordRequest request) {
+        return withUserLock(userId, () -> tx().createRecordInternal(userId, request));
+    }
+
+    @Transactional
+    EatRecordResponse createRecordInternal(Long userId, EatRecordRequest request) {
         Food food = foodMapper.selectById(request.getFoodId());
         if (food == null || !Boolean.TRUE.equals(food.getEnabled())) {
             throw new BusinessException(ResultCode.FOOD_NOT_FOUND);
@@ -90,15 +131,19 @@ public class EatRecordService {
     /**
      * 决定吃什么（创建 DECIDED 记录）
      *
-     * 先锁定 users 行，再在用户锁保护下查询/替换 DECIDED。
+     * 应用层用户锁 + 数据库行锁双重保护。
      *
      * 幂等规则：
      * - 同 foodId + 同 mealType → 返回原记录（真幂等）
      * - 同 foodId + 不同 mealType → 更新原记录 mealType 后返回
      * - 不同 foodId → 删除旧 DECIDED，创建新 DECIDED
      */
-    @Transactional
     public EatRecordResponse createDecision(Long userId, DecideRecordRequest request) {
+        return withUserLock(userId, () -> tx().createDecisionInternal(userId, request));
+    }
+
+    @Transactional
+    EatRecordResponse createDecisionInternal(Long userId, DecideRecordRequest request) {
         // 1. 校验食物存在且启用
         Food food = foodMapper.selectById(request.getFoodId());
         if (food == null || !Boolean.TRUE.equals(food.getEnabled())) {
@@ -148,10 +193,15 @@ public class EatRecordService {
     /**
      * 完成用餐（DECIDED → EATEN）
      *
-     * 先锁用户行，再查询+校验+更新。检查 updateById 影响行数。
+     * 应用层用户锁 + 数据库行锁双重保护。
+     * 检查 updateById 影响行数。
      */
-    @Transactional
     public EatRecordResponse completeRecord(Long userId, Long recordId, CompleteRecordRequest request) {
+        return withUserLock(userId, () -> tx().completeRecordInternal(userId, recordId, request));
+    }
+
+    @Transactional
+    EatRecordResponse completeRecordInternal(Long userId, Long recordId, CompleteRecordRequest request) {
         // 锁定用户行，与 decide/cancel/eat 互斥
         Long lockedUserId = userMapper.selectUserIdForUpdate(userId);
         if (lockedUserId == null) {
@@ -209,10 +259,18 @@ public class EatRecordService {
     /**
      * 取消决定（删除 DECIDED 记录）
      *
-     * 先锁用户行，再校验+删除。检查 deleteById 影响行数。
+     * 应用层用户锁 + 数据库行锁双重保护。
+     * 检查 deleteById 影响行数。
      */
-    @Transactional
     public void cancelDecision(Long userId, Long recordId) {
+        withUserLock(userId, () -> {
+            tx().cancelDecisionInternal(userId, recordId);
+            return null;
+        });
+    }
+
+    @Transactional
+    void cancelDecisionInternal(Long userId, Long recordId) {
         // 锁定用户行，与 decide/complete/eat 互斥
         Long lockedUserId = userMapper.selectUserIdForUpdate(userId);
         if (lockedUserId == null) {
