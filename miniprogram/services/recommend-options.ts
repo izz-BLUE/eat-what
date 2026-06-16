@@ -42,6 +42,7 @@ const FALLBACK: RecommendOptionsData = {
     { value: '火锅', label: '火锅', sortOrder: 4 },
     { value: '烧烤', label: '烧烤', sortOrder: 5 },
     { value: '甜品', label: '甜品', sortOrder: 6 },
+    { value: '茶饮', label: '茶饮', sortOrder: 7 },
   ],
   cuisineTags: [
     { value: '家常菜', label: '家常菜', sortOrder: 1 },

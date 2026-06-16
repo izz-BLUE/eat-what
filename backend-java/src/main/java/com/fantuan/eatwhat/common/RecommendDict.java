@@ -28,7 +28,7 @@ public final class RecommendDict {
 
     // ==================== 食物类型（多值标签） ====================
 
-    public static final List<String> TYPE_TAGS = List.of("快餐", "小吃", "面食", "火锅", "烧烤", "甜品");
+    public static final List<String> TYPE_TAGS = List.of("快餐", "小吃", "面食", "火锅", "烧烤", "甜品", "茶饮");
 
     // ==================== 菜系/风格（多值标签） ====================
 
@@ -41,7 +41,7 @@ public final class RecommendDict {
     // ==================== 旧 category 合法值（兼容不想吃和旧参数） ====================
 
     public static final Set<String> LEGACY_CATEGORIES = Set.of(
-            "快餐", "小吃", "面食", "火锅", "烧烤", "甜品",
+            "快餐", "小吃", "面食", "火锅", "烧烤", "甜品", "茶饮",
             "川菜", "粤菜", "湘菜", "家常菜", "日料", "西餐"
     );
 
