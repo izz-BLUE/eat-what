@@ -8,5 +8,5 @@ export const config = {
   timeout: 10000,
 
   // 最大连续换一个次数
-  maxSwapCount: 5
+  maxSwapCount: 10
 }

@@ -287,6 +287,7 @@ Page({
     errorMsg: '',
     swapCount: 0,
     excludeFoodIds: [] as number[],
+    swapExhausted: false,               // 换一个 2002 空状态
     maxSwapCount: config.maxSwapCount,
     _navigatingToRecord: false,
     _reselectionInProgress: false,
@@ -332,7 +333,7 @@ Page({
     if (result) {
       app.globalData.pendingResult = null
       if (result.type === 'blacklist') {
-        this.setData({ recommendResult: null, swapCount: 0 })
+        this.setData({ recommendResult: null, swapCount: 0, swapExhausted: false })
         if (!this.data.excludeFoodIds.includes(result.foodId)) {
           this.data.excludeFoodIds.push(result.foodId)
         }
@@ -427,7 +428,7 @@ Page({
     this.setData({
       selectedMealType: value,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: ''
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedMealType: value })
   },
@@ -446,7 +447,7 @@ Page({
     this.setData({
       selectedPriceLevel: next,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: ''
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedPriceLevel: next })
   },
@@ -465,7 +466,7 @@ Page({
     this.setData({
       selectedTaste: next,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: ''
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedTaste: next })
   },
@@ -496,7 +497,7 @@ Page({
     this.setData({
       selectedTypeTags: nextTypeTags,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: ''
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedTypeTags: nextTypeTags })
   },
@@ -526,7 +527,7 @@ Page({
     this.setData({
       selectedCuisineTags: nextCuisineTags,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: ''
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedCuisineTags: nextCuisineTags })
   },
@@ -544,7 +545,7 @@ Page({
       selectedTypeTags: [],
       selectedCuisineTags: [],
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: ''
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedTypeTags: [], selectedCuisineTags: [] })
   },
@@ -556,7 +557,8 @@ Page({
       recommendResult: null,
       swapCount: 0,
       excludeFoodIds: [],
-      errorMsg: ''
+      errorMsg: '',
+      swapExhausted: false
     })
   },
 
@@ -580,7 +582,7 @@ Page({
   },
 
   async getRecommend(retryCount = 0) {
-    this.setData({ loading: true, errorMsg: '', recommendResult: null, swapCount: 0, excludeFoodIds: [] })
+    this.setData({ loading: true, errorMsg: '', recommendResult: null, swapCount: 0, excludeFoodIds: [], swapExhausted: false })
 
     try {
       const params = this.buildRequestParams()
@@ -610,7 +612,7 @@ Page({
 
   async swapRecommend(retryCount = 0) {
     if (this.data.swapCount >= config.maxSwapCount) {
-      wx.showToast({ title: '没有更多推荐了', icon: 'none' })
+      // 按钮已 disabled，兜底不发送请求
       return
     }
 
@@ -621,7 +623,7 @@ Page({
       }
     }
 
-    this.setData({ loading: true, errorMsg: '' })
+    this.setData({ loading: true, errorMsg: '', swapExhausted: false })
 
     try {
       const params = this.buildRequestParams()
@@ -643,7 +645,43 @@ Page({
           return
         }
         if (err.code === 2002) {
-          this.setData({ errorMsg: '当前条件没有合适菜品，请调整筛选条件', recommendResult: null })
+          // 无更多候选 → 显示独立空状态
+          this.setData({
+            recommendResult: null,
+            swapExhausted: true,
+            errorMsg: ''
+          })
+        } else {
+          this.setData({ errorMsg: err.message || '推荐失败，请重试' })
+        }
+      } else {
+        this.setData({ errorMsg: err.message || '网络异常，请重试' })
+      }
+    } finally {
+      this.setData({ loading: false })
+    }
+  },
+
+  /** 重置已看过（清空 excludeFoodIds + swapCount，保留筛选条件） */
+  async resetSwapState() {
+    this.setData({
+      loading: true,
+      errorMsg: '',
+      swapExhausted: false,
+      swapCount: 0,
+      excludeFoodIds: [],
+      recommendResult: null
+    })
+
+    try {
+      const params = this.buildRequestParams()
+      const result = await getRecommend(params)
+      const priceDisplay = this.getPriceDisplay(result.food.priceLevel)
+      this.setData({ recommendResult: result, priceDisplay })
+    } catch (err: any) {
+      if (err instanceof RequestError) {
+        if (err.code === 2002) {
+          this.setData({ errorMsg: '当前条件没有合适菜品，请调整筛选条件' })
         } else {
           this.setData({ errorMsg: err.message || '推荐失败，请重试' })
         }
@@ -720,7 +758,8 @@ Page({
       this.setData({
         mealDecision: decision,
         decisionTimeDisplay: this.formatLocalTime(decidedAt),
-        recommendResult: null
+        recommendResult: null,
+        swapExhausted: false
       })
       wx.showToast({ title: '已决定', icon: 'success' })
     } catch (err: any) {
@@ -771,7 +810,8 @@ Page({
           recommendResult: null,
           swapCount: 0,
           excludeFoodIds: [],
-          errorMsg: ''
+          errorMsg: '',
+          swapExhausted: false
         })
       },
       fail: () => {
@@ -870,7 +910,7 @@ Page({
       if (!this.data.excludeFoodIds.includes(food.id)) {
         this.data.excludeFoodIds.push(food.id)
       }
-      this.setData({ recommendResult: null, swapCount: 0 })
+      this.setData({ recommendResult: null, swapCount: 0, swapExhausted: false })
     } catch (err: any) {
       if (err instanceof RequestError && err.code === 1003) {
         wx.navigateTo({ url: '/pages/login/login' })
@@ -903,7 +943,8 @@ Page({
           recommendResult: null,
           swapCount: 0,
           excludeFoodIds: [],
-          errorMsg: ''
+          errorMsg: '',
+          swapExhausted: false
         })
       }
     })

@@ -190,6 +190,12 @@
       </view>
     </view>
   </view>
+
+  <!-- 换一个已耗尽（2002）：独立空状态卡片 -->
+  <view class="exhausted-card fade-up-in" wx:if="{{swapExhausted && !mealDecision}}">
+    <text class="exhausted-title">当前条件没有更多合适菜品</text>
+    <text class="exhausted-desc">可以放宽筛选条件或重新开始</text>
+  </view>
 </view>
 
 <!-- 统一固定底部操作栏 -->
@@ -205,11 +211,21 @@
   <!-- 推荐结果 -->
   <block wx:elif="{{recommendResult}}">
     <view class="action-buttons">
-      <button class="btn-secondary action-btn" bindtap="swapRecommend" disabled="{{swapCount >= maxSwapCount || loading}}">换一个{{swapCount > 0 ? '(' + swapCount + '/' + maxSwapCount + ')' : ''}}</button>
+      <button class="btn-secondary action-btn" bindtap="swapRecommend" disabled="{{swapCount >= maxSwapCount || loading}}">
+        {{swapCount >= maxSwapCount ? '换不动了' : '换一个' + (swapCount > 0 ? '(' + swapCount + '/' + maxSwapCount + ')' : '')}}
+      </button>
       <button class="btn-primary action-btn" bindtap="eatIt" disabled="{{loading}}">我就吃它</button>
     </view>
     <view class="blacklist-action" bindtap="addToBlacklist">
       <text>加入黑名单</text>
+    </view>
+  </block>
+
+  <!-- 换一个已耗尽（2002）：卡片提示 + 双操作按钮 -->
+  <block wx:elif="{{swapExhausted}}">
+    <view class="action-buttons">
+      <button class="btn-secondary action-btn" bindtap="resetSwapState">重置已看过</button>
+      <button class="btn-primary action-btn" bindtap="handleReset">重置筛选条件</button>
     </view>
   </block>
 
