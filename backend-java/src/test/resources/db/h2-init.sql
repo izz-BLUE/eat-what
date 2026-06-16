@@ -131,3 +131,21 @@ CREATE TABLE IF NOT EXISTS `vote_records` (
   CONSTRAINT `fk_vote_records_vote` FOREIGN KEY (`vote_id`) REFERENCES `votes` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_vote_records_option` FOREIGN KEY (`option_id`) REFERENCES `vote_options` (`id`) ON DELETE CASCADE
 ) COMMENT='投票记录表';
+
+-- 意见反馈表
+CREATE TABLE IF NOT EXISTS `user_feedbacks` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` BIGINT NULL COMMENT '用户ID（匿名提交为NULL）',
+  `type` VARCHAR(32) NOT NULL COMMENT '反馈类型',
+  `rating` TINYINT NULL COMMENT '满意度评分',
+  `content` VARCHAR(500) NOT NULL COMMENT '反馈内容',
+  `contact` VARCHAR(100) NULL COMMENT '联系方式',
+  `page` VARCHAR(128) NULL COMMENT '来源页面路径',
+  `system_info` VARCHAR(1000) NULL COMMENT '微信环境信息',
+  `status` VARCHAR(32) NOT NULL DEFAULT 'NEW' COMMENT '处理状态',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_created` (`user_id`, `created_at`),
+  KEY `idx_status_created` (`status`, `created_at`)
+) COMMENT='意见反馈表';

@@ -40,5 +40,9 @@
       <text class="menu-text">暂时不想吃</text>
       <view class="menu-arrow"></view>
     </view>
+    <view class="menu-item" bindtap="goToFeedback">
+      <text class="menu-text">意见反馈</text>
+      <view class="menu-arrow"></view>
+    </view>
   </view>
 </view>

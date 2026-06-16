@@ -10,6 +10,7 @@ interface RequestOptions {
   url: string
   data?: any
   showLoading?: boolean
+  skipAuth?: boolean
 }
 
 /**
@@ -40,10 +41,12 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
       'Content-Type': 'application/json'
     }
 
-    // 自动添加 token
-    const token = app.globalData.token
-    if (token) {
-      header['Authorization'] = `Bearer ${token}`
+    // 自动添加 token（skipAuth 时跳过）
+    if (!options.skipAuth) {
+      const token = app.globalData.token
+      if (token) {
+        header['Authorization'] = `Bearer ${token}`
+      }
     }
 
     wx.request({
@@ -99,27 +102,27 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
 /**
  * GET 请求
  */
-export function get<T = any>(url: string, data?: any): Promise<T> {
-  return request<T>({ method: 'GET', url, data })
+export function get<T = any>(url: string, data?: any, options?: { skipAuth?: boolean }): Promise<T> {
+  return request<T>({ method: 'GET', url, data, skipAuth: options?.skipAuth })
 }
 
 /**
  * POST 请求
  */
-export function post<T = any>(url: string, data?: any): Promise<T> {
-  return request<T>({ method: 'POST', url, data })
+export function post<T = any>(url: string, data?: any, options?: { skipAuth?: boolean }): Promise<T> {
+  return request<T>({ method: 'POST', url, data, skipAuth: options?.skipAuth })
 }
 
 /**
  * DELETE 请求
  */
-export function del<T = any>(url: string, data?: any): Promise<T> {
-  return request<T>({ method: 'DELETE', url, data })
+export function del<T = any>(url: string, data?: any, options?: { skipAuth?: boolean }): Promise<T> {
+  return request<T>({ method: 'DELETE', url, data, skipAuth: options?.skipAuth })
 }
 
 /**
  * PUT 请求
  */
-export function put<T = any>(url: string, data?: any): Promise<T> {
-  return request<T>({ method: 'PUT', url, data })
+export function put<T = any>(url: string, data?: any, options?: { skipAuth?: boolean }): Promise<T> {
+  return request<T>({ method: 'PUT', url, data, skipAuth: options?.skipAuth })
 }

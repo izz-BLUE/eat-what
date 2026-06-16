@@ -199,3 +199,29 @@ export interface CurrentMealDecision {
   tasteTags?: string
   priceLevel?: number
 }
+
+/** 反馈类型 */
+export type FeedbackType = 'FEATURE' | 'BUG' | 'RECOMMENDATION' | 'UI' | 'OTHER'
+
+/** 意见反馈请求 */
+export interface FeedbackRequest {
+  type: FeedbackType
+  rating?: number
+  content: string
+  contact?: string
+  page?: string
+  systemInfo?: string
+}
+
+/** 意见反馈响应 */
+export interface FeedbackResponse {
+  id: number
+  type: string
+  rating: number | null
+  content: string
+  contact: string
+  page: string
+  systemInfo: string
+  status: string
+  createdAt: string
+}
