@@ -1,6 +1,7 @@
 package com.fantuan.eatwhat.service;
 
 import com.fantuan.eatwhat.common.FoodTaxonomy;
+import com.fantuan.eatwhat.domain.entity.EatRecord;
 import com.fantuan.eatwhat.domain.entity.Food;
 import com.fantuan.eatwhat.dto.request.RecommendRequest;
 import com.fantuan.eatwhat.dto.response.FoodResponse;
@@ -22,7 +23,7 @@ import java.util.stream.Collectors;
  * 过滤顺序：
  * enabled → excludeFoodIds → blacklist → dislikes(含 type_tags/cuisine_tags 兼容)
  * → 分类硬过滤(type_tags + cuisine_tags OR) → 餐段硬过滤 → 口味硬过滤 → 参考价位硬过滤
- * → 最近吃过降权 → 随机因素 → Top 5 随机
+ * → 最近吃过降权 → 历史评分偏好加权 → 随机因素 → Top 5 随机
  */
 @Service
 @RequiredArgsConstructor
@@ -114,9 +115,12 @@ public class RecommendService {
         // 9. 查询用户最近7天吃过的食物
         Map<Long, LocalDateTime> recentEatenMap = eatRecordService.getRecentEatenFoodMap(request.getUserId());
 
+        // 9.5. 查询用户有评分的已吃记录，构建评分偏好数据
+        List<RatedFoodInfo> ratedFoods = buildRatedFoods(request.getUserId());
+
         // 10. 计算每个菜品的得分
         List<ScoredFood> scoredFoods = candidates.stream()
-                .map(food -> calculateScore(food, request, recentEatenMap, now))
+                .map(food -> calculateScore(food, request, recentEatenMap, ratedFoods, now))
                 .collect(Collectors.toList());
 
         // 11. 按得分排序，取 Top 5
@@ -141,7 +145,8 @@ public class RecommendService {
      * 计算菜品得分
      */
     private ScoredFood calculateScore(Food food, RecommendRequest request,
-                                       Map<Long, LocalDateTime> recentEatenMap, LocalDateTime now) {
+                                       Map<Long, LocalDateTime> recentEatenMap,
+                                       List<RatedFoodInfo> ratedFoods, LocalDateTime now) {
         int score = 0;
         List<String> reasons = new ArrayList<>();
 
@@ -190,7 +195,17 @@ public class RecommendService {
         }
         score += recentEatenDeduction;
 
-        // 6. 随机因素：0-19
+        // 6. 历史评分偏好加权（仅登录用户启用）
+        int ratingBonus = 0;
+        if (request.getUserId() != null && !ratedFoods.isEmpty()) {
+            ratingBonus = calculateRatingPreference(food, ratedFoods);
+            score += ratingBonus;
+            if (ratingBonus > 0) {
+                reasons.add("符合你以往喜欢的口味/类型");
+            }
+        }
+
+        // 7. 随机因素：0-19
         int randomScore = new Random().nextInt(20);
         score += randomScore;
 
@@ -313,7 +328,92 @@ public class RecommendService {
         return 0;
     }
 
+    // ==================== 评分偏好 ====================
+
+    /**
+     * 构建评分偏好数据：查询用户有评分的 EATEN 记录，关联 Food 信息。
+     *
+     * @param userId 用户ID，null 时返回空列表
+     * @return 评分过的食物信息列表
+     */
+    private List<RatedFoodInfo> buildRatedFoods(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+
+        List<EatRecord> ratedRecords = eatRecordService.getRatedEatenRecords(userId);
+        if (ratedRecords == null || ratedRecords.isEmpty()) {
+            return List.of();
+        }
+
+        // 批量查询关联的食物
+        List<Long> foodIds = ratedRecords.stream()
+                .map(EatRecord::getFoodId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Long, Food> foodMap = foodService.listByIds(foodIds).stream()
+                .collect(Collectors.toMap(Food::getId, f -> f));
+
+        return ratedRecords.stream()
+                .filter(r -> foodMap.containsKey(r.getFoodId()))
+                .map(r -> new RatedFoodInfo(foodMap.get(r.getFoodId()), r.getRating()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 计算历史评分偏好加权。
+     *
+     * 规则：
+     * - rating >= 4（正反馈）：同 type_tags +8、同 cuisine_tags +8、同 taste_tags +5
+     * - rating <= 2（负反馈）：同 type_tags -8、同 cuisine_tags -8、同 taste_tags -5
+     * - rating = 3：不参与
+     * - 每个维度仅检查是否有交集（任一标签命中即触发），不按命中标签数量累加
+     * - 上限 +20，下限 -20
+     */
+    private int calculateRatingPreference(Food candidate, List<RatedFoodInfo> ratedFoods) {
+        int bonus = 0;
+        Set<String> candidateTypes = FoodTaxonomy.parseTags(candidate.getTypeTags());
+        Set<String> candidateCuisines = FoodTaxonomy.parseTags(candidate.getCuisineTags());
+        Set<String> candidateTastes = FoodTaxonomy.parseTags(candidate.getTasteTags());
+
+        for (RatedFoodInfo rated : ratedFoods) {
+            Set<String> ratedTypes = FoodTaxonomy.parseTags(rated.food().getTypeTags());
+            Set<String> ratedCuisines = FoodTaxonomy.parseTags(rated.food().getCuisineTags());
+            Set<String> ratedTastes = FoodTaxonomy.parseTags(rated.food().getTasteTags());
+
+            if (rated.rating() >= 4) {
+                if (hasIntersection(candidateTypes, ratedTypes)) bonus += 8;
+                if (hasIntersection(candidateCuisines, ratedCuisines)) bonus += 8;
+                if (hasIntersection(candidateTastes, ratedTastes)) bonus += 5;
+            } else if (rated.rating() <= 2) {
+                if (hasIntersection(candidateTypes, ratedTypes)) bonus -= 8;
+                if (hasIntersection(candidateCuisines, ratedCuisines)) bonus -= 8;
+                if (hasIntersection(candidateTastes, ratedTastes)) bonus -= 5;
+            }
+            // rating == 3: 不参与
+        }
+
+        // 上限 +20，下限 -20
+        return Math.max(-20, Math.min(20, bonus));
+    }
+
+    /**
+     * 判断两个 Set 是否有交集
+     */
+    private boolean hasIntersection(Set<String> set1, Set<String> set2) {
+        for (String s : set1) {
+            if (set2.contains(s)) return true;
+        }
+        return false;
+    }
+
     // ==================== 内部类 ====================
+
+    /**
+     * 评分过的食物信息（内部记录）
+     */
+    private record RatedFoodInfo(Food food, int rating) {}
 
     /**
      * 内部类：带分数的菜品

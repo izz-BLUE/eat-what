@@ -1,6 +1,7 @@
 package com.fantuan.eatwhat.service;
 
 import com.fantuan.eatwhat.common.FoodTaxonomy;
+import com.fantuan.eatwhat.domain.entity.EatRecord;
 import com.fantuan.eatwhat.domain.entity.Food;
 import com.fantuan.eatwhat.dto.request.RecommendRequest;
 import com.fantuan.eatwhat.dto.response.FoodResponse;
@@ -16,6 +17,7 @@ import org.mockito.quality.Strictness;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +61,8 @@ class RecommendServiceTest {
                     .priceLevel(food.getPriceLevel())
                     .build();
         });
+        // 默认无评分记录（各测试按需覆盖）
+        when(eatRecordService.getRatedEatenRecords(any())).thenReturn(List.of());
     }
 
     // ==================== 基础推荐测试 ====================
@@ -1173,6 +1177,324 @@ class RecommendServiceTest {
         assertEquals(Set.of("辣", "麻", "香"), result);
     }
 
+    // ==================== 评分偏好：匿名用户不启用 ====================
+
+    @Test
+    void recommend_anonymousUser_noRatingPreference() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(null);
+
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // 匿名用户不应有评分偏好理由
+        assertFalse(response.getReasons().stream().anyMatch(r -> r.contains("符合你以往喜欢的口味/类型")),
+                "匿名用户不应出现评分偏好理由: " + response.getReasons());
+    }
+
+    // ==================== 评分偏好：rating >= 4 加分 ====================
+
+    @Test
+    void recommend_highRating_sameTypeTag_addsBonus() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        // 候选：火锅
+        Food candidate = createFood(1L, "清汤火锅", "火锅", "火锅", "川菜", "晚餐", "清淡,鲜", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(candidate));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 历史高分记录：麻辣火锅（同 typeTags=火锅, rating=5）
+        Food ratedFood = createFood(101L, "麻辣火锅", "火锅", "火锅", "川菜", "晚餐", "辣,麻", 4);
+        EatRecord ratedRecord = createEatRecord(1L, 1L, 101L, 5);
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(List.of(ratedRecord));
+        when(foodService.listByIds(List.of(101L))).thenReturn(List.of(ratedFood));
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合你以往喜欢的口味/类型"),
+                "正反馈加分 > 0 应包含个性化理由，实际: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_highRating_sameCuisineTag_addsBonus() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        // 候选：日料寿司
+        Food candidate = createFood(1L, "寿司", "日料", "", "日料", "晚餐", "清淡,鲜", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(candidate));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 历史高分记录：日料拉面（同 cuisineTags=日料, rating=4）
+        Food ratedFood = createFood(101L, "拉面", "日料", "面食", "日料", "午餐,晚餐", "咸,鲜", 3);
+        EatRecord ratedRecord = createEatRecord(1L, 1L, 101L, 4);
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(List.of(ratedRecord));
+        when(foodService.listByIds(List.of(101L))).thenReturn(List.of(ratedFood));
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合你以往喜欢的口味/类型"),
+                "同菜系高分应触发正反馈理由，实际: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_highRating_sameTasteTag_addsBonus() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        // 候选：麻辣烫（tasteTags=辣,麻）
+        Food candidate = createFood(1L, "麻辣烫", "小吃", "小吃", "", "晚餐", "辣,麻", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(candidate));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 历史高分记录：火锅（tasteTags=辣,麻，同口味, rating=5）
+        Food ratedFood = createFood(101L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        EatRecord ratedRecord = createEatRecord(1L, 1L, 101L, 5);
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(List.of(ratedRecord));
+        when(foodService.listByIds(List.of(101L))).thenReturn(List.of(ratedFood));
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("符合你以往喜欢的口味/类型"),
+                "同口味高分应触发正反馈理由，实际: " + response.getReasons());
+    }
+
+    // ==================== 评分偏好：rating <= 2 降权 ====================
+
+    @Test
+    void recommend_lowRating_sameTypeTag_penalizes() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        // 候选 1：火锅（typeTags=火锅）— 应受降权
+        Food hotpot = createFood(1L, "清汤火锅", "火锅", "火锅", "川菜", "晚餐", "清淡,鲜", 4);
+        // 候选 2：猪脚饭 — 不受影响
+        Food porkRice = createFood(2L, "猪脚饭", "快餐", "快餐", "", "晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(hotpot, porkRice));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 历史低分记录：麻辣火锅（typeTags=火锅, rating=1）
+        Food ratedFood = createFood(101L, "麻辣火锅", "火锅", "火锅", "川菜", "晚餐", "辣,麻", 4);
+        EatRecord ratedRecord = createEatRecord(1L, 1L, 101L, 1);
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(List.of(ratedRecord));
+        when(foodService.listByIds(List.of(101L))).thenReturn(List.of(ratedFood));
+
+        // 多次推荐：火锅被降权但非硬过滤，仍可能被推荐
+        // 我们验证降权不会导致崩溃，且不出现正反馈理由
+        boolean hotpotAppeared = false;
+        for (int i = 0; i < 20; i++) {
+            RecommendResponse response = recommendService.recommend(request);
+            assertNotNull(response);
+            if (response.getFood().getId() == 1L) hotpotAppeared = true;
+            // 负反馈不应出现正反馈理由
+            assertFalse(response.getReasons().contains("符合你以往喜欢的口味/类型"),
+                    "负反馈不应触发个性化理由: " + response.getReasons());
+        }
+        // 火锅虽被降权但非硬过滤，可能偶尔出现
+        assertTrue(hotpotAppeared, "降权不是硬过滤，火锅应在随机因素下偶尔出现");
+    }
+
+    // ==================== 评分偏好：rating = 3 不影响 ====================
+
+    @Test
+    void recommend_neutralRating3_noEffect() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        Food candidate = createFood(1L, "猪脚饭", "快餐", "快餐", "", "晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(candidate));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 历史记录：同类型 rating=3 → 不做任何加减分
+        Food ratedFood = createFood(101L, "黄焖鸡米饭", "快餐", "快餐", "", "晚餐", "咸,辣", 2);
+        EatRecord ratedRecord = createEatRecord(1L, 1L, 101L, 3);
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(List.of(ratedRecord));
+        when(foodService.listByIds(List.of(101L))).thenReturn(List.of(ratedFood));
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // rating=3 不参与计算，不应有评分偏好理由
+        assertFalse(response.getReasons().contains("符合你以往喜欢的口味/类型"),
+                "rating=3 不应触发个性化理由: " + response.getReasons());
+    }
+
+    // ==================== 评分偏好：正负平衡 ====================
+
+    @Test
+    void recommend_mixedRatings_cancelOut() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        // 候选：火锅（typeTags=火锅, cuisineTags=川菜）
+        Food candidate = createFood(1L, "清汤火锅", "火锅", "火锅", "川菜", "晚餐", "清淡,鲜", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(candidate));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 正反馈：火锅(5分) → typeTags 命中 +8, cuisineTags 命中 +8 → +16
+        Food highRated = createFood(101L, "麻辣火锅", "火锅", "火锅", "川菜", "晚餐", "辣,麻", 4);
+        EatRecord highRecord = createEatRecord(1L, 1L, 101L, 5);
+        // 负反馈A：火锅(1分) → typeTags 命中 -8
+        Food lowRatedA = createFood(102L, "鸳鸯火锅", "火锅", "火锅", "", "晚餐", "辣,鲜", 4);
+        EatRecord lowRecordA = createEatRecord(2L, 1L, 102L, 1);
+        // 负反馈B：回锅肉(1分) → cuisineTags "川菜" 命中 -8 → +16-8-8=0
+        Food lowRatedB = createFood(103L, "回锅肉", "川菜", "", "川菜", "晚餐", "辣,咸", 3);
+        EatRecord lowRecordB = createEatRecord(3L, 1L, 103L, 1);
+
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(List.of(highRecord, lowRecordA, lowRecordB));
+        when(foodService.listByIds(List.of(101L, 102L, 103L))).thenReturn(List.of(highRated, lowRatedA, lowRatedB));
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // +16 - 8 - 8 = 0，bonus 为 0，不应出现理由
+        assertFalse(response.getReasons().contains("符合你以往喜欢的口味/类型"),
+                "正负平衡(bonus=0)不应出现个性化理由: " + response.getReasons());
+    }
+
+    // ==================== 评分偏好：上限 +20 ====================
+
+    @Test
+    void recommend_ratingBonus_cappedAtPlus20() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        Food candidate = createFood(1L, "清汤火锅", "火锅", "火锅", "川菜", "晚餐", "清淡,鲜", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(candidate));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 4 条高分火锅记录：4 × 8 = +32 → 应被 cap 在 +20
+        List<EatRecord> records = new ArrayList<>();
+        List<Food> ratedFoods = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Food f = createFood(100L + i, "火锅" + i, "火锅", "火锅", "川菜", "晚餐", "辣,麻", 4);
+            ratedFoods.add(f);
+            records.add(createEatRecord((long) i, 1L, 100L + i, 5));
+        }
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(records);
+        when(foodService.listByIds(any())).thenReturn(ratedFoods);
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // cap 后 bonus = +20 > 0，应有理由
+        assertTrue(response.getReasons().contains("符合你以往喜欢的口味/类型"),
+                "cap 后 bonus > 0 应有理由，实际: " + response.getReasons());
+        // score 最大 = 0(recent) + 20(capped) + 19(random) = 39
+        assertTrue(response.getScore() >= 0 && response.getScore() <= 39,
+                "score 应在 0-39 范围（0+20+19），实际: " + response.getScore());
+    }
+
+    // ==================== 评分偏好：下限 -20 ====================
+
+    @Test
+    void recommend_ratingPenalty_cappedAtMinus20() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        Food candidate = createFood(1L, "清汤火锅", "火锅", "火锅", "川菜", "晚餐", "清淡,鲜", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(candidate));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 4 条低分火锅记录：4 × -8 = -32 → 应被 cap 在 -20
+        List<EatRecord> records = new ArrayList<>();
+        List<Food> ratedFoods = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Food f = createFood(100L + i, "火锅" + i, "火锅", "火锅", "川菜", "晚餐", "辣,麻", 4);
+            ratedFoods.add(f);
+            records.add(createEatRecord((long) i, 1L, 100L + i, 1));
+        }
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(records);
+        when(foodService.listByIds(any())).thenReturn(ratedFoods);
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // bonus = -20 <= 0，不应有理由
+        assertFalse(response.getReasons().contains("符合你以往喜欢的口味/类型"),
+                "cap 后 bonus <= 0 不应有理由: " + response.getReasons());
+        // score 最小 = 0(recent) + (-20)(penalty cap) + 0(random) = -20
+        assertTrue(response.getScore() >= -20 && response.getScore() <= 19,
+                "score 应在 -20-19 范围，实际: " + response.getScore());
+    }
+
+    // ==================== 评分偏好：黑名单硬排除优先 ====================
+
+    @Test
+    void recommend_blacklistExcludesDespitePositiveRating() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        // 火锅在黑名单但仍被高分评分过
+        Food hotpot = createFood(1L, "麻辣火锅", "火锅", "火锅", "川菜", "晚餐", "辣,麻", 4);
+        Food porkRice = createFood(2L, "猪脚饭", "快餐", "快餐", "", "晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(hotpot, porkRice));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 火锅在黑名单
+        when(userBlacklistService.getBlacklistFoodIds(1L)).thenReturn(Set.of(1L));
+
+        // 历史高分记录：火锅（rating=5）— 虽有高分评分，但黑名单硬含义优先
+        Food ratedFood = createFood(101L, "清汤火锅", "火锅", "火锅", "川菜", "晚餐", "清淡,鲜", 4);
+        EatRecord ratedRecord = createEatRecord(1L, 1L, 101L, 5);
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(List.of(ratedRecord));
+        when(foodService.listByIds(List.of(101L))).thenReturn(List.of(ratedFood));
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // 黑名单硬过滤排除火锅，应返回猪脚饭
+        assertEquals(2L, response.getFood().getId(),
+                "黑名单应硬排除，即使有高分评分历史");
+    }
+
+    // ==================== 评分偏好：不影响硬过滤 ====================
+
+    @Test
+    void recommend_ratingPreference_doesNotOverrideHardFilter() {
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("早餐");
+        request.setUserId(1L);
+
+        // 肠粉：适合早餐
+        Food changfen = createFood(1L, "肠粉", "小吃", "小吃", "", "早餐,午餐", "清淡,鲜", 1);
+        // 火锅：不适合早餐
+        Food hotpot = createFood(2L, "火锅", "火锅", "火锅", "", "午餐,晚餐,夜宵", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(changfen, hotpot));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        // 历史高分记录对火锅有正反馈 — 但火锅不合适早餐（硬过滤排除）
+        Food ratedFood = createFood(101L, "麻辣火锅", "火锅", "火锅", "", "午餐,晚餐", "辣,麻", 4);
+        EatRecord ratedRecord = createEatRecord(1L, 1L, 101L, 5);
+        when(eatRecordService.getRatedEatenRecords(1L)).thenReturn(List.of(ratedRecord));
+        when(foodService.listByIds(List.of(101L))).thenReturn(List.of(ratedFood));
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        // 火锅被餐段硬过滤排除，评分偏好不能覆盖硬过滤
+        assertEquals(1L, response.getFood().getId(),
+                "评分偏好不能覆盖餐段硬过滤，早餐不应返回火锅");
+    }
+
     // ==================== 工具方法 ====================
 
     private int invokeDeduction(long hours, long minutes) throws Exception {
@@ -1207,5 +1529,15 @@ class RecommendServiceTest {
         food.setPriceLevel(priceLevel);
         food.setEnabled(true);
         return food;
+    }
+
+    private EatRecord createEatRecord(Long id, Long userId, Long foodId, int rating) {
+        EatRecord record = new EatRecord();
+        record.setId(id);
+        record.setUserId(userId);
+        record.setFoodId(foodId);
+        record.setStatus("EATEN");
+        record.setRating(rating);
+        return record;
     }
 }
