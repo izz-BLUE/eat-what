@@ -80,6 +80,27 @@ public class FoodService {
                 .tasteTags(food.getTasteTags())
                 .priceLevel(food.getPriceLevel())
                 .imageUrl(food.getImageUrl())
+                .source("DEFAULT")
+                .customFoodId(null)
+                .build();
+    }
+
+    /**
+     * 从 UserCustomFood 构建 FoodResponse（source=CUSTOM）
+     */
+    public FoodResponse fromCustomFood(com.fantuan.eatwhat.domain.entity.UserCustomFood customFood) {
+        return FoodResponse.builder()
+                .id(customFood.getId())
+                .name(customFood.getName())
+                .category(customFood.getCategory())
+                .typeTags(customFood.getTypeTags())
+                .cuisineTags(customFood.getCuisineTags())
+                .mealTypes(customFood.getMealTypes())
+                .tasteTags(customFood.getTasteTags())
+                .priceLevel(customFood.getPriceLevel())
+                .imageUrl(null)
+                .source("CUSTOM")
+                .customFoodId(customFood.getId())
                 .build();
     }
 }

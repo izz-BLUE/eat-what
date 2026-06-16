@@ -126,6 +126,7 @@ public class RecommendController {
             @RequestParam(required = false) String priceLevel,
             @RequestParam(required = false) String taste,
             @RequestParam(required = false) String excludeFoodIds,
+            @RequestParam(required = false) String excludeCustomFoodIds,
             @RequestParam(required = false) String categories,
             @RequestParam(required = false) String typeTags,
             @RequestParam(required = false) String cuisineTags) {
@@ -194,7 +195,7 @@ public class RecommendController {
         request.setTypeTags(mergedTypeTags.isEmpty() ? null : mergedTypeTags);
         request.setCuisineTags(mergedCuisineTags.isEmpty() ? null : mergedCuisineTags);
 
-        // 解析 excludeFoodIds
+        // 解析 excludeFoodIds（只排除默认菜，不混用自定义菜 ID）
         if (excludeFoodIds != null && !excludeFoodIds.isEmpty()) {
             try {
                 List<Long> ids = Arrays.stream(excludeFoodIds.split(","))
@@ -207,6 +208,21 @@ public class RecommendController {
             }
         } else {
             request.setExcludeFoodIds(Collections.emptyList());
+        }
+
+        // 解析 excludeCustomFoodIds（只排除自定义菜，不混用默认菜 ID）
+        if (excludeCustomFoodIds != null && !excludeCustomFoodIds.isEmpty()) {
+            try {
+                List<Long> ids = Arrays.stream(excludeCustomFoodIds.split(","))
+                        .map(String::trim)
+                        .map(Long::parseLong)
+                        .collect(Collectors.toList());
+                request.setExcludeCustomFoodIds(ids);
+            } catch (NumberFormatException e) {
+                return ApiResponse.fail(1001, "excludeCustomFoodIds 格式错误");
+            }
+        } else {
+            request.setExcludeCustomFoodIds(Collections.emptyList());
         }
 
         RecommendResponse response = recommendService.recommend(request);

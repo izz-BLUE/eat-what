@@ -3,6 +3,7 @@ package com.fantuan.eatwhat.service;
 import com.fantuan.eatwhat.common.FoodTaxonomy;
 import com.fantuan.eatwhat.domain.entity.EatRecord;
 import com.fantuan.eatwhat.domain.entity.Food;
+import com.fantuan.eatwhat.domain.entity.UserCustomFood;
 import com.fantuan.eatwhat.dto.request.RecommendRequest;
 import com.fantuan.eatwhat.dto.response.FoodResponse;
 import com.fantuan.eatwhat.dto.response.RecommendResponse;
@@ -33,6 +34,7 @@ public class RecommendService {
     private final EatRecordService eatRecordService;
     private final UserBlacklistService userBlacklistService;
     private final UserDislikeService userDislikeService;
+    private final UserCustomFoodService userCustomFoodService;
 
     /**
      * 推荐一个菜品
@@ -41,6 +43,87 @@ public class RecommendService {
      * @return 推荐结果，无候选时返回 null
      */
     public RecommendResponse recommend(RecommendRequest request) {
+        // ============ Phase 1: 自定义菜优先（仅登录用户） ============
+        if (request.getUserId() != null) {
+            List<com.fantuan.eatwhat.domain.entity.UserCustomFood> customCandidates =
+                    userCustomFoodService.getEnabledCustomFoods(request.getUserId());
+
+            // 排除 excludeCustomFoodIds（不混用 excludeFoodIds）
+            if (!CollectionUtils.isEmpty(request.getExcludeCustomFoodIds())) {
+                Set<Long> excludeIds = new HashSet<>(request.getExcludeCustomFoodIds());
+                customCandidates = customCandidates.stream()
+                        .filter(f -> !excludeIds.contains(f.getId()))
+                        .collect(Collectors.toList());
+            }
+
+            // dislike 过滤（按 type_tags / cuisine_tags 生效）
+            LocalDateTime phase1Now = LocalDateTime.now();
+            Set<String> dislikeCategories = userDislikeService.getActiveDislikeCategories(
+                    request.getUserId(), phase1Now);
+            if (!dislikeCategories.isEmpty()) {
+                customCandidates = customCandidates.stream()
+                        .filter(f -> !matchesCustomDislike(f, dislikeCategories))
+                        .collect(Collectors.toList());
+            }
+
+            // 分类过滤（typeTags OR cuisineTags）
+            if (!CollectionUtils.isEmpty(request.getTypeTags())
+                    || !CollectionUtils.isEmpty(request.getCuisineTags())) {
+                Set<String> selectedTypes = request.getTypeTags() != null
+                        ? new HashSet<>(request.getTypeTags()) : Set.of();
+                Set<String> selectedCuisines = request.getCuisineTags() != null
+                        ? new HashSet<>(request.getCuisineTags()) : Set.of();
+                customCandidates = customCandidates.stream()
+                        .filter(f -> matchesCustomCategory(f, selectedTypes, selectedCuisines))
+                        .collect(Collectors.toList());
+            }
+
+            // 餐段过滤
+            if (StringUtils.hasText(request.getMealType())) {
+                customCandidates = customCandidates.stream()
+                        .filter(f -> matchesCustomMealType(f, request.getMealType()))
+                        .collect(Collectors.toList());
+            }
+
+            // 口味过滤
+            if (StringUtils.hasText(request.getTaste())) {
+                customCandidates = customCandidates.stream()
+                        .filter(f -> matchesTaste(f.getTasteTags(), request.getTaste()))
+                        .collect(Collectors.toList());
+            }
+
+            // 价位过滤
+            if (StringUtils.hasText(request.getPriceLevel())) {
+                int targetLevel = priceLevelToInt(request.getPriceLevel());
+                customCandidates = customCandidates.stream()
+                        .filter(f -> f.getPriceLevel() != null && f.getPriceLevel() == targetLevel)
+                        .collect(Collectors.toList());
+            }
+
+            // 自定义菜候选非空 → 只从自定义菜推，不进入默认菜候选池
+            if (!customCandidates.isEmpty()) {
+                Map<Long, LocalDateTime> recentEatenCustomMap =
+                        eatRecordService.getRecentEatenCustomFoodMap(request.getUserId());
+
+                List<ScoredCustomFood> scored = customCandidates.stream()
+                        .map(f -> calculateCustomScore(f, request, recentEatenCustomMap, phase1Now))
+                        .collect(Collectors.toList());
+
+                scored.sort((a, b) -> Integer.compare(b.score, a.score));
+                List<ScoredCustomFood> top5 = scored.stream().limit(5).collect(Collectors.toList());
+                ScoredCustomFood selected = top5.get(new Random().nextInt(top5.size()));
+
+                FoodResponse foodResponse = foodService.fromCustomFood(selected.food);
+                return RecommendResponse.builder()
+                        .food(foodResponse)
+                        .score(selected.score)
+                        .reasons(selected.reasons)
+                        .build();
+            }
+            // 自定义菜无匹配 → 回退 Phase 2
+        }
+
+        // ============ Phase 2: 默认菜品逻辑（以下完全不变） ============
         // 1. 获取候选菜品
         List<Food> candidates = foodService.listAllEnabled();
 
@@ -408,6 +491,135 @@ public class RecommendService {
         return false;
     }
 
+    // ==================== 自定义菜过滤方法 ====================
+
+    /**
+     * 不想吃匹配（自定义菜版本）：dislike 值匹配 typeTags 或 cuisineTags
+     */
+    private boolean matchesCustomDislike(
+            com.fantuan.eatwhat.domain.entity.UserCustomFood food, Set<String> dislikeCategories) {
+        Set<String> foodTypes = FoodTaxonomy.parseTags(food.getTypeTags());
+        for (String t : foodTypes) {
+            if (dislikeCategories.contains(t)) return true;
+        }
+        Set<String> foodCuisines = FoodTaxonomy.parseTags(food.getCuisineTags());
+        for (String c : foodCuisines) {
+            if (dislikeCategories.contains(c)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 分类筛选（自定义菜版本）：type_tags 或 cuisine_tags 任一命中
+     */
+    private boolean matchesCustomCategory(
+            com.fantuan.eatwhat.domain.entity.UserCustomFood food,
+            Set<String> selectedTypes, Set<String> selectedCuisines) {
+        if (!selectedTypes.isEmpty()) {
+            Set<String> foodTypes = FoodTaxonomy.parseTags(food.getTypeTags());
+            for (String t : foodTypes) {
+                if (selectedTypes.contains(t)) return true;
+            }
+        }
+        if (!selectedCuisines.isEmpty()) {
+            Set<String> foodCuisines = FoodTaxonomy.parseTags(food.getCuisineTags());
+            for (String c : foodCuisines) {
+                if (selectedCuisines.contains(c)) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 餐段硬过滤（自定义菜版本）
+     */
+    private boolean matchesCustomMealType(
+            com.fantuan.eatwhat.domain.entity.UserCustomFood food, String mealType) {
+        Set<String> mealTypes = FoodTaxonomy.parseTags(food.getMealTypes());
+        return mealTypes.contains(mealType);
+    }
+
+    /**
+     * 计算自定义菜得分（含最近吃过降权）
+     */
+    private ScoredCustomFood calculateCustomScore(
+            com.fantuan.eatwhat.domain.entity.UserCustomFood food, RecommendRequest request,
+            Map<Long, LocalDateTime> recentEatenCustomMap, LocalDateTime now) {
+        int score = 0;
+        List<String> reasons = new ArrayList<>();
+
+        // 自定义菜标记理由
+        reasons.add("来自你的自定义菜品");
+
+        // 餐段匹配理由
+        if (StringUtils.hasText(request.getMealType())) {
+            reasons.add("适合「" + request.getMealType() + "」时段");
+        }
+
+        // 口味匹配理由
+        if (StringUtils.hasText(request.getTaste())) {
+            reasons.add("口味匹配「" + request.getTaste() + "」");
+        }
+
+        // 分类命中理由
+        if (!CollectionUtils.isEmpty(request.getTypeTags())) {
+            Set<String> foodTypes = FoodTaxonomy.parseTags(food.getTypeTags());
+            for (String t : request.getTypeTags()) {
+                if (foodTypes.contains(t)) {
+                    reasons.add("属于「" + t + "」");
+                    break;
+                }
+            }
+        }
+        if (!CollectionUtils.isEmpty(request.getCuisineTags())) {
+            Set<String> foodCuisines = FoodTaxonomy.parseTags(food.getCuisineTags());
+            for (String c : request.getCuisineTags()) {
+                if (foodCuisines.contains(c)) {
+                    reasons.add("菜系「" + c + "」");
+                    break;
+                }
+            }
+        }
+
+        // 价位匹配理由
+        if (StringUtils.hasText(request.getPriceLevel())) {
+            reasons.add("价位匹配「" + request.getPriceLevel() + "」");
+        }
+
+        // 最近吃过降权（自定义菜也适用）
+        int recentDeduction = calculateCustomRecentEatenDeduction(food.getId(), recentEatenCustomMap, now);
+        if (recentDeduction == 0 && request.getUserId() != null) {
+            reasons.add("最近几天没吃过，换换口味");
+        }
+        score += recentDeduction;
+
+        // 随机因素 0-19
+        score += new Random().nextInt(20);
+
+        return new ScoredCustomFood(food, score, reasons);
+    }
+
+    /**
+     * 计算自定义菜最近吃过扣分（与默认菜相同逻辑）
+     */
+    private int calculateCustomRecentEatenDeduction(Long customFoodId,
+                                                     Map<Long, LocalDateTime> recentEatenCustomMap,
+                                                     LocalDateTime now) {
+        if (recentEatenCustomMap == null || recentEatenCustomMap.isEmpty()) {
+            return 0;
+        }
+        LocalDateTime lastEatenAt = recentEatenCustomMap.get(customFoodId);
+        if (lastEatenAt == null) {
+            return 0;
+        }
+        Duration duration = Duration.between(lastEatenAt, now);
+        if (duration.compareTo(Duration.ofHours(24)) < 0) return -100;
+        if (duration.compareTo(Duration.ofHours(48)) < 0) return -80;
+        if (duration.compareTo(Duration.ofHours(72)) < 0) return -60;
+        if (duration.compareTo(Duration.ofHours(168)) <= 0) return -30;
+        return 0;
+    }
+
     // ==================== 内部类 ====================
 
     /**
@@ -424,6 +636,21 @@ public class RecommendService {
         final List<String> reasons;
 
         ScoredFood(Food food, int score, List<String> reasons) {
+            this.food = food;
+            this.score = score;
+            this.reasons = reasons;
+        }
+    }
+
+    /**
+     * 内部类：带分数的自定义菜品
+     */
+    private static class ScoredCustomFood {
+        final UserCustomFood food;
+        final int score;
+        final List<String> reasons;
+
+        ScoredCustomFood(UserCustomFood food, int score, List<String> reasons) {
             this.food = food;
             this.score = score;
             this.reasons = reasons;

@@ -43,11 +43,17 @@ class RecommendServiceTest {
     @Mock
     private UserDislikeService userDislikeService;
 
+    @Mock
+    private UserCustomFoodService userCustomFoodService;
+
     @InjectMocks
     private RecommendService recommendService;
 
     @BeforeEach
     void setUp() {
+        // 默认无自定义菜，现有测试走 Phase 2 默认菜逻辑
+        when(userCustomFoodService.getEnabledCustomFoods(any())).thenReturn(List.of());
+        when(eatRecordService.getRecentEatenCustomFoodMap(any())).thenReturn(Map.of());
         when(foodService.toResponse(any(Food.class))).thenAnswer(invocation -> {
             Food food = invocation.getArgument(0);
             return FoodResponse.builder()

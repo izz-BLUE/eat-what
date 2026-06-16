@@ -50,4 +50,19 @@ public interface EatRecordMapper extends BaseMapper<EatRecord> {
     @Select("SELECT * FROM eat_records " +
             "WHERE user_id = #{userId} AND status = 'EATEN' AND rating IS NOT NULL")
     List<EatRecord> selectRatedEatenRecords(@Param("userId") Long userId);
+
+    /**
+     * 查询用户最近吃过的自定义食物ID和最近吃的时间（仅 EATEN 状态，food_source='CUSTOM'）
+     *
+     * @param userId 用户ID
+     * @param since  起始时间
+     * @return 自定义食物ID和最近吃的时间列表
+     */
+    @Select("SELECT custom_food_id AS customFoodId, MAX(eaten_at) AS lastEatenAt " +
+            "FROM eat_records " +
+            "WHERE user_id = #{userId} AND eaten_at >= #{since} AND status = 'EATEN' " +
+            "AND food_source = 'CUSTOM' " +
+            "GROUP BY custom_food_id")
+    List<Map<String, Object>> selectRecentEatenCustomFoods(@Param("userId") Long userId,
+                                                           @Param("since") LocalDateTime since);
 }

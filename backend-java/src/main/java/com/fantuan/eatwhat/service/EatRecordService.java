@@ -5,6 +5,7 @@ import com.fantuan.eatwhat.common.EatRecordStatus;
 import com.fantuan.eatwhat.common.ResultCode;
 import com.fantuan.eatwhat.domain.entity.EatRecord;
 import com.fantuan.eatwhat.domain.entity.Food;
+import com.fantuan.eatwhat.domain.entity.UserCustomFood;
 import com.fantuan.eatwhat.dto.request.CompleteRecordRequest;
 import com.fantuan.eatwhat.dto.request.DecideRecordRequest;
 import com.fantuan.eatwhat.dto.request.EatRecordRequest;
@@ -13,6 +14,7 @@ import com.fantuan.eatwhat.dto.response.EatRecordResponse;
 import com.fantuan.eatwhat.exception.BusinessException;
 import com.fantuan.eatwhat.mapper.EatRecordMapper;
 import com.fantuan.eatwhat.mapper.FoodMapper;
+import com.fantuan.eatwhat.mapper.UserCustomFoodMapper;
 import com.fantuan.eatwhat.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +48,7 @@ public class EatRecordService {
 
     private final EatRecordMapper eatRecordMapper;
     private final FoodMapper foodMapper;
+    private final UserCustomFoodMapper userCustomFoodMapper;
     private final UserMapper userMapper;
 
     /** 自注入，用于从应用锁内部调用 @Transactional 方法穿透 AOP 代理 */
@@ -92,10 +95,8 @@ public class EatRecordService {
 
     @Transactional
     EatRecordResponse createRecordInternal(Long userId, EatRecordRequest request) {
-        Food food = foodMapper.selectById(request.getFoodId());
-        if (food == null || !Boolean.TRUE.equals(food.getEnabled())) {
-            throw new BusinessException(ResultCode.FOOD_NOT_FOUND);
-        }
+        // 校验 foodId / customFoodId 互斥
+        validateFoodSource(request.getFoodId(), request.getCustomFoodId());
 
         // 锁定用户行，与 decide/complete/cancel 互斥
         Long lockedUserId = userMapper.selectUserIdForUpdate(userId);
@@ -114,16 +115,36 @@ public class EatRecordService {
 
         EatRecord record = new EatRecord();
         record.setUserId(userId);
-        record.setFoodId(request.getFoodId());
         record.setMealType(request.getMealType());
         record.setStatus(EatRecordStatus.EATEN);
         record.setEatenAt(LocalDateTime.now());
         record.setRating(request.getRating());
         record.setNote(request.getNote());
 
+        // 按来源填充
+        if (request.getCustomFoodId() != null) {
+            UserCustomFood customFood = userCustomFoodMapper.selectById(request.getCustomFoodId());
+            if (customFood == null || !Boolean.TRUE.equals(customFood.getEnabled())) {
+                throw new BusinessException(ResultCode.CUSTOM_FOOD_NOT_FOUND);
+            }
+            record.setFoodId(null);
+            record.setCustomFoodId(customFood.getId());
+            record.setFoodSource("CUSTOM");
+            populateSnapshots(record, customFood);
+        } else {
+            Food food = foodMapper.selectById(request.getFoodId());
+            if (food == null || !Boolean.TRUE.equals(food.getEnabled())) {
+                throw new BusinessException(ResultCode.FOOD_NOT_FOUND);
+            }
+            record.setFoodId(food.getId());
+            record.setCustomFoodId(null);
+            record.setFoodSource("DEFAULT");
+            populateSnapshots(record, food);
+        }
+
         eatRecordMapper.insert(record);
 
-        return buildResponse(record, food.getName(), food.getCategory());
+        return buildResponse(record, null, null);
     }
 
     // ==================== 新接口 ====================
@@ -144,50 +165,73 @@ public class EatRecordService {
 
     @Transactional
     EatRecordResponse createDecisionInternal(Long userId, DecideRecordRequest request) {
-        // 1. 校验食物存在且启用
-        Food food = foodMapper.selectById(request.getFoodId());
-        if (food == null || !Boolean.TRUE.equals(food.getEnabled())) {
-            throw new BusinessException(ResultCode.FOOD_NOT_FOUND);
-        }
+        // 校验 foodId / customFoodId 互斥
+        validateFoodSource(request.getFoodId(), request.getCustomFoodId());
 
-        // 2. 锁定用户行（用户行一定存在，确保并发互斥）
+        // 锁定用户行（用户行一定存在，确保并发互斥）
         Long lockedUserId = userMapper.selectUserIdForUpdate(userId);
         if (lockedUserId == null) {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
 
-        // 3. 查询用户当前 DECIDED 记录（用户锁已持有）
+        // 查询用户当前 DECIDED 记录（用户锁已持有）
         LambdaQueryWrapper<EatRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(EatRecord::getUserId, userId)
                 .eq(EatRecord::getStatus, EatRecordStatus.DECIDED);
         EatRecord existingDecided = eatRecordMapper.selectOne(wrapper);
 
-        // 4. 同 foodId → 幂等处理
-        if (existingDecided != null && existingDecided.getFoodId().equals(request.getFoodId())) {
-            if (!request.getMealType().equals(existingDecided.getMealType())) {
-                // mealType 不同 → 更新原记录
-                existingDecided.setMealType(request.getMealType());
-                eatRecordMapper.updateById(existingDecided);
-            }
-            return buildResponse(existingDecided, food.getName(), food.getCategory());
-        }
+        // 按来源确定标识 key
+        boolean isCustom = request.getCustomFoodId() != null;
+        Long currentFoodKey = isCustom ? request.getCustomFoodId() : request.getFoodId();
 
-        // 5. 不同 foodId → 删除旧 DECIDED
+        // 同 food → 幂等处理
         if (existingDecided != null) {
+            Long existingFoodKey = "CUSTOM".equals(existingDecided.getFoodSource())
+                    ? existingDecided.getCustomFoodId() : existingDecided.getFoodId();
+            boolean sameSource = isCustom == "CUSTOM".equals(existingDecided.getFoodSource());
+
+            if (sameSource && existingFoodKey != null && existingFoodKey.equals(currentFoodKey)) {
+                if (!request.getMealType().equals(existingDecided.getMealType())) {
+                    existingDecided.setMealType(request.getMealType());
+                    eatRecordMapper.updateById(existingDecided);
+                }
+                return buildResponse(existingDecided, null, null);
+            }
+
+            // 不同 food → 删除旧 DECIDED
             eatRecordMapper.deleteById(existingDecided.getId());
         }
 
-        // 6. 创建新 DECIDED 记录
+        // 创建新 DECIDED 记录
         EatRecord record = new EatRecord();
         record.setUserId(userId);
-        record.setFoodId(request.getFoodId());
         record.setMealType(request.getMealType());
         record.setStatus(EatRecordStatus.DECIDED);
         record.setDecidedAt(LocalDateTime.now());
 
+        if (isCustom) {
+            UserCustomFood customFood = userCustomFoodMapper.selectById(request.getCustomFoodId());
+            if (customFood == null || !Boolean.TRUE.equals(customFood.getEnabled())) {
+                throw new BusinessException(ResultCode.CUSTOM_FOOD_NOT_FOUND);
+            }
+            record.setFoodId(null);
+            record.setCustomFoodId(customFood.getId());
+            record.setFoodSource("CUSTOM");
+            populateSnapshots(record, customFood);
+        } else {
+            Food food = foodMapper.selectById(request.getFoodId());
+            if (food == null || !Boolean.TRUE.equals(food.getEnabled())) {
+                throw new BusinessException(ResultCode.FOOD_NOT_FOUND);
+            }
+            record.setFoodId(food.getId());
+            record.setCustomFoodId(null);
+            record.setFoodSource("DEFAULT");
+            populateSnapshots(record, food);
+        }
+
         eatRecordMapper.insert(record);
 
-        return buildResponse(record, food.getName(), food.getCategory());
+        return buildResponse(record, null, null);
     }
 
     /**
@@ -224,9 +268,7 @@ public class EatRecordService {
             throw new BusinessException(ResultCode.RECORD_NOT_FOUND);
         }
 
-        Food food = foodMapper.selectById(record.getFoodId());
-        return buildResponse(record, food != null ? food.getName() : "未知",
-                food != null ? food.getCategory() : "");
+        return buildResponse(record, null, null);
     }
 
     /**
@@ -251,9 +293,7 @@ public class EatRecordService {
             throw new BusinessException(ResultCode.RECORD_NOT_FOUND);
         }
 
-        Food food = foodMapper.selectById(record.getFoodId());
-        return buildResponse(record, food != null ? food.getName() : "未知",
-                food != null ? food.getCategory() : "");
+        return buildResponse(record, null, null);
     }
 
     /**
@@ -294,10 +334,7 @@ public class EatRecordService {
      */
     public EatRecordResponse getRecord(Long userId, Long recordId) {
         EatRecord record = findRecordOrFail(recordId, userId);
-
-        Food food = foodMapper.selectById(record.getFoodId());
-        return buildResponse(record, food != null ? food.getName() : "未知",
-                food != null ? food.getCategory() : "");
+        return buildResponse(record, null, null);
     }
 
     // ==================== 列表查询 ====================
@@ -316,27 +353,71 @@ public class EatRecordService {
 
         List<EatRecord> records = eatRecordMapper.selectList(wrapper);
 
-        // 批量查询食物名称
+        // 批量查询食物名称：DEFAULT 查 foods 表，CUSTOM 查 user_custom_foods 表
         List<Long> foodIds = records.stream()
                 .map(EatRecord::getFoodId)
+                .filter(id -> id != null)
                 .distinct()
                 .collect(Collectors.toList());
 
+        List<Long> customFoodIds = records.stream()
+                .map(EatRecord::getCustomFoodId)
+                .filter(id -> id != null && "CUSTOM".equals(
+                        records.stream()
+                                .filter(r -> r.getCustomFoodId() != null && r.getCustomFoodId().equals(id))
+                                .findFirst().map(EatRecord::getFoodSource).orElse("DEFAULT")))
+                .distinct()
+                .collect(Collectors.toList());
+
+        // 简化为分别收集
+        List<Long> defaultIds = new java.util.ArrayList<>();
+        List<Long> customIds = new java.util.ArrayList<>();
+        for (EatRecord r : records) {
+            if ("CUSTOM".equals(r.getFoodSource()) && r.getCustomFoodId() != null) {
+                customIds.add(r.getCustomFoodId());
+            } else if (r.getFoodId() != null) {
+                defaultIds.add(r.getFoodId());
+            }
+        }
+        defaultIds = defaultIds.stream().distinct().collect(Collectors.toList());
+        customIds = customIds.stream().distinct().collect(Collectors.toList());
+
         final Map<Long, Food> foodMap;
-        if (!foodIds.isEmpty()) {
-            List<Food> foods = foodMapper.selectBatchIds(foodIds);
+        if (!defaultIds.isEmpty()) {
+            List<Food> foods = foodMapper.selectBatchIds(defaultIds);
             foodMap = foods.stream()
                     .collect(Collectors.toMap(Food::getId, f -> f));
         } else {
             foodMap = Map.of();
         }
 
+        final Map<Long, UserCustomFood> customFoodMap;
+        if (!customIds.isEmpty()) {
+            List<UserCustomFood> customFoods = userCustomFoodMapper.selectBatchIds(customIds);
+            customFoodMap = customFoods.stream()
+                    .collect(Collectors.toMap(UserCustomFood::getId, f -> f));
+        } else {
+            customFoodMap = Map.of();
+        }
+
         return records.stream()
                 .map(record -> {
-                    Food food = foodMap.get(record.getFoodId());
-                    return buildResponse(record,
-                            food != null ? food.getName() : "未知",
-                            food != null ? food.getCategory() : "");
+                    String fallbackName = null;
+                    String fallbackCategory = null;
+                    if ("CUSTOM".equals(record.getFoodSource()) && record.getCustomFoodId() != null) {
+                        UserCustomFood cf = customFoodMap.get(record.getCustomFoodId());
+                        if (cf != null) {
+                            fallbackName = cf.getName();
+                            fallbackCategory = cf.getCategory();
+                        }
+                    } else if (record.getFoodId() != null) {
+                        Food food = foodMap.get(record.getFoodId());
+                        if (food != null) {
+                            fallbackName = food.getName();
+                            fallbackCategory = food.getCategory();
+                        }
+                    }
+                    return buildResponse(record, fallbackName, fallbackCategory);
                 })
                 .collect(Collectors.toList());
     }
@@ -399,20 +480,131 @@ public class EatRecordService {
     }
 
     /**
-     * 构建响应 DTO
+     * 构建响应 DTO。
+     * foodName 和 category 允许为 null，方法内部通过 snapshot fallback 解析。
      */
-    private EatRecordResponse buildResponse(EatRecord record, String foodName, String category) {
+    private EatRecordResponse buildResponse(EatRecord record, String fallbackFoodName, String fallbackCategory) {
+        String foodName = resolveFoodName(record, fallbackFoodName);
+        String category = resolveCategory(record, fallbackCategory);
+
         return EatRecordResponse.builder()
                 .id(record.getId())
                 .foodId(record.getFoodId())
+                .customFoodId(record.getCustomFoodId())
+                .foodSource(record.getFoodSource() != null ? record.getFoodSource() : "DEFAULT")
                 .foodName(foodName)
+                .category(category)
+                .foodNameSnapshot(record.getFoodNameSnapshot())
+                .categorySnapshot(record.getCategorySnapshot())
+                .typeTagsSnapshot(record.getTypeTagsSnapshot())
+                .cuisineTagsSnapshot(record.getCuisineTagsSnapshot())
+                .mealTypesSnapshot(record.getMealTypesSnapshot())
+                .tasteTagsSnapshot(record.getTasteTagsSnapshot())
+                .priceLevelSnapshot(record.getPriceLevelSnapshot())
                 .mealType(record.getMealType())
                 .status(record.getStatus())
                 .rating(record.getRating())
                 .note(record.getNote())
                 .eatenAt(record.getEatenAt())
                 .decidedAt(record.getDecidedAt())
-                .category(category)
                 .build();
+    }
+
+    /**
+     * 解析 foodName：优先 snapshot，否则查表，最后用 fallback
+     */
+    private String resolveFoodName(EatRecord record, String fallback) {
+        if (org.springframework.util.StringUtils.hasText(record.getFoodNameSnapshot())) {
+            return record.getFoodNameSnapshot();
+        }
+        if ("CUSTOM".equals(record.getFoodSource()) && record.getCustomFoodId() != null) {
+            UserCustomFood cf = userCustomFoodMapper.selectById(record.getCustomFoodId());
+            if (cf != null) return cf.getName();
+        }
+        if (record.getFoodId() != null) {
+            Food food = foodMapper.selectById(record.getFoodId());
+            if (food != null) return food.getName();
+        }
+        return fallback != null ? fallback : "未知";
+    }
+
+    /**
+     * 解析 category：优先 snapshot，否则查表，最后用 fallback
+     */
+    private String resolveCategory(EatRecord record, String fallback) {
+        if (org.springframework.util.StringUtils.hasText(record.getCategorySnapshot())) {
+            return record.getCategorySnapshot();
+        }
+        if ("CUSTOM".equals(record.getFoodSource()) && record.getCustomFoodId() != null) {
+            UserCustomFood cf = userCustomFoodMapper.selectById(record.getCustomFoodId());
+            if (cf != null) return cf.getCategory();
+        }
+        if (record.getFoodId() != null) {
+            Food food = foodMapper.selectById(record.getFoodId());
+            if (food != null) return food.getCategory();
+        }
+        return fallback != null ? fallback : "";
+    }
+
+    /**
+     * 校验 foodId 和 customFoodId 互斥（有且仅有一个）
+     */
+    private void validateFoodSource(Long foodId, Long customFoodId) {
+        boolean hasFoodId = foodId != null;
+        boolean hasCustomId = customFoodId != null;
+        if (hasFoodId && hasCustomId) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "不能同时指定 foodId 和 customFoodId");
+        }
+        if (!hasFoodId && !hasCustomId) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "必须指定 foodId 或 customFoodId");
+        }
+    }
+
+    /**
+     * 从 Food 填充快照字段
+     */
+    private void populateSnapshots(EatRecord record, Food food) {
+        record.setFoodNameSnapshot(food.getName());
+        record.setCategorySnapshot(food.getCategory());
+        record.setTypeTagsSnapshot(food.getTypeTags());
+        record.setCuisineTagsSnapshot(food.getCuisineTags());
+        record.setMealTypesSnapshot(food.getMealTypes());
+        record.setTasteTagsSnapshot(food.getTasteTags());
+        record.setPriceLevelSnapshot(food.getPriceLevel());
+    }
+
+    /**
+     * 从 UserCustomFood 填充快照字段
+     */
+    private void populateSnapshots(EatRecord record, UserCustomFood customFood) {
+        record.setFoodNameSnapshot(customFood.getName());
+        record.setCategorySnapshot(customFood.getCategory());
+        record.setTypeTagsSnapshot(customFood.getTypeTags());
+        record.setCuisineTagsSnapshot(customFood.getCuisineTags());
+        record.setMealTypesSnapshot(customFood.getMealTypes());
+        record.setTasteTagsSnapshot(customFood.getTasteTags());
+        record.setPriceLevelSnapshot(customFood.getPriceLevel());
+    }
+
+    /**
+     * 查询用户最近7天吃过的自定义食物及其最近吃的时间（仅 EATEN 状态，food_source='CUSTOM'）
+     *
+     * @param userId 用户ID
+     * @return 自定义食物ID → 最近吃的时间
+     */
+    public Map<Long, LocalDateTime> getRecentEatenCustomFoodMap(Long userId) {
+        if (userId == null) {
+            return Map.of();
+        }
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minus(7, java.time.temporal.ChronoUnit.DAYS);
+        List<Map<String, Object>> results = eatRecordMapper.selectRecentEatenCustomFoods(userId, sevenDaysAgo);
+
+        Map<Long, LocalDateTime> map = new HashMap<>();
+        for (Map<String, Object> row : results) {
+            Long customFoodId = ((Number) row.get("customFoodId")).longValue();
+            LocalDateTime lastEatenAt = (LocalDateTime) row.get("lastEatenAt");
+            map.put(customFoodId, lastEatenAt);
+        }
+        return map;
     }
 }

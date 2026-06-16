@@ -29,6 +29,8 @@ public enum ResultCode {
     RECORD_NOT_FOUND(2010, "记录不存在"),
     RECORD_STATUS_INVALID(2011, "记录状态不允许此操作"),
     FEEDBACK_NOT_FOUND(2012, "反馈不存在"),
+    CUSTOM_FOOD_NOT_FOUND(2013, "自定义菜品不存在"),
+    CUSTOM_FOOD_DUPLICATE(2014, "已存在同名自定义菜品"),
 
     // 权限错误 3xxx
     FORBIDDEN(3001, "无权限"),

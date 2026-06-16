@@ -34,6 +34,8 @@
 | 2010 | 记录不存在 |
 | 2011 | 记录状态不允许此操作 |
 | 2012 | 反馈不存在 |
+| 2013 | 自定义菜品不存在 |
+| 2014 | 已存在同名自定义菜品 |
 | 3001 | 无权限（管理后台） |
 | 5001 | 系统错误 |
 
@@ -100,7 +102,10 @@ $env:ADMIN_TOKEN="dev-admin-token"
 | 16 | /api/v1/dislike/list | GET | 必须登录 | 不想吃列表 |
 | 17 | /api/v1/dislike/{dislikeId} | DELETE | 必须登录 | 解除不想吃 |
 | 18 | /api/v1/feedback | POST | 无需登录 | 提交意见反馈 |
-| 19 | /api/health | GET | 无需登录 | 健康检查 |
+| 20 | /api/v1/custom-foods | POST | 必须登录 | 创建自定义菜品 |
+| 21 | /api/v1/custom-foods | GET | 必须登录 | 查询我的自定义菜品 |
+| 22 | /api/v1/custom-foods/{id} | DELETE | 必须登录 | 删除自定义菜品 |
+| 23 | /api/health | GET | 无需登录 | 健康检查 |
 
 ### 管理后台（仅供开发者使用）
 
@@ -180,7 +185,10 @@ $env:ADMIN_TOKEN="dev-admin-token"
 
 **推荐逻辑**：
 - 无 token：基础推荐（餐段 + 价格 + 口味 + 分类 + 随机）
-- 有 token：黑名单硬过滤 + 有效不想吃分类硬过滤 + 最近吃过降权
+- 有 token：
+  1. **自定义菜优先**：筛选自定义菜 → 若匹配则只从自定义菜推荐（不混入默认菜）
+  2. 自定义菜不匹配 → 回退默认菜逻辑
+  3. 默认菜逻辑：黑名单硬过滤 + 有效不想吃分类硬过滤 + 最近吃过降权
 
 **请求参数**：
 | 参数 | 类型 | 必填 | 说明 |
@@ -207,7 +215,9 @@ Authorization: Bearer {token}
       "category": "快餐",
       "tasteTags": "咸,香",
       "priceLevel": 2,
-      "imageUrl": ""
+      "imageUrl": "",
+      "source": "DEFAULT",
+      "customFoodId": null
     },
     "score": 45,
     "reasons": ["符合偏好分类", "符合参考价位", "最近几天没吃过，换换口味"]
@@ -229,8 +239,11 @@ Authorization: Bearer {token}
 | mealType | string | 否 | 餐段 |
 | priceLevel | string | 否 | 参考价位：15以内、15-25、25-40、40以上（硬过滤） |
 | taste | string | 否 | 口味偏好 |
-| excludeFoodIds | string | 否 | 排除的食物 ID，逗号分隔，如：1,2,3 |
+| excludeFoodIds | string | 否 | 排除的默认菜品 ID，逗号分隔，如：1,2,3 |
+| excludeCustomFoodIds | string | 否 | 排除的自定义菜品 ID，逗号分隔，如：1,2 |
 | categories | string | 否 | 偏好分类，逗号分隔，最多3个 |
+
+> **排除规则说明**：`excludeFoodIds` 只排除默认菜品（`foods` 表），`excludeCustomFoodIds` 只排除自定义菜品（`user_custom_foods` 表），两者不混用。已登录用户使用 swap 时，若当前在自定义菜推荐阶段，应传 `excludeCustomFoodIds`；自定义菜耗尽后回退默认菜推荐，应传 `excludeFoodIds`。
 
 **请求头**（可选）：
 ```
@@ -267,11 +280,173 @@ Authorization: Bearer {token}
       "category": "快餐",
       "tasteTags": "咸,香",
       "priceLevel": 2,
-      "imageUrl": ""
+      "imageUrl": "",
+      "source": "DEFAULT",
+      "customFoodId": null
     }
   ]
 }
 ```
+
+---
+
+## 用户自定义菜品
+
+用户可以在默认菜品库中找不到想吃的菜时，自行添加自定义菜品。自定义菜仅创建者可见，推荐时优先级高于系统菜品。
+
+**核心规则：**
+- 自定义菜仅创建者可见，不影响其他用户
+- 所有接口必须登录
+- 仅返回和操作 `enabled=true` 的自定义菜
+- 删除为软删除（`enabled=false`），Phase 1 不支持编辑
+- 自定义菜不可加入黑名单（用户可直接删除自己创建的菜）
+
+### 18. 创建自定义菜品
+
+**POST** `/api/v1/custom-foods`
+
+创建当前用户的自定义菜品。
+
+**请求头**：
+```
+Authorization: Bearer {token}
+```
+
+**请求参数**：
+```json
+{
+  "name": "妈妈做的炒饭",
+  "typeTags": ["快餐"],
+  "cuisineTags": ["家常菜"],
+  "mealTypes": ["午餐", "晚餐"],
+  "tasteTags": ["咸", "香"],
+  "priceLevel": 1
+}
+```
+
+**请求参数说明**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 是 | 菜品名称，1-64 字符 |
+| mealTypes | string[] | 是 | 适用餐段，至少一个：早餐、午餐、晚餐、夜宵 |
+| tasteTags | string[] | 是 | 口味标签，至少一个：酸、甜、苦、辣、咸、清淡、麻、鲜、香 |
+| typeTags | string[] | 否 | 食物类型标签，与 cuisineTags 至少一个非空 |
+| cuisineTags | string[] | 否 | 菜系标签，与 typeTags 至少一个非空 |
+| priceLevel | int | 否 | 参考价位：1（15以内）、2（15-25）、3（25-40）、4（40以上） |
+
+**标签校验规则**：
+- typeTags、cuisineTags、mealTypes、tasteTags 中的值必须在系统允许的标签范围内
+- 每个多值字段内部自动去重
+- typeTags 和 cuisineTags 至少一个非空——都能为空会被拒绝（1001）
+
+**响应数据**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "name": "妈妈做的炒饭",
+    "category": "家常菜",
+    "typeTags": "快餐",
+    "cuisineTags": "家常菜",
+    "mealTypes": "午餐,晚餐",
+    "tasteTags": "咸,香",
+    "priceLevel": 1,
+    "enabled": true,
+    "createdAt": "2026-06-17T12:00:00",
+    "updatedAt": "2026-06-17T12:00:00"
+  }
+}
+```
+
+**响应字段说明**：
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | long | 自定义菜品 ID |
+| name | string | 菜品名称 |
+| category | string | 派生分类：优先取 cuisineTags[0]，否则取 typeTags[0] |
+| typeTags | string | 类型标签，逗号分隔 |
+| cuisineTags | string | 菜系标签，逗号分隔 |
+| mealTypes | string | 适用餐段，逗号分隔 |
+| tasteTags | string | 口味标签，逗号分隔 |
+| priceLevel | int | 参考价位 1-4，null 表示不限 |
+| enabled | boolean | 是否启用 |
+| createdAt | string | 创建时间 |
+| updatedAt | string | 更新时间 |
+
+**错误**：
+| code | 说明 |
+|------|------|
+| 1001 | 参数错误（name 为空、mealTypes/tasteTags 为空、typeTags 和 cuisineTags 都为空、标签不合法） |
+| 1003 | 未登录 |
+| 2014 | 已存在同名自定义菜品（同一用户下 name 唯一） |
+
+---
+
+### 19. 查询我的自定义菜品
+
+**GET** `/api/v1/custom-foods`
+
+查询当前用户所有启用的自定义菜品，按更新时间倒序。
+
+**请求头**：
+```
+Authorization: Bearer {token}
+```
+
+**响应数据**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "name": "妈妈做的炒饭",
+      "category": "家常菜",
+      "typeTags": "快餐",
+      "cuisineTags": "家常菜",
+      "mealTypes": "午餐,晚餐",
+      "tasteTags": "咸,香",
+      "priceLevel": 1,
+      "enabled": true,
+      "createdAt": "2026-06-17T12:00:00",
+      "updatedAt": "2026-06-17T12:00:00"
+    }
+  ]
+}
+```
+
+**说明**：只返回 `enabled=true` 的自定义菜，按 `updatedAt DESC` 排列。已删除（`enabled=false`）的不在列表中。
+
+---
+
+### 20. 删除自定义菜品
+
+**DELETE** `/api/v1/custom-foods/{id}`
+
+软删除自定义菜品（设置 `enabled=false`），仅允许删除自己创建的。
+
+**请求头**：
+```
+Authorization: Bearer {token}
+```
+
+**响应数据**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": null
+}
+```
+
+**错误**：
+| code | 说明 |
+|------|------|
+| 1003 | 未登录 |
+| 2013 | 自定义菜品不存在或不属于当前用户 |
 
 ---
 
@@ -304,10 +479,13 @@ Authorization: Bearer {token}
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| foodId | long | 是 | 食物ID |
+| foodId | long | 与 customFoodId 二选一 | 系统菜品ID（DEFAULT 来源） |
+| customFoodId | long | 与 foodId 二选一 | 自定义菜品ID（CUSTOM 来源） |
 | mealType | string | 是 | 餐段：早餐、午餐、晚餐、夜宵 |
 | rating | int | 否 | 评分 1-5 |
 | note | string | 否 | 备注，最长 256 字符 |
+
+> `foodId` 和 `customFoodId` 互斥，详见"决定吃什么"接口的双来源说明。
 
 ---
 
@@ -331,10 +509,30 @@ Authorization: Bearer {token}
 }
 ```
 
+**双来源请求说明**：
+
+`foodId` 和 `customFoodId` 互斥（有且仅有一个非 null），按菜品来源选择：
+
+| 来源 | 传参 | 说明 |
+|------|------|------|
+| DEFAULT（系统菜品） | `foodId` | 对应 `foods` 表的主键 |
+| CUSTOM（自定义菜品） | `customFoodId` | 对应 `user_custom_foods` 表的主键 |
+
+自定义菜示例：
+```json
+{
+  "customFoodId": 5,
+  "mealType": "午餐"
+}
+```
+
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| foodId | long | 是 | 食物ID |
+| foodId | long | 与 customFoodId 二选一 | 系统菜品ID（DEFAULT 来源） |
+| customFoodId | long | 与 foodId 二选一 | 自定义菜品ID（CUSTOM 来源） |
 | mealType | string | 是 | 餐段：早餐、午餐、晚餐、夜宵 |
+
+> **互斥校验**：两者都为 null 或两者都非 null 均返回 1001。
 
 **响应数据**：
 ```json
@@ -344,6 +542,8 @@ Authorization: Bearer {token}
   "data": {
     "id": 1,
     "foodId": 31,
+    "customFoodId": null,
+    "foodSource": "DEFAULT",
     "foodName": "猪脚饭",
     "mealType": "晚餐",
     "status": "DECIDED",
@@ -355,6 +555,15 @@ Authorization: Bearer {token}
   }
 }
 ```
+
+**响应字段说明**（新增字段）：
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| foodId | long | 系统菜品ID（CUSTOM 来源时为 null） |
+| customFoodId | long | 自定义菜品ID（DEFAULT 来源时为 null） |
+| foodSource | string | 来源："DEFAULT"（系统菜品）/ "CUSTOM"（自定义菜品） |
+| foodName | string | 菜品名称（优先取快照，空时回查对应表） |
+| category | string | 菜品分类（优先取快照，空时回查对应表） |
 
 ---
 
@@ -431,6 +640,8 @@ Authorization: Bearer {token}
     {
       "id": 2,
       "foodId": 32,
+      "customFoodId": null,
+      "foodSource": "DEFAULT",
       "foodName": "黄焖鸡",
       "mealType": "午餐",
       "status": "DECIDED",
@@ -443,6 +654,8 @@ Authorization: Bearer {token}
     {
       "id": 1,
       "foodId": 31,
+      "customFoodId": null,
+      "foodSource": "DEFAULT",
       "foodName": "猪脚饭",
       "mealType": "晚餐",
       "status": "EATEN",

@@ -55,4 +55,14 @@ public class FoodResponse {
      * 菜品图片
      */
     private String imageUrl;
+
+    /**
+     * 来源：DEFAULT-系统菜品，CUSTOM-用户自定义菜品
+     */
+    private String source;
+
+    /**
+     * 自定义菜品ID（source=CUSTOM 时有值）
+     */
+    private Long customFoodId;
 }

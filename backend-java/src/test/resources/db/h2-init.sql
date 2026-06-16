@@ -35,7 +35,16 @@ CREATE TABLE IF NOT EXISTS `foods` (
 CREATE TABLE IF NOT EXISTS `eat_records` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `user_id` BIGINT NOT NULL COMMENT '用户ID',
-  `food_id` BIGINT NOT NULL COMMENT '食物ID',
+  `food_id` BIGINT NULL COMMENT '食物ID（DEFAULT时为必填，CUSTOM时为NULL）',
+  `custom_food_id` BIGINT NULL COMMENT '自定义食物ID',
+  `food_source` VARCHAR(16) NOT NULL DEFAULT 'DEFAULT' COMMENT 'DEFAULT-系统菜品, CUSTOM-自定义',
+  `food_name_snapshot` VARCHAR(64) NULL COMMENT '食物名称快照',
+  `category_snapshot` VARCHAR(32) NULL COMMENT '分类快照',
+  `type_tags_snapshot` VARCHAR(128) NULL COMMENT '类型标签快照',
+  `cuisine_tags_snapshot` VARCHAR(128) NULL COMMENT '菜系标签快照',
+  `meal_types_snapshot` VARCHAR(64) NULL COMMENT '餐段快照',
+  `taste_tags_snapshot` VARCHAR(128) NULL COMMENT '口味标签快照',
+  `price_level_snapshot` TINYINT NULL COMMENT '价格等级快照',
   `meal_type` VARCHAR(16) DEFAULT '' COMMENT '餐段：早餐、午餐、晚餐、夜宵',
   `status` VARCHAR(16) NOT NULL DEFAULT 'EATEN' COMMENT '状态：DECIDED-已决定，EATEN-已吃',
   `decided_at` DATETIME NULL COMMENT '决定时间',
@@ -149,3 +158,21 @@ CREATE TABLE IF NOT EXISTS `user_feedbacks` (
   KEY `idx_user_created` (`user_id`, `created_at`),
   KEY `idx_status_created` (`status`, `created_at`)
 ) COMMENT='意见反馈表';
+
+-- 用户自定义菜品表
+CREATE TABLE IF NOT EXISTS user_custom_foods (
+  id            BIGINT       NOT NULL AUTO_INCREMENT,
+  user_id       BIGINT       NOT NULL,
+  name          VARCHAR(64)  NOT NULL,
+  category      VARCHAR(32)  NOT NULL,
+  type_tags     VARCHAR(128) NOT NULL DEFAULT '',
+  cuisine_tags  VARCHAR(128) NOT NULL DEFAULT '',
+  meal_types    VARCHAR(64)  NOT NULL DEFAULT '',
+  taste_tags    VARCHAR(128) NOT NULL DEFAULT '',
+  price_level   TINYINT      DEFAULT NULL,
+  enabled       TINYINT(1)   NOT NULL DEFAULT 1,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_food_name (user_id, name)
+);

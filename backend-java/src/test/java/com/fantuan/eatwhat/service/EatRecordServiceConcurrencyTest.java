@@ -5,6 +5,7 @@ import com.fantuan.eatwhat.common.EatRecordStatus;
 import com.fantuan.eatwhat.domain.entity.EatRecord;
 import com.fantuan.eatwhat.domain.entity.Food;
 import com.fantuan.eatwhat.domain.entity.User;
+import com.fantuan.eatwhat.domain.entity.UserCustomFood;
 import com.fantuan.eatwhat.dto.request.CompleteRecordRequest;
 import com.fantuan.eatwhat.dto.request.DecideRecordRequest;
 import com.fantuan.eatwhat.dto.request.EatRecordRequest;
@@ -12,6 +13,7 @@ import com.fantuan.eatwhat.dto.response.EatRecordResponse;
 import com.fantuan.eatwhat.exception.BusinessException;
 import com.fantuan.eatwhat.mapper.EatRecordMapper;
 import com.fantuan.eatwhat.mapper.FoodMapper;
+import com.fantuan.eatwhat.mapper.UserCustomFoodMapper;
 import com.fantuan.eatwhat.mapper.UserMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,11 +53,13 @@ class EatRecordServiceConcurrencyTest {
     @Autowired private UserMapper userMapper;
     @Autowired private FoodMapper foodMapper;
     @Autowired private EatRecordMapper eatRecordMapper;
+    @Autowired private UserCustomFoodMapper userCustomFoodMapper;
 
     private static final Long UID = 9000L;
     private static final Long F1  = 9001L;  // 猪脚饭
     private static final Long F2  = 9002L;  // 黄焖鸡
     private static final Long F3  = 9003L;  // 麻辣烫
+    private static final Long CF1 = 9101L;  // 自定义菜1
 
     // ==================== 生命周期 ====================
 
@@ -71,6 +75,7 @@ class EatRecordServiceConcurrencyTest {
         createFood(F1, "并发测试猪脚饭");
         createFood(F2, "并发测试黄焖鸡");
         createFood(F3, "并发测试麻辣烫");
+        createCustomFood(CF1, UID, "并发测试自定义菜");
     }
 
     private void createFood(Long id, String name) {
@@ -82,6 +87,23 @@ class EatRecordServiceConcurrencyTest {
         foodMapper.insert(f);
     }
 
+    private void createCustomFood(Long id, Long userId, String name) {
+        UserCustomFood cf = new UserCustomFood();
+        cf.setId(id);
+        cf.setUserId(userId);
+        cf.setName(name);
+        cf.setCategory("家常菜");
+        cf.setTypeTags("快餐");
+        cf.setCuisineTags("家常菜");
+        cf.setMealTypes("午餐,晚餐");
+        cf.setTasteTags("咸,香");
+        cf.setPriceLevel(2);
+        cf.setEnabled(true);
+        cf.setCreatedAt(LocalDateTime.now());
+        cf.setUpdatedAt(LocalDateTime.now());
+        userCustomFoodMapper.insert(cf);
+    }
+
     @AfterEach
     void tearDown() {
         LambdaQueryWrapper<EatRecord> w = new LambdaQueryWrapper<>();
@@ -90,6 +112,7 @@ class EatRecordServiceConcurrencyTest {
         foodMapper.deleteById(F1);
         foodMapper.deleteById(F2);
         foodMapper.deleteById(F3);
+        userCustomFoodMapper.deleteById(CF1);
         userMapper.deleteById(UID);
     }
 
@@ -631,8 +654,14 @@ class EatRecordServiceConcurrencyTest {
         r1.setFoodId(F1); r1.setMealType("午餐");
         EatRecordResponse resp1 = eatRecordService.createDecision(UID, r1);
         Long id = resp1.getId();
-        LocalDateTime decidedAt1 = resp1.getDecidedAt();
 
+        // 从 DB 读取首次存入的时间戳作为基准
+        EatRecord db1 = getRecord(id);
+        LocalDateTime expectedUpdatedAt = db1.getUpdatedAt();
+        LocalDateTime expectedDecidedAt = db1.getDecidedAt();
+        assertNotNull(expectedDecidedAt, "首次 DECIDED 应有 decidedAt");
+
+        // 立即第二次调用（不 sleep，不依赖跨秒）
         DecideRecordRequest r2 = new DecideRecordRequest();
         r2.setFoodId(F1); r2.setMealType("午餐");
         EatRecordResponse resp2 = eatRecordService.createDecision(UID, r2);
@@ -640,12 +669,50 @@ class EatRecordServiceConcurrencyTest {
         assertEquals(id, resp2.getId(), "应返回同一 recordId");
         assertEquals("午餐", resp2.getMealType());
         assertEquals(1, countDecided());
-        // decidedAt 不应改变（幂等，不调用 updateById）
-        // 注意：H2 存储时可能截断纳秒精度，使用 truncatedTo 对齐
-        assertEquals(
-                decidedAt1.truncatedTo(java.time.temporal.ChronoUnit.SECONDS),
-                getRecord(id).getDecidedAt().truncatedTo(java.time.temporal.ChronoUnit.SECONDS),
-                "decidedAt 应不变（幂等）");
+
+        // DB 重新读取，验证没有触发 UPDATE
+        EatRecord db2 = getRecord(id);
+        assertEquals(expectedUpdatedAt, db2.getUpdatedAt(),
+                "updatedAt 应不变（未调用 updateById）");
+        assertEquals(expectedDecidedAt, db2.getDecidedAt(),
+                "decidedAt 应不变（未调用 updateById）");
+        assertResponseRecordExists(resp2);
+        assertConsistency();
+    }
+
+    @Test
+    void sameCustomFoodSameMealType_shouldBePureIdempotent() {
+        DecideRecordRequest r1 = new DecideRecordRequest();
+        r1.setCustomFoodId(CF1);
+        r1.setMealType("午餐");
+        EatRecordResponse resp1 = eatRecordService.createDecision(UID, r1);
+        Long id = resp1.getId();
+        assertEquals("CUSTOM", resp1.getFoodSource());
+        assertNull(resp1.getFoodId());
+
+        // 从 DB 读取首次存入的时间戳作为基准
+        EatRecord db1 = getRecord(id);
+        LocalDateTime expectedUpdatedAt = db1.getUpdatedAt();
+        LocalDateTime expectedDecidedAt = db1.getDecidedAt();
+        assertNotNull(expectedDecidedAt, "首次 DECIDED 应有 decidedAt");
+
+        // 立即第二次调用
+        DecideRecordRequest r2 = new DecideRecordRequest();
+        r2.setCustomFoodId(CF1);
+        r2.setMealType("午餐");
+        EatRecordResponse resp2 = eatRecordService.createDecision(UID, r2);
+
+        assertEquals(id, resp2.getId(), "应返回同一 recordId");
+        assertEquals("午餐", resp2.getMealType());
+        assertEquals("CUSTOM", resp2.getFoodSource());
+        assertEquals(1, countDecided());
+
+        // DB 重新读取，验证没有触发 UPDATE
+        EatRecord db2 = getRecord(id);
+        assertEquals(expectedUpdatedAt, db2.getUpdatedAt(),
+                "updatedAt 应不变（未调用 updateById）");
+        assertEquals(expectedDecidedAt, db2.getDecidedAt(),
+                "decidedAt 应不变（未调用 updateById）");
         assertResponseRecordExists(resp2);
         assertConsistency();
     }

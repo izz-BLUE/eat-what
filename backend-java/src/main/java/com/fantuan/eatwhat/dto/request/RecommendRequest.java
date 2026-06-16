@@ -31,6 +31,11 @@ public class RecommendRequest {
     private List<Long> excludeFoodIds;
 
     /**
+     * 排除的自定义菜品 ID 列表（用于换一个，与 excludeFoodIds 不混用）
+     */
+    private List<Long> excludeCustomFoodIds;
+
+    /**
      * 用户ID（临时，后续从 token 获取）
      */
     private Long userId;

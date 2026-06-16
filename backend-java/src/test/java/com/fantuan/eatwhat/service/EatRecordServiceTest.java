@@ -42,6 +42,9 @@ class EatRecordServiceTest {
     private FoodMapper foodMapper;
 
     @Mock
+    private com.fantuan.eatwhat.mapper.UserCustomFoodMapper userCustomFoodMapper;
+
+    @Mock
     private UserMapper userMapper;
 
     @InjectMocks
@@ -695,13 +698,6 @@ class EatRecordServiceTest {
         request.setFoodId(1L);
         request.setMealType("晚餐");
 
-        Food food = new Food();
-        food.setId(1L);
-        food.setName("猪脚饭");
-        food.setCategory("快餐");
-        food.setEnabled(true);
-
-        when(foodMapper.selectById(1L)).thenReturn(food);
         when(userMapper.selectUserIdForUpdate(userId)).thenReturn(null);
 
         BusinessException exception = assertThrows(BusinessException.class,

@@ -10,10 +10,14 @@ import lombok.Data;
 public class EatRecordRequest {
 
     /**
-     * 食物ID
+     * 食物ID（与 customFoodId 互斥，DEFAULT 来源时使用）
      */
-    @NotNull(message = "foodId 不能为空")
     private Long foodId;
+
+    /**
+     * 自定义食物ID（与 foodId 互斥，CUSTOM 来源时使用）
+     */
+    private Long customFoodId;
 
     /**
      * 餐段：早餐、午餐、晚餐、夜宵
