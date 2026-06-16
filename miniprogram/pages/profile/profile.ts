@@ -38,6 +38,11 @@ Page({
     wx.navigateTo({ url: '/pages/dislike/dislike' })
   },
 
+  goToFeedback() {
+    // 意见反馈允许匿名访问，不需要登录检查
+    wx.navigateTo({ url: '/pages/feedback/feedback' })
+  },
+
   checkLogin(): boolean {
     if (!app.isLoggedIn()) {
       if (this.data._loginRedirecting) return false

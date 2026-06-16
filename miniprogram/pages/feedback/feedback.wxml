@@ -1,0 +1,79 @@
+<!--pages/feedback/feedback.wxml-->
+<view class="feedback-page">
+  <!-- 反馈类型选择 -->
+  <view class="form-section">
+    <text class="section-title">反馈类型</text>
+    <view class="type-options">
+      <view
+        wx:for="{{typeOptions}}"
+        wx:key="value"
+        class="chip-touch"
+        bindtap="selectType"
+        data-value="{{item.value}}"
+      >
+        <view class="chip {{type === item.value ? 'chip-active' : ''}}">{{item.label}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 满意度评分（可选） -->
+  <view class="form-section">
+    <text class="section-title">满意度评分（选填）</text>
+    <view class="rating-section">
+      <view
+        wx:for="{{5}}"
+        wx:key="*this"
+        class="star {{rating >= (index + 1) ? 'star-active' : ''}}"
+        data-value="{{index + 1}}"
+        bindtap="setRating"
+      >
+        ★
+      </view>
+    </view>
+  </view>
+
+  <!-- 反馈内容（必填） -->
+  <view class="form-section">
+    <text class="section-title">反馈内容</text>
+    <view class="white-card">
+      <textarea
+        class="feedback-textarea"
+        placeholder="哪里不好用？希望怎么改？"
+        maxlength="{{maxContentLength}}"
+        value="{{content}}"
+        bindinput="onContentInput"
+        show-confirm-bar="{{false}}"
+      />
+      <text class="char-count">{{contentLength}}/{{maxContentLength}}</text>
+    </view>
+  </view>
+
+  <!-- 联系方式（可选） -->
+  <view class="form-section">
+    <text class="section-title">联系方式（选填）</text>
+    <view class="white-card">
+      <input
+        class="feedback-input"
+        type="text"
+        placeholder="微信号/手机/邮箱，方便我们联系你"
+        maxlength="{{maxContactLength}}"
+        value="{{contact}}"
+        bindinput="onContactInput"
+      />
+    </view>
+  </view>
+
+  <!-- 错误提示 -->
+  <view class="error-msg" wx:if="{{errorMsg}}">
+    <text>{{errorMsg}}</text>
+  </view>
+
+  <!-- 提交按钮 -->
+  <button
+    class="btn-primary submit-btn"
+    bindtap="handleSubmit"
+    disabled="{{submitting}}"
+  >
+    {{submitting ? '提交中...' : '提交反馈'}}
+  </button>
+</view>

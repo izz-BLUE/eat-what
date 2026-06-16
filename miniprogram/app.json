@@ -6,7 +6,8 @@
     "pages/profile/profile",
     "pages/history/history",
     "pages/blacklist/blacklist",
-    "pages/dislike/dislike"
+    "pages/dislike/dislike",
+    "pages/feedback/feedback"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FFB000",

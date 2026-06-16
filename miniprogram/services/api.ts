@@ -1,6 +1,7 @@
 // services/api.ts - API 接口封装
 
 import { get, post, del, put } from '../utils/request'
+import { RequestError } from '../utils/request'
 import {
   LoginData,
   RecommendData,
@@ -14,7 +15,9 @@ import {
   BlacklistData,
   BlacklistAddRequest,
   DislikeData,
-  DislikeAddRequest
+  DislikeAddRequest,
+  FeedbackRequest,
+  FeedbackResponse
 } from '../types/index'
 
 /**
@@ -134,4 +137,29 @@ export function addDislike(data: DislikeAddRequest) {
  */
 export function removeDislike(dislikeId: number) {
   return del<void>(`/api/v1/dislike/${dislikeId}`)
+}
+
+/**
+ * 提交意见反馈（支持匿名和已登录用户）
+ *
+ * 策略：
+ * - 有 token 时先尝试带 token 提交（记录 userId）
+ * - 收到 1003（token 过期）→ 清登录态 → 匿名重试
+ * - 无 token 时直接匿名提交（不带 Authorization header）
+ */
+export async function submitFeedback(data: FeedbackRequest): Promise<FeedbackResponse> {
+  const app = getApp<IApp>()
+  if (app.globalData.token) {
+    try {
+      return await post<FeedbackResponse>('/api/v1/feedback', data)
+    } catch (err) {
+      if (err instanceof RequestError && err.code === 1003) {
+        // token 过期，清除后匿名重试
+        app.clearLoginInfo()
+      } else {
+        throw err
+      }
+    }
+  }
+  return post<FeedbackResponse>('/api/v1/feedback', data, { skipAuth: true })
 }

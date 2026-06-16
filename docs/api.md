@@ -96,15 +96,16 @@ $env:WECHAT_MOCK_ENABLED="true"
 | 10 | /api/v1/dislike/add | POST | 必须登录 | 添加不想吃 |
 | 11 | /api/v1/dislike/list | GET | 必须登录 | 不想吃列表 |
 | 12 | /api/v1/dislike/{dislikeId} | DELETE | 必须登录 | 解除不想吃 |
-| 13 | /api/health | GET | 无需登录 | 健康检查 |
+| 13 | /api/v1/feedback | POST | 无需登录 | 提交意见反馈 |
+| 14 | /api/health | GET | 无需登录 | 健康检查 |
 
 ### 后续阶段实现
 
 | 序号 | 接口 | 方法 | 说明 | 阶段 |
 |------|------|------|------|------|
-| 14 | /api/v1/vote/create | POST | 发起投票 | M3 |
-| 15 | /api/v1/vote/{id} | GET | 获取投票详情 | M3 |
-| 16 | /api/v1/vote/{id}/vote | POST | 投票 | M3 |
+| 15 | /api/v1/vote/create | POST | 发起投票 | M3 |
+| 16 | /api/v1/vote/{id} | GET | 获取投票详情 | M3 |
+| 17 | /api/v1/vote/{id}/vote | POST | 投票 | M3 |
 
 ---
 
@@ -637,6 +638,59 @@ Authorization: Bearer {token}
 
 ---
 
+## 意见反馈相关
+
+### 18. 提交意见反馈
+
+**POST** `/api/v1/feedback`
+
+提交用户意见反馈，支持匿名提交和已登录用户提交。
+
+**认证说明**：无需登录即可提交。登录用户提交会记录 userId，方便后续联系。携带无效 token 会返回 code=1003。
+
+**请求参数**：
+```json
+{
+  "type": "FEATURE",
+  "rating": 4,
+  "content": "建议增加更多菜系分类",
+  "contact": "wechat: user1",
+  "page": "/pages/index/index",
+  "systemInfo": "{\"model\":\"iPhone 14\",\"system\":\"iOS 16.0\"}"
+}
+```
+
+**请求参数说明**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| type | string | 是 | 反馈类型：FEATURE-功能建议、BUG-问题反馈、RECOMMENDATION-推荐不准、UI-界面体验、OTHER-其他 |
+| rating | int | 否 | 满意度评分 1-5，不填也可提交 |
+| content | string | 是 | 反馈内容，5-500 字 |
+| contact | string | 否 | 联系方式（微信号/手机/邮箱），最长 100 字 |
+| page | string | 否 | 来源页面路径，最长 128 字 |
+| systemInfo | string | 否 | 微信环境信息（JSON），最长 1000 字 |
+
+**响应数据**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "type": "FEATURE",
+    "rating": 4,
+    "content": "建议增加更多菜系分类",
+    "contact": "wechat: user1",
+    "page": "/pages/index/index",
+    "systemInfo": "{\"model\":\"iPhone 14\",\"system\":\"iOS 16.0\"}",
+    "status": "NEW",
+    "createdAt": "2026-06-16T12:00:00"
+  }
+}
+```
+
+---
+
 ## 后续阶段接口（需要登录）
 
 ### 13. 发起投票（后续阶段）
@@ -797,6 +851,27 @@ Invoke-RestMethod "http://localhost:8080/api/v1/record/list" `
 # ========== 健康检查 ==========
 
 Invoke-RestMethod "http://localhost:8080/api/health" | ConvertTo-Json -Depth 8
+
+# ========== 意见反馈（无需登录，支持匿名） ==========
+
+# 匿名提交反馈
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/feedback" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"type":"FEATURE","content":"匿名反馈测试，建议增加分类"}')) `
+  | ConvertTo-Json -Depth 8
+
+# 已登录用户提交反馈（带评分和联系方式）
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/feedback" `
+  -ContentType "application/json; charset=utf-8" `
+  -Headers @{Authorization="Bearer $token"} `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"type":"BUG","rating":2,"content":"推荐页面偶现白屏问题","contact":"wechat: testuser","page":"/pages/index/index"}')) `
+  | ConvertTo-Json -Depth 8
+
+# 匿名提交（内容不足5字会被拒绝）
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/feedback" `
+  -ContentType "application/json; charset=utf-8" `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"type":"OTHER","content":"ab"}')) `
+  | ConvertTo-Json -Depth 8
 ```
 
 ---
