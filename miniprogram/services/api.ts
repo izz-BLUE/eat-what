@@ -17,7 +17,9 @@ import {
   DislikeData,
   DislikeAddRequest,
   FeedbackRequest,
-  FeedbackResponse
+  FeedbackResponse,
+  CustomFoodCreateRequest,
+  CustomFoodResponse
 } from '../types/index'
 
 /**
@@ -162,4 +164,27 @@ export async function submitFeedback(data: FeedbackRequest): Promise<FeedbackRes
     }
   }
   return post<FeedbackResponse>('/api/v1/feedback', data, { skipAuth: true })
+}
+
+// ==================== 用户自定义菜品 ====================
+
+/**
+ * 创建自定义菜品
+ */
+export function createCustomFood(data: CustomFoodCreateRequest) {
+  return post<CustomFoodResponse>('/api/v1/custom-foods', data)
+}
+
+/**
+ * 获取我的自定义菜品列表（只返回 enabled=true，按 updatedAt DESC）
+ */
+export function listCustomFoods() {
+  return get<CustomFoodResponse[]>('/api/v1/custom-foods')
+}
+
+/**
+ * 删除自定义菜品（软删除，设置 enabled=false）
+ */
+export function deleteCustomFood(id: number) {
+  return del<void>(`/api/v1/custom-foods/${id}`)
 }

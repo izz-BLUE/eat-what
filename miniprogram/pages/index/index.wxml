@@ -126,6 +126,11 @@
     </view>
   </view>
 
+  <!-- 添加自定义菜入口 -->
+  <view class="custom-food-entry" bindtap="goToCustomFood">
+    <text>没找到想吃的？添加自定义菜 →</text>
+  </view>
+
   <!-- 加载状态 -->
   <view class="loading" wx:if="{{loading && !recommendResult && !mealDecision}}">
     <text>正在为你推荐...</text>
@@ -141,7 +146,10 @@
   <view class="result-area fade-up-in" wx:if="{{mealDecision}}">
     <view class="decision-block">
       <view class="decision-status">今天就吃</view>
-      <view class="decision-food-name">{{mealDecision.foodName}}</view>
+      <view class="decision-food-name">
+        {{mealDecision.foodName}}
+        <text wx:if="{{mealDecision.source === 'CUSTOM'}}" class="custom-badge">自定义</text>
+      </view>
 
       <!-- 类型/菜系标签 -->
       <view class="result-tags" wx:if="{{mealDecision.typeTags || mealDecision.cuisineTags}}">
@@ -164,7 +172,10 @@
   <!-- 推荐结果（无决定时） -->
   <view class="result-area fade-up-in" wx:elif="{{recommendResult}}">
     <view class="result-block">
-      <view class="result-food-name">{{recommendResult.food.name}}</view>
+      <view class="result-food-name">
+        {{recommendResult.food.name}}
+        <text wx:if="{{recommendResult.food.source === 'CUSTOM'}}" class="custom-badge">自定义</text>
+      </view>
 
       <!-- 类型/菜系标签：拆分展示，与旧 category 互斥 -->
       <view class="result-tags" wx:if="{{recommendResult.food.typeTags || recommendResult.food.cuisineTags}}">

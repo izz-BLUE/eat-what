@@ -1,0 +1,155 @@
+<!-- pages/custom-food/custom-food.wxml -->
+
+<wxs module="tags">
+  function split(str) {
+    if (!str) return [];
+    var parts = str.split(',');
+    var result = [];
+    for (var i = 0; i < parts.length; i++) {
+      var s = parts[i].trim();
+      if (s) result.push(s);
+    }
+    return result;
+  }
+
+  function shortTime(iso) {
+    if (!iso) return '';
+    return iso.replace('T', ' ').substring(0, 16);
+  }
+
+  function priceLabel(level) {
+    if (level === 1) return '15元内';
+    if (level === 2) return '15-25元';
+    if (level === 3) return '25-40元';
+    if (level === 4) return '40以上';
+    return '';
+  }
+
+  module.exports = { split: split, shortTime: shortTime, priceLabel: priceLabel };
+</wxs>
+
+<view class="custom-food-page">
+
+  <!-- ====== 添加表单（仅登录后显示） ====== -->
+  <view class="add-block" wx:if="{{!notLoggedIn}}">
+
+    <!-- 菜品名称 -->
+    <text class="section-title">菜品名称</text>
+    <input class="form-input {{nameError ? 'input-error' : ''}}"
+           value="{{name}}" placeholder="输入菜品名称（最多30字）" maxlength="30" bindinput="onNameInput" />
+    <text class="form-error" wx:if="{{nameError}}">{{nameError}}</text>
+
+    <!-- 餐段（必选） -->
+    <text class="section-title">餐段 <text class="required-mark">*</text></text>
+    <view class="chip-options">
+      <view class="chip-touch" wx:for="{{mealTypeOptions}}" wx:key="value"
+            bindtap="toggleMealType" data-value="{{item.value}}">
+        <view class="chip {{item.selected ? 'chip-active' : ''}}">{{item.label}}</view>
+      </view>
+    </view>
+    <text class="form-error" wx:if="{{mealTypeError}}">{{mealTypeError}}</text>
+
+    <!-- 口味（必选） -->
+    <text class="section-title">口味 <text class="required-mark">*</text></text>
+    <view class="chip-options">
+      <view class="chip-touch" wx:for="{{tasteTagOptions}}" wx:key="value"
+            bindtap="toggleTasteTag" data-value="{{item.value}}">
+        <view class="chip {{item.selected ? 'chip-active' : ''}}">{{item.label}}</view>
+      </view>
+    </view>
+    <text class="form-error" wx:if="{{tasteTagError}}">{{tasteTagError}}</text>
+
+    <!-- 食物类型（可选） -->
+    <text class="section-title">食物类型（可选）</text>
+    <view class="chip-options">
+      <view class="chip-touch" wx:for="{{typeTagOptions}}" wx:key="value"
+            bindtap="toggleTypeTag" data-value="{{item.value}}">
+        <view class="chip {{item.selected ? 'chip-active' : ''}}">{{item.label}}</view>
+      </view>
+    </view>
+
+    <!-- 菜系/风格（可选） -->
+    <text class="section-title">菜系/风格（可选）</text>
+    <view class="chip-options">
+      <view class="chip-touch" wx:for="{{cuisineTagOptions}}" wx:key="value"
+            bindtap="toggleCuisineTag" data-value="{{item.value}}">
+        <view class="chip {{item.selected ? 'chip-active' : ''}}">{{item.label}}</view>
+      </view>
+    </view>
+    <text class="form-error" wx:if="{{categoryError}}">{{categoryError}}</text>
+
+    <!-- 参考价位（可选） -->
+    <text class="section-title">参考价位（可选）</text>
+    <view class="chip-options">
+      <view class="chip-touch" wx:for="{{priceLevelOptions}}" wx:key="value"
+            bindtap="selectPriceLevel" data-value="{{item.value}}">
+        <view class="chip {{selectedPriceLevel === item.value ? 'chip-active' : ''}}">{{item.label}}</view>
+      </view>
+    </view>
+
+    <!-- 提交按钮 -->
+    <button class="btn-primary btn-submit" bindtap="handleSubmit" disabled="{{submitting}}"
+            loading="{{submitting}}">
+      {{submitting ? '添加中...' : '添加自定义菜'}}
+    </button>
+  </view>
+
+  <!-- ====== 列表标题 ====== -->
+  <view class="divider" wx:if="{{!notLoggedIn && items.length > 0}}">
+    <text class="divider-title">我的自定义菜品</text>
+  </view>
+
+  <!-- ====== 5 种状态 ====== -->
+
+  <!-- 1. 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 2. 未登录 -->
+  <view class="empty-state" wx:elif="{{notLoggedIn}}">
+    <image class="empty-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
+    <text class="empty-text">请先登录后管理自定义菜品</text>
+    <button class="btn-primary" bindtap="goToLogin" style="margin-top: 32rpx;">去登录</button>
+  </view>
+
+  <!-- 3. 错误 -->
+  <view class="error-state" wx:elif="{{errorMsg}}">
+    <text>{{errorMsg}}</text>
+  </view>
+
+  <!-- 4. 空列表 -->
+  <view class="empty-state" wx:elif="{{items.length === 0 && !loading && !errorMsg}}">
+    <image class="empty-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
+    <text class="empty-text">还没有自定义菜品，快添加一个吧</text>
+  </view>
+
+  <!-- 5. 列表 -->
+  <block wx:else>
+    <view class="list-section">
+      <view class="list-row" wx:for="{{items}}" wx:key="id">
+        <view class="list-row-content">
+          <text class="list-row-name">{{item.name}}</text>
+
+          <!-- 餐段 + 口味 + 价位 标签 -->
+          <view class="list-row-tags">
+            <text wx:for="{{tags.split(item.mealTypes)}}" wx:key="*this" class="tag tag-meal">{{item}}</text>
+            <text wx:for="{{tags.split(item.tasteTags)}}" wx:key="*this" class="tag tag-taste">{{item}}</text>
+            <text wx:if="{{item.priceLevel > 0}}" class="tag tag-price">{{tags.priceLabel(item.priceLevel)}}</text>
+          </view>
+
+          <!-- 类型/菜系 标签 -->
+          <view class="list-row-cats" wx:if="{{item.typeTags || item.cuisineTags}}">
+            <text wx:for="{{tags.split(item.typeTags)}}" wx:key="*this" class="cat-tag">{{item}}</text>
+            <text wx:for="{{tags.split(item.cuisineTags)}}" wx:key="*this" class="cat-tag">{{item}}</text>
+          </view>
+
+          <text class="list-row-time">更新于 {{tags.shortTime(item.updatedAt)}}</text>
+        </view>
+        <view class="btn-danger-text" bindtap="handleDelete" data-id="{{item.id}}" data-name="{{item.name}}">
+          {{removing === item.id ? '删除中' : '删除'}}
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

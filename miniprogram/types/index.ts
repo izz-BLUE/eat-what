@@ -35,6 +35,10 @@ export interface FoodInfo {
   tasteTags: string
   priceLevel: number
   imageUrl: string
+  /** 菜品来源：DEFAULT-系统菜品，CUSTOM-用户自定义菜品 */
+  source?: 'DEFAULT' | 'CUSTOM'
+  /** 自定义菜品ID（source=CUSTOM 时有值） */
+  customFoodId?: number | null
 }
 
 /** 推荐元数据选项项 */
@@ -69,12 +73,17 @@ export interface RecommendParams {
   typeTags?: string       // 逗号分隔
   cuisineTags?: string    // 逗号分隔
   excludeFoodIds?: string
+  excludeCustomFoodIds?: string
 }
 
 /** 吃过记录响应 */
 export interface EatRecordData {
   id: number
   foodId: number
+  /** 自定义食物ID（CUSTOM 来源时有值） */
+  customFoodId?: number | null
+  /** 食物来源：DEFAULT-系统菜品，CUSTOM-自定义菜品 */
+  foodSource?: 'DEFAULT' | 'CUSTOM'
   foodName: string
   mealType: string
   status: string          // 'DECIDED' | 'EATEN'
@@ -87,7 +96,9 @@ export interface EatRecordData {
 
 /** 吃过记录请求（旧接口兼容） */
 export interface EatRecordRequest {
-  foodId: number
+  foodId?: number
+  /** 自定义食物ID（与 foodId 互斥，CUSTOM 来源时使用） */
+  customFoodId?: number
   mealType: string
   rating?: number
   note?: string
@@ -95,7 +106,9 @@ export interface EatRecordRequest {
 
 /** 决定吃什么请求 */
 export interface DecideRecordRequest {
-  foodId: number
+  foodId?: number
+  /** 自定义食物ID（与 foodId 互斥，CUSTOM 来源时使用） */
+  customFoodId?: number
   mealType: string
 }
 
@@ -163,6 +176,10 @@ export interface PendingDecision {
   foodName: string
   category: string
   mealType: string
+  /** 菜品来源 */
+  source?: 'DEFAULT' | 'CUSTOM'
+  /** 自定义菜品ID */
+  customFoodId?: number
 }
 
 /** 筛选偏好（本地持久化，version=2） */
@@ -198,6 +215,10 @@ export interface CurrentMealDecision {
   cuisineTags?: string
   tasteTags?: string
   priceLevel?: number
+  /** 菜品来源：缺失按 DEFAULT */
+  source?: 'DEFAULT' | 'CUSTOM'
+  /** 自定义菜品ID（source=CUSTOM 时有值） */
+  customFoodId?: number
 }
 
 /** 反馈类型 */
@@ -224,4 +245,29 @@ export interface FeedbackResponse {
   systemInfo: string
   status: string
   createdAt: string
+}
+
+/** 创建自定义菜品请求 */
+export interface CustomFoodCreateRequest {
+  name: string
+  typeTags: string[]       // 可选，与 cuisineTags 至少一个非空
+  cuisineTags: string[]    // 可选，与 typeTags 至少一个非空
+  mealTypes: string[]      // 必填，至少一个
+  tasteTags: string[]      // 必填，至少一个
+  priceLevel?: number      // 1-4，可选
+}
+
+/** 自定义菜品响应 */
+export interface CustomFoodResponse {
+  id: number
+  name: string
+  category: string         // 派生：cuisineTags[0] 或 typeTags[0]
+  typeTags: string         // 逗号分隔
+  cuisineTags: string      // 逗号分隔
+  mealTypes: string        // 逗号分隔
+  tasteTags: string        // 逗号分隔
+  priceLevel: number | null
+  enabled: boolean
+  createdAt: string        // ISO datetime
+  updatedAt: string        // ISO datetime
 }

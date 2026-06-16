@@ -56,7 +56,10 @@ function sanitizeMealDecision(raw: unknown): CurrentMealDecision | null {
     typeTags: typeof d.typeTags === 'string' && d.typeTags.trim() ? d.typeTags.trim() : undefined,
     cuisineTags: typeof d.cuisineTags === 'string' && d.cuisineTags.trim() ? d.cuisineTags.trim() : undefined,
     tasteTags: typeof d.tasteTags === 'string' && d.tasteTags.trim() ? d.tasteTags.trim() : undefined,
-    priceLevel: typeof d.priceLevel === 'number' && Number.isInteger(d.priceLevel) && d.priceLevel >= 1 && d.priceLevel <= 4 ? d.priceLevel : undefined
+    priceLevel: typeof d.priceLevel === 'number' && Number.isInteger(d.priceLevel) && d.priceLevel >= 1 && d.priceLevel <= 4 ? d.priceLevel : undefined,
+    // 自定义菜字段：缺失按 DEFAULT，不清缓存
+    source: d.source === 'CUSTOM' ? 'CUSTOM' as const : undefined,
+    customFoodId: typeof d.customFoodId === 'number' && Number.isInteger(d.customFoodId) && d.customFoodId > 0 ? d.customFoodId : undefined
   }
 }
 
@@ -287,6 +290,7 @@ Page({
     errorMsg: '',
     swapCount: 0,
     excludeFoodIds: [] as number[],
+    excludeCustomFoodIds: [] as number[],
     swapExhausted: false,               // 换一个 2002 空状态
     maxSwapCount: config.maxSwapCount,
     _navigatingToRecord: false,
@@ -428,7 +432,7 @@ Page({
     this.setData({
       selectedMealType: value,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedMealType: value })
   },
@@ -447,7 +451,7 @@ Page({
     this.setData({
       selectedPriceLevel: next,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedPriceLevel: next })
   },
@@ -466,7 +470,7 @@ Page({
     this.setData({
       selectedTaste: next,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedTaste: next })
   },
@@ -497,7 +501,7 @@ Page({
     this.setData({
       selectedTypeTags: nextTypeTags,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedTypeTags: nextTypeTags })
   },
@@ -527,7 +531,7 @@ Page({
     this.setData({
       selectedCuisineTags: nextCuisineTags,
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedCuisineTags: nextCuisineTags })
   },
@@ -545,7 +549,7 @@ Page({
       selectedTypeTags: [],
       selectedCuisineTags: [],
       ...display,
-      recommendResult: null, swapCount: 0, excludeFoodIds: [], errorMsg: '', swapExhausted: false
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedTypeTags: [], selectedCuisineTags: [] })
   },
@@ -557,6 +561,7 @@ Page({
       recommendResult: null,
       swapCount: 0,
       excludeFoodIds: [],
+      excludeCustomFoodIds: [],
       errorMsg: '',
       swapExhausted: false
     })
@@ -578,11 +583,12 @@ Page({
     if (this.data.selectedCuisineTags.length > 0) {
       params.cuisineTags = this.data.selectedCuisineTags.join(',')
     }
+    // excludeCustomFoodIds 在 swapRecommend 中按需设置
     return params
   },
 
   async getRecommend(retryCount = 0) {
-    this.setData({ loading: true, errorMsg: '', recommendResult: null, swapCount: 0, excludeFoodIds: [], swapExhausted: false })
+    this.setData({ loading: true, errorMsg: '', recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], swapExhausted: false })
 
     try {
       const params = this.buildRequestParams()
@@ -617,9 +623,18 @@ Page({
     }
 
     if (this.data.recommendResult) {
-      const currentFoodId = this.data.recommendResult.food.id
-      if (!this.data.excludeFoodIds.includes(currentFoodId)) {
-        this.data.excludeFoodIds.push(currentFoodId)
+      const food = this.data.recommendResult.food
+      const source = food.source || 'DEFAULT'
+      if (source === 'CUSTOM' && typeof food.customFoodId === 'number') {
+        const id = food.customFoodId
+        if (!this.data.excludeCustomFoodIds.includes(id)) {
+          this.data.excludeCustomFoodIds.push(id)
+        }
+      } else {
+        const currentFoodId = food.id
+        if (!this.data.excludeFoodIds.includes(currentFoodId)) {
+          this.data.excludeFoodIds.push(currentFoodId)
+        }
       }
     }
 
@@ -629,6 +644,9 @@ Page({
       const params = this.buildRequestParams()
       if (this.data.excludeFoodIds.length > 0) {
         params.excludeFoodIds = [...new Set(this.data.excludeFoodIds)].join(',')
+      }
+      if (this.data.excludeCustomFoodIds.length > 0) {
+        params.excludeCustomFoodIds = [...new Set(this.data.excludeCustomFoodIds)].join(',')
       }
 
       const result = await swapRecommend(params)
@@ -670,6 +688,7 @@ Page({
       swapExhausted: false,
       swapCount: 0,
       excludeFoodIds: [],
+      excludeCustomFoodIds: [],
       recommendResult: null
     })
 
@@ -720,7 +739,9 @@ Page({
             foodId: food.id,
             foodName: food.name,
             category: food.category,
-            mealType: this.data.selectedMealType || ''
+            mealType: this.data.selectedMealType || '',
+            source: food.source || 'DEFAULT',
+            customFoodId: typeof food.customFoodId === 'number' ? food.customFoodId : undefined
           }
           app.globalData.pendingBlacklist = null
           wx.navigateTo({ url: '/pages/login/login' })
@@ -732,13 +753,19 @@ Page({
     })
   },
 
-  async executeDecide(food: { id: number; name: string; category: string; typeTags?: string; cuisineTags?: string; tasteTags?: string; priceLevel?: number }) {
+  async executeDecide(food: { id: number; name: string; category: string; typeTags?: string; cuisineTags?: string; tasteTags?: string; priceLevel?: number; source?: 'DEFAULT' | 'CUSTOM'; customFoodId?: number | null }) {
     this.setData({ loading: true })
     try {
-      const result = await decideFood({
-        foodId: food.id,
+      const source = food.source || 'DEFAULT'
+      const decideParams: any = {
         mealType: this.data.selectedMealType || ''
-      })
+      }
+      if (source === 'CUSTOM' && typeof food.customFoodId === 'number') {
+        decideParams.customFoodId = food.customFoodId
+      } else {
+        decideParams.foodId = food.id
+      }
+      const result = await decideFood(decideParams)
 
       const decidedAt = new Date().toISOString()
       const decision: CurrentMealDecision = {
@@ -752,7 +779,9 @@ Page({
         typeTags: food.typeTags,
         cuisineTags: food.cuisineTags,
         tasteTags: food.tasteTags,
-        priceLevel: food.priceLevel
+        priceLevel: food.priceLevel,
+        source: source as 'DEFAULT' | 'CUSTOM',
+        customFoodId: typeof food.customFoodId === 'number' ? food.customFoodId : undefined
       }
       this.saveMealDecision(decision)
       this.setData({
@@ -776,7 +805,7 @@ Page({
     const d = this.data.mealDecision
 
     wx.navigateTo({
-      url: `/pages/record/record?recordId=${d.recordId}&foodName=${encodeURIComponent(d.foodName)}&category=${encodeURIComponent(d.category)}&mealType=${encodeURIComponent(d.mealType)}`,
+      url: `/pages/record/record?recordId=${d.recordId}&foodName=${encodeURIComponent(d.foodName)}&category=${encodeURIComponent(d.category)}&mealType=${encodeURIComponent(d.mealType)}&source=${d.source || 'DEFAULT'}${typeof d.customFoodId === 'number' ? '&customFoodId=' + d.customFoodId : ''}`,
       fail: () => {
         this.setData({ _navigatingToRecord: false })
       }
@@ -810,6 +839,7 @@ Page({
           recommendResult: null,
           swapCount: 0,
           excludeFoodIds: [],
+          excludeCustomFoodIds: [],
           errorMsg: '',
           swapExhausted: false
         })
@@ -943,6 +973,7 @@ Page({
           recommendResult: null,
           swapCount: 0,
           excludeFoodIds: [],
+          excludeCustomFoodIds: [],
           errorMsg: '',
           swapExhausted: false
         })
@@ -951,6 +982,14 @@ Page({
   },
 
   // ============ 导航 ============
+
+  goToCustomFood() {
+    if (!app.isLoggedIn()) {
+      wx.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    wx.navigateTo({ url: '/pages/custom-food/custom-food' })
+  },
 
   goToProfile() {
     wx.navigateTo({ url: '/pages/profile/profile' })
