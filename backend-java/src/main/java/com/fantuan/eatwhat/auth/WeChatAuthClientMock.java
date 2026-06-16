@@ -2,17 +2,16 @@ package com.fantuan.eatwhat.auth;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * 微信认证客户端 - Mock 实现（仅用于开发和测试）
+ * 微信认证客户端 - Mock 实现
  *
- * 注意：Mock 只在 dev/test Profile 下启用，生产环境即使配置 mock-enabled=true 也不会加载
+ * 由 wechat.mock-enabled=true 控制启用，与 Spring Profile 解耦。
+ * 适用于开发、测试及生产环境的联调/演练场景。
  */
 @Slf4j
 @Component
-@Profile({"dev", "test"})
 @ConditionalOnProperty(name = "wechat.mock-enabled", havingValue = "true")
 public class WeChatAuthClientMock implements WeChatAuthClient {
 

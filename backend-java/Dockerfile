@@ -9,14 +9,17 @@ FROM maven:3.8-eclipse-temurin-17 AS builder
 
 WORKDIR /build
 
+# Maven 镜像源（阿里云公共仓库，加速国内下载）
+COPY .docker/settings.xml /root/.m2/settings.xml
+
 # 先复制依赖描述文件，利用 Docker 层缓存加速重复构建
-COPY pom.xml mvnw mvnw.cmd ./
-COPY .mvn .mvn
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B -q || true
+# 使用 maven 镜像自带的 mvn，不再依赖 ./mvnw
+COPY pom.xml ./
+RUN mvn dependency:go-offline -B -q || true
 
 # 复制源码并打包（跳过测试，测试在 CI 中独立运行）
 COPY src src
-RUN ./mvnw package -DskipTests -B -q
+RUN mvn package -DskipTests -B -q
 
 # ---- Stage 2: JRE 运行 ----
 FROM eclipse-temurin:17-jre-alpine
