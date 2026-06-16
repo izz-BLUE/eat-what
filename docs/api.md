@@ -33,6 +33,8 @@
 | 2009 | 微信登录失败 |
 | 2010 | 记录不存在 |
 | 2011 | 记录状态不允许此操作 |
+| 2012 | 反馈不存在 |
+| 3001 | 无权限（管理后台） |
 | 5001 | 系统错误 |
 
 ---
@@ -98,6 +100,15 @@ $env:WECHAT_MOCK_ENABLED="true"
 | 12 | /api/v1/dislike/{dislikeId} | DELETE | 必须登录 | 解除不想吃 |
 | 13 | /api/v1/feedback | POST | 无需登录 | 提交意见反馈 |
 | 14 | /api/health | GET | 无需登录 | 健康检查 |
+
+### 管理后台（仅供开发者使用）
+
+| 序号 | 接口 | 方法 | 认证 | 说明 |
+|------|------|------|------|------|
+| A1 | /api/v1/admin/feedback | GET | X-Admin-Token | 查询反馈列表 |
+| A2 | /api/v1/admin/feedback/{id}/status | PUT | X-Admin-Token | 更新反馈状态 |
+
+> **注意**：管理后台接口仅供开发者使用，小程序端不调用。认证方式为 `X-Admin-Token` 请求头，与普通用户 JWT 无关。
 
 ### 后续阶段实现
 
@@ -691,6 +702,117 @@ Authorization: Bearer {token}
 
 ---
 
+## 管理后台 - 反馈管理
+
+> **适用范围**：仅供开发/管理用途，小程序端不调用。
+> **认证方式**：请求头 `X-Admin-Token`，值需等于配置项 `admin.token`。
+> **权限说明**：
+> - 配置了 `admin.token`（dev/test 默认已配）：必须携带正确的 `X-Admin-Token`，否则返回 3001。
+> - 未配置 `admin.token`（手动设为空）：dev/test Profile 放行所有请求；prod Profile 拒绝所有请求。
+> - 生产环境必须配置 `admin.token`，否则管理接口不可用。
+
+### A1. 查询反馈列表
+
+**GET** `/api/v1/admin/feedback`
+
+查询用户意见反馈列表，支持状态筛选、关键词搜索和分页。
+
+**请求头**：
+```
+X-Admin-Token: dev-admin-token
+```
+
+**请求参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| status | string | 否 | 状态筛选：NEW / REVIEWED / RESOLVED / IGNORED |
+| page | int | 否 | 页码，默认 1 |
+| size | int | 否 | 每页条数，默认 20，最大 100 |
+| keyword | string | 否 | 关键词搜索，匹配 content 和 contact 字段 |
+
+**响应数据**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "type": "FEATURE",
+        "rating": 4,
+        "content": "建议增加更多菜系分类",
+        "contact": "wechat: user1",
+        "page": "/pages/feedback/feedback",
+        "systemInfo": "{\"model\":\"iPhone 14\"}",
+        "status": "NEW",
+        "createdAt": "2026-06-16T12:00:00"
+      }
+    ],
+    "total": 100,
+    "page": 1,
+    "size": 20
+  }
+}
+```
+
+**错误**：
+| code | 说明 |
+|------|------|
+| 3001 | X-Admin-Token 缺失或不正确 |
+
+---
+
+### A2. 更新反馈状态
+
+**PUT** `/api/v1/admin/feedback/{id}/status`
+
+更新指定反馈的处理状态。
+
+**请求头**：
+```
+X-Admin-Token: dev-admin-token
+```
+
+**请求参数**：
+```json
+{
+  "status": "REVIEWED"
+}
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| status | string | 是 | 新状态：NEW / REVIEWED / RESOLVED / IGNORED |
+
+**响应数据**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "type": "FEATURE",
+    "rating": 4,
+    "content": "建议增加更多菜系分类",
+    "contact": "wechat: user1",
+    "page": "/pages/feedback/feedback",
+    "systemInfo": "{\"model\":\"iPhone 14\"}",
+    "status": "REVIEWED",
+    "createdAt": "2026-06-16T12:00:00"
+  }
+}
+```
+
+**错误**：
+| code | 说明 |
+|------|------|
+| 1001 | status 为空或值不合法 |
+| 2012 | 反馈不存在 |
+| 3001 | X-Admin-Token 缺失或不正确 |
+
+---
+
 ## 后续阶段接口（需要登录）
 
 ### 13. 发起投票（后续阶段）
@@ -871,6 +993,52 @@ Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/feedback" `
 Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/v1/feedback" `
   -ContentType "application/json; charset=utf-8" `
   -Body ([System.Text.Encoding]::UTF8.GetBytes('{"type":"OTHER","content":"ab"}')) `
+  | ConvertTo-Json -Depth 8
+
+# ========== 管理后台 - 反馈管理（需要 X-Admin-Token） ==========
+
+# 无 token 会被拒绝（3001）
+Invoke-RestMethod "http://localhost:8080/api/v1/admin/feedback" | ConvertTo-Json -Depth 8
+
+# 错误 token 会被拒绝（3001）
+Invoke-RestMethod "http://localhost:8080/api/v1/admin/feedback" `
+  -Headers @{"X-Admin-Token"="wrong-token"} | ConvertTo-Json -Depth 8
+
+# 查询反馈列表
+Invoke-RestMethod "http://localhost:8080/api/v1/admin/feedback" `
+  -Headers @{"X-Admin-Token"="dev-admin-token"} | ConvertTo-Json -Depth 8
+
+# 按状态筛选
+Invoke-RestMethod "http://localhost:8080/api/v1/admin/feedback?status=NEW" `
+  -Headers @{"X-Admin-Token"="dev-admin-token"} | ConvertTo-Json -Depth 8
+
+# 关键词搜索
+Invoke-RestMethod "http://localhost:8080/api/v1/admin/feedback?keyword=火锅" `
+  -Headers @{"X-Admin-Token"="dev-admin-token"} | ConvertTo-Json -Depth 8
+
+# 分页查询
+Invoke-RestMethod "http://localhost:8080/api/v1/admin/feedback?page=1&size=5" `
+  -Headers @{"X-Admin-Token"="dev-admin-token"} | ConvertTo-Json -Depth 8
+
+# 更新反馈状态
+Invoke-RestMethod -Method PUT -Uri "http://localhost:8080/api/v1/admin/feedback/1/status" `
+  -ContentType "application/json; charset=utf-8" `
+  -Headers @{"X-Admin-Token"="dev-admin-token"} `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"status":"REVIEWED"}')) `
+  | ConvertTo-Json -Depth 8
+
+# 非法状态会被拒绝（1001）
+Invoke-RestMethod -Method PUT -Uri "http://localhost:8080/api/v1/admin/feedback/1/status" `
+  -ContentType "application/json; charset=utf-8" `
+  -Headers @{"X-Admin-Token"="dev-admin-token"} `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"status":"INVALID"}')) `
+  | ConvertTo-Json -Depth 8
+
+# 不存在的反馈（2012）
+Invoke-RestMethod -Method PUT -Uri "http://localhost:8080/api/v1/admin/feedback/99999/status" `
+  -ContentType "application/json; charset=utf-8" `
+  -Headers @{"X-Admin-Token"="dev-admin-token"} `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes('{"status":"RESOLVED"}')) `
   | ConvertTo-Json -Depth 8
 ```
 

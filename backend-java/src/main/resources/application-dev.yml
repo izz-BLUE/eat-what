@@ -36,3 +36,7 @@ logging:
     com.fantuan.eatwhat: debug
     org.springframework: debug
     org.flywaydb: debug
+
+# 管理后台配置（开发环境默认 token）
+admin:
+  token: ${ADMIN_TOKEN:dev-admin-token}

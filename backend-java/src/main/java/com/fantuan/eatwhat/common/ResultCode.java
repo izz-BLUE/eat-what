@@ -28,6 +28,10 @@ public enum ResultCode {
     WECHAT_LOGIN_FAILED(2009, "微信登录失败"),
     RECORD_NOT_FOUND(2010, "记录不存在"),
     RECORD_STATUS_INVALID(2011, "记录状态不允许此操作"),
+    FEEDBACK_NOT_FOUND(2012, "反馈不存在"),
+
+    // 权限错误 3xxx
+    FORBIDDEN(3001, "无权限"),
 
     // 系统错误 5xxx
     SYSTEM_ERROR(5001, "系统错误");

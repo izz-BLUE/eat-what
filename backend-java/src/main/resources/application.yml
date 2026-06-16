@@ -36,6 +36,10 @@ jwt:
   secret: ${JWT_SECRET}
   expiration-seconds: ${JWT_EXPIRATION_SECONDS:604800}
 
+# 管理后台配置
+admin:
+  token: ${ADMIN_TOKEN:}
+
 # 微信配置（必须通过环境变量提供）
 wechat:
   app-id: ${WECHAT_APP_ID}
