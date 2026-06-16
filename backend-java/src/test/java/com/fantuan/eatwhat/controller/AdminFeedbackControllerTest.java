@@ -16,7 +16,7 @@ import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "admin.token=test-admin-token")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AdminFeedbackControllerTest {
