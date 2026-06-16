@@ -1,0 +1,121 @@
+# ============================================================
+# 今天吃啥 — 生产环境 Docker Compose
+# ============================================================
+# 用法：
+#   cp deploy/.env.example deploy/.env
+#   编辑 deploy/.env 填入真实密钥
+#   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d
+#
+# 端口规划：
+#   - 80/443 → nginx（公网）
+#   - 3306   → 仅容器内部，不暴露到宿主机
+#   - 8080   → 仅容器内部，不暴露到宿主机
+# ============================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: eat-what-mysql-prod
+    restart: unless-stopped
+    # 内存限制：1GB，防止 MySQL 吃满整机内存
+    mem_limit: 1g
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --innodb-buffer-pool-size=256M
+      - --max-connections=50
+    # 不暴露端口到宿主机，仅容器内部网络可访问
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - eat-what-net
+
+  backend:
+    build:
+      context: ../backend-java
+      dockerfile: Dockerfile
+    image: eat-what-backend:latest
+    container_name: eat-what-backend-prod
+    restart: unless-stopped
+    # 内存限制：1GB，JVM 堆 -Xmx768m，留 256MB 给 Metaspace/栈/OS
+    mem_limit: 1g
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # Spring Boot Profile
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      # 数据源（通过环境变量覆盖 Spring Boot 默认配置）
+      SPRING_DATASOURCE_URL: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&connectionCollation=utf8mb4_unicode_ci
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      # 微信
+      WECHAT_APP_ID: ${WECHAT_APPID}
+      WECHAT_APP_SECRET: ${WECHAT_SECRET}
+      WECHAT_MOCK_ENABLED: ${WECHAT_MOCK_ENABLED}
+      # 管理后台
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+    # 不暴露端口到宿主机，仅 Nginx 容器内部访问
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - eat-what-net
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: eat-what-nginx-prod
+    restart: unless-stopped
+    # 内存限制：128MB，nginx alpine 实际仅需 ~20MB
+    mem_limit: 128m
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/eat-what.conf:/etc/nginx/conf.d/default.conf:ro
+      # 证书目录：部署前将 fullchain.pem 和 privkey.pem 放入 ./nginx/certs/
+      - ./nginx/certs:/etc/nginx/certs:ro
+      # ACME challenge 临时目录
+      - acme_webroot:/var/www/html
+    depends_on:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - eat-what-net
+
+volumes:
+  mysql_data:
+    driver: local
+  acme_webroot:
+    driver: local
+
+networks:
+  eat-what-net:
+    driver: bridge
