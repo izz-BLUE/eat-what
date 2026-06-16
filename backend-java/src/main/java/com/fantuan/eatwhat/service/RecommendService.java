@@ -182,7 +182,10 @@ public class RecommendService {
 
         // 5. 最近吃过降权
         int recentEatenDeduction = calculateRecentEatenDeduction(food.getId(), recentEatenMap, now);
-        if (recentEatenDeduction == 0) {
+        if (request.getUserId() == null) {
+            // 匿名用户无历史记录，不输出"最近几天没吃过"
+            reasons.add("随机帮你挑一个");
+        } else if (recentEatenDeduction == 0) {
             reasons.add("最近几天没吃过，换换口味");
         }
         score += recentEatenDeduction;

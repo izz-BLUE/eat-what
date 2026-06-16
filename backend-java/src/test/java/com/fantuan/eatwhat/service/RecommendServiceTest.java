@@ -884,11 +884,13 @@ class RecommendServiceTest {
 
     @Test
     void recommend_noFilters_onlyFreshnessReason() {
+        // 已登录用户，未设筛选 → 仅有"最近几天没吃过"
         RecommendRequest request = new RecommendRequest();
+        request.setUserId(1L);
 
         Food food = createFood(1L, "猪脚饭", "快餐", "快餐", "", "午餐,晚餐", "咸,香", 2);
         when(foodService.listAllEnabled()).thenReturn(List.of(food));
-        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
 
         RecommendResponse response = recommendService.recommend(request);
 
@@ -904,6 +906,82 @@ class RecommendServiceTest {
                 "未选菜系不应出现菜系理由: " + response.getReasons());
         assertFalse(response.getReasons().stream().anyMatch(r -> r.startsWith("价位匹配")),
                 "未选价位不应出现价位理由: " + response.getReasons());
+        // 已登录无记录 → 应包含新鲜度理由
+        assertTrue(response.getReasons().stream().anyMatch(r -> r.contains("最近几天没吃过")),
+                "已登录无记录应包含新鲜度理由: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_anonymous_noFilters_randomReason() {
+        // 匿名用户，未设筛选 → "随机帮你挑一个"
+        RecommendRequest request = new RecommendRequest();
+        request.setUserId(null);
+
+        Food food = createFood(1L, "猪脚饭", "快餐", "快餐", "", "午餐,晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("随机帮你挑一个"),
+                "匿名推荐应有随机理由: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_anonymous_noRecentEatenText() {
+        // 匿名用户 → 不应输出"最近几天没吃过"
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(null);
+
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertFalse(response.getReasons().stream().anyMatch(r -> r.contains("最近几天没吃过")),
+                "匿名用户不应出现'最近几天没吃过': " + response.getReasons());
+    }
+
+    @Test
+    void recommend_loggedIn_noRecentRecord_showsFreshnessReason() {
+        // 已登录 + 无最近记录 → 输出"最近几天没吃过，换换口味"
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getReasons().contains("最近几天没吃过，换换口味"),
+                "已登录无记录应包含新鲜度理由: " + response.getReasons());
+    }
+
+    @Test
+    void recommend_loggedIn_recentlyEaten_noFreshnessReason() {
+        // 已登录 + 最近吃过(12h) → 不输出"最近几天没吃过"
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(1L);
+
+        Food food = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food));
+
+        Map<Long, LocalDateTime> recentEatenMap = Map.of(1L, LocalDateTime.now().minusHours(12));
+        when(eatRecordService.getRecentEatenFoodMap(1L)).thenReturn(recentEatenMap);
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertFalse(response.getReasons().stream().anyMatch(r -> r.contains("最近几天没吃过")),
+                "最近吃过不应出现'最近几天没吃过': " + response.getReasons());
     }
 
     @Test
