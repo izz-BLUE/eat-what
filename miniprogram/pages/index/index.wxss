@@ -170,7 +170,12 @@
   border-radius: 8rpx;
 }
 
-.result-tag-category {
+.result-tag-type {
+  background-color: #F4EFE6;
+  color: #19382D;
+}
+
+.result-tag-cuisine {
   background-color: #F4EFE6;
   color: #19382D;
 }
@@ -178,6 +183,11 @@
 .result-tag-taste {
   background-color: #FFF8EA;
   color: #7A7468;
+  border: 1rpx solid #E8DFD0;
+}
+
+.result-tags-taste {
+  margin-top: 0rpx;
 }
 
 .result-price {
@@ -241,15 +251,15 @@
   word-break: break-all;
 }
 
-.decision-food-category {
-  font-size: 28rpx;
-  color: #7A7468;
+.decision-block .result-tags {
+  justify-content: center;
   margin-bottom: 12rpx;
 }
 
 .decision-time {
   font-size: 24rpx;
   color: #7A7468;
+  margin-top: 8rpx;
 }
 
 /* ========== 统一固定底部操作栏 ========== */

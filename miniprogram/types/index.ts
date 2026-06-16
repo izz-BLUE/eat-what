@@ -193,4 +193,9 @@ export interface CurrentMealDecision {
   category: string
   mealType: string
   decidedAt: string
+  /** 以下为 v2→v3 新增，用于决定卡片展示；缺失时前端使用旧 category 兜底 */
+  typeTags?: string
+  cuisineTags?: string
+  tasteTags?: string
+  priceLevel?: number
 }

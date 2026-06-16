@@ -51,7 +51,12 @@ function sanitizeMealDecision(raw: unknown): CurrentMealDecision | null {
     foodName: d.foodName.trim(),
     category: d.category.trim(),
     mealType,
-    decidedAt
+    decidedAt,
+    // v3 新增字段：严格校验类型后再放行
+    typeTags: typeof d.typeTags === 'string' && d.typeTags.trim() ? d.typeTags.trim() : undefined,
+    cuisineTags: typeof d.cuisineTags === 'string' && d.cuisineTags.trim() ? d.cuisineTags.trim() : undefined,
+    tasteTags: typeof d.tasteTags === 'string' && d.tasteTags.trim() ? d.tasteTags.trim() : undefined,
+    priceLevel: typeof d.priceLevel === 'number' && Number.isInteger(d.priceLevel) && d.priceLevel >= 1 && d.priceLevel <= 4 ? d.priceLevel : undefined
   }
 }
 
@@ -656,7 +661,7 @@ Page({
       case 2: return '15-25元'
       case 3: return '25-40元'
       case 4: return '40元以上'
-      default: return '价格面议'
+      default: return '参考价位未知'
     }
   },
 
@@ -689,7 +694,7 @@ Page({
     })
   },
 
-  async executeDecide(food: { id: number; name: string; category: string }) {
+  async executeDecide(food: { id: number; name: string; category: string; typeTags?: string; cuisineTags?: string; tasteTags?: string; priceLevel?: number }) {
     this.setData({ loading: true })
     try {
       const result = await decideFood({
@@ -705,7 +710,11 @@ Page({
         foodName: food.name,
         category: food.category,
         mealType: this.data.selectedMealType || '',
-        decidedAt
+        decidedAt,
+        typeTags: food.typeTags,
+        cuisineTags: food.cuisineTags,
+        tasteTags: food.tasteTags,
+        priceLevel: food.priceLevel
       }
       this.saveMealDecision(decision)
       this.setData({
