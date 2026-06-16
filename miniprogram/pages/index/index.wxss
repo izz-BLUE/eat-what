@@ -262,6 +262,33 @@
   margin-top: 8rpx;
 }
 
+/* ========== 换一个已耗尽空状态 ========== */
+
+.exhausted-card {
+  background-color: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 40rpx 32rpx 36rpx;
+  border: 1rpx solid #E8DFD0;
+  text-align: center;
+  margin-bottom: 16rpx;
+  margin-top: 0rpx;
+}
+
+.exhausted-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #19382D;
+  margin-bottom: 10rpx;
+}
+
+.exhausted-desc {
+  display: block;
+  font-size: 26rpx;
+  color: #7A7468;
+  line-height: 1.5;
+}
+
 /* ========== 统一固定底部操作栏 ========== */
 
 .bottom-action-bar {
