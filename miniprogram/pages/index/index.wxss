@@ -8,6 +8,12 @@
   padding-bottom: calc(184rpx + env(safe-area-inset-bottom));
 }
 
+/* 结果锚点（零高度，仅作为滚动目标） */
+.result-anchor {
+  height: 0;
+  overflow: hidden;
+}
+
 /* ========== 顶部品牌区（精简） ========== */
 
 .brand-header {
@@ -59,6 +65,40 @@
   padding: 20rpx 24rpx 16rpx;
   margin-bottom: 16rpx;
   border: 1rpx solid #E8DFD0;
+}
+
+/* 折叠切换头 */
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8rpx 0 16rpx;
+}
+
+.filter-header-label {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #06452F;
+}
+
+.filter-header-action {
+  font-size: 24rpx;
+  color: #7A7468;
+  padding: 8rpx 16rpx;
+  border: 2rpx solid #E8DFD0;
+  border-radius: 12rpx;
+}
+
+.filter-header:active .filter-header-action {
+  background-color: #F4EFE6;
+}
+
+/* 折叠摘要 */
+.filter-summary {
+  font-size: 24rpx;
+  color: #7A7468;
+  line-height: 1.6;
+  padding-bottom: 8rpx;
 }
 
 .filter-group {

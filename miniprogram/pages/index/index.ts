@@ -305,6 +305,8 @@ Page({
     excludeFoodIds: [] as number[],
     excludeCustomFoodIds: [] as number[],
     swapExhausted: false,               // 换一个 2002 空状态
+    filtersCollapsed: false,            // 筛选区是否折叠
+    filtersSummary: '',                 // 折叠时显示的筛选摘要
     maxSwapCount: config.maxSwapCount,
     disliking: false,                   // 不喜欢反馈进行中，防重复点击
     _navigatingToRecord: false,
@@ -607,7 +609,7 @@ Page({
         newPriceLevel = '15以内'
         break
       case '解馋点':
-        newTypeTags = ['小吃', '烧烤', '火锅', '甜品', '茶饮']
+        newTypeTags = ['小吃', '烧烤', '火锅']
         break
     }
 
@@ -662,7 +664,7 @@ Page({
         newCuisineTags = newCuisineTags.filter(c => c !== '家常菜')
         break
       case '解馋点':
-        newTypeTags = newTypeTags.filter(t => !['小吃', '烧烤', '火锅', '甜品', '茶饮'].includes(t))
+        newTypeTags = newTypeTags.filter(t => !['小吃', '烧烤', '火锅'].includes(t))
         break
       case '随便来点':
         // 随便来点仅清空筛选，撤销时无法恢复，保持当前筛选不变
@@ -694,6 +696,37 @@ Page({
       selectedTypeTags: newTypeTags,
       selectedCuisineTags: newCuisineTags
     })
+  },
+
+  // ============ 筛选区折叠 ============
+
+  computeFiltersSummary(): string {
+    const parts: string[] = []
+    if (this.data.selectedAppetite) parts.push(`今日胃口：${this.data.selectedAppetite}`)
+    if (this.data.selectedMealType) parts.push(`餐段：${this.data.selectedMealType}`)
+    if (this.data.selectedPriceLevel) {
+      const priceLabel: Record<string, string> = {
+        '15以内': '15元内', '15-25': '15-25元', '25-40': '25-40元', '40以上': '40元以上'
+      }
+      parts.push(`价位：${priceLabel[this.data.selectedPriceLevel] || this.data.selectedPriceLevel}`)
+    }
+    if (this.data.selectedTaste) parts.push(`口味：${this.data.selectedTaste}`)
+    if (this.data.selectedTypeTags.length > 0) parts.push(`类型：${this.data.selectedTypeTags.join('、')}`)
+    if (this.data.selectedCuisineTags.length > 0) parts.push(`菜系：${this.data.selectedCuisineTags.join('、')}`)
+    return parts.length > 0 ? parts.join(' | ') : '未设置筛选条件'
+  },
+
+  toggleFiltersCollapsed() {
+    const next = !this.data.filtersCollapsed
+    const set: Record<string, any> = { filtersCollapsed: next }
+    if (next) {
+      set.filtersSummary = this.computeFiltersSummary()
+    }
+    this.setData(set)
+  },
+
+  scrollToResult() {
+    wx.pageScrollTo({ selector: '#recommend-result-anchor', duration: 300 })
   },
 
   // ============ 推荐与换一个 ============
@@ -736,7 +769,12 @@ Page({
       const params = this.buildRequestParams()
       const result = await getRecommend(params)
       const priceDisplay = this.getPriceDisplay(result.food.priceLevel)
-      this.setData({ recommendResult: result, priceDisplay })
+      this.setData({
+        recommendResult: result,
+        priceDisplay,
+        filtersCollapsed: true,
+        filtersSummary: this.computeFiltersSummary()
+      }, () => this.scrollToResult())
     } catch (err: any) {
       if (err instanceof RequestError) {
         if (err.code === 1003 && retryCount < 1) {
@@ -797,7 +835,7 @@ Page({
         recommendResult: result,
         priceDisplay,
         swapCount: this.data.swapCount + 1
-      })
+      }, () => this.scrollToResult())
     } catch (err: any) {
       if (err instanceof RequestError) {
         if (err.code === 1003 && retryCount < 1) {
@@ -838,7 +876,12 @@ Page({
       const params = this.buildRequestParams()
       const result = await getRecommend(params)
       const priceDisplay = this.getPriceDisplay(result.food.priceLevel)
-      this.setData({ recommendResult: result, priceDisplay })
+      this.setData({
+        recommendResult: result,
+        priceDisplay,
+        filtersCollapsed: true,
+        filtersSummary: this.computeFiltersSummary()
+      }, () => this.scrollToResult())
     } catch (err: any) {
       if (err instanceof RequestError) {
         if (err.code === 2002) {
@@ -1179,7 +1222,7 @@ Page({
         recommendResult: result,
         priceDisplay,
         swapCount: this.data.swapCount + 1
-      })
+      }, () => this.scrollToResult())
     } catch (err: any) {
       if (err instanceof RequestError && err.code === 2002) {
         this.setData({ recommendResult: null, swapExhausted: true, errorMsg: '' })
@@ -1208,6 +1251,7 @@ Page({
           selectedTypeTags: [],
           selectedCuisineTags: [],
           ...computeDisplay(opts, defaultMealType, '', '', [], []),
+          filtersSummary: '',
           recommendResult: null,
           swapCount: 0,
           excludeFoodIds: [],
