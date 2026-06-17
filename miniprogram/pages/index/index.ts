@@ -926,6 +926,12 @@ Page({
     if (this.data.loading) return
     const food = this.data.recommendResult.food
 
+    // 自定义菜不能加入默认黑名单，去自定义菜列表删除即可
+    if (food.source === 'CUSTOM') {
+      wx.showToast({ title: '自定义菜可在自定义菜列表删除', icon: 'none' })
+      return
+    }
+
     if (!app.isLoggedIn()) {
       app.globalData.pendingDecision = null
       app.globalData.pendingBlacklist = { foodId: food.id, foodName: food.name, reason: '不喜欢' }

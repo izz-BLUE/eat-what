@@ -107,6 +107,44 @@ class UserCustomFoodServiceTest {
     }
 
     @Test
+    void create_blankTypeTags_throwsError() {
+        CustomFoodCreateRequest request = buildValidRequest();
+        request.setTypeTags(List.of(" ", ""));
+        request.setCuisineTags(null);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> userCustomFoodService.create(1L, request));
+        assertEquals(ResultCode.PARAM_ERROR.getCode(), exception.getCode());
+    }
+
+    @Test
+    void create_blankCuisineTags_throwsError() {
+        CustomFoodCreateRequest request = buildValidRequest();
+        request.setTypeTags(null);
+        request.setCuisineTags(List.of(" ", ""));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> userCustomFoodService.create(1L, request));
+        assertEquals(ResultCode.PARAM_ERROR.getCode(), exception.getCode());
+    }
+
+    @Test
+    void create_mixedBlankTypeTags_stripsBlanksAndUsesCuisine() {
+        Long userId = 1L;
+        CustomFoodCreateRequest request = buildValidRequest();
+        request.setName("混合空白");
+        request.setTypeTags(List.of(" "));
+        request.setCuisineTags(List.of("家常菜"));
+
+        when(userCustomFoodMapper.insert(any(UserCustomFood.class))).thenReturn(1);
+
+        CustomFoodResponse response = userCustomFoodService.create(userId, request);
+        assertNotNull(response);
+        assertEquals("", response.getTypeTags());   // 空白全部 strip，空字符串
+        assertEquals("家常菜", response.getCuisineTags());
+    }
+
+    @Test
     void create_invalidTypeTag_throwsError() {
         CustomFoodCreateRequest request = buildValidRequest();
         request.setTypeTags(List.of("不存在的类型"));

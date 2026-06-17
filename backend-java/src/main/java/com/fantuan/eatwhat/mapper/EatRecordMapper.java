@@ -26,6 +26,7 @@ public interface EatRecordMapper extends BaseMapper<EatRecord> {
     @Select("SELECT food_id AS foodId, MAX(eaten_at) AS lastEatenAt " +
             "FROM eat_records " +
             "WHERE user_id = #{userId} AND eaten_at >= #{since} AND status = 'EATEN' " +
+            "AND (food_source IS NULL OR food_source = 'DEFAULT') AND food_id IS NOT NULL " +
             "GROUP BY food_id")
     List<Map<String, Object>> selectRecentEatenFoods(@Param("userId") Long userId,
                                                       @Param("since") LocalDateTime since);
@@ -48,7 +49,8 @@ public interface EatRecordMapper extends BaseMapper<EatRecord> {
      * @return 有评分的已吃记录列表
      */
     @Select("SELECT * FROM eat_records " +
-            "WHERE user_id = #{userId} AND status = 'EATEN' AND rating IS NOT NULL")
+            "WHERE user_id = #{userId} AND status = 'EATEN' AND rating IS NOT NULL " +
+            "AND (food_source IS NULL OR food_source = 'DEFAULT') AND food_id IS NOT NULL")
     List<EatRecord> selectRatedEatenRecords(@Param("userId") Long userId);
 
     /**

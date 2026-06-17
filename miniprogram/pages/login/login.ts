@@ -47,10 +47,14 @@ Page({
       app.globalData.pendingDecision = null
       if (pendingDecision) {
         try {
-          const record = await decideFood({
-            foodId: pendingDecision.foodId,
-            mealType: pendingDecision.mealType
-          })
+          const source = pendingDecision.source || 'DEFAULT'
+          const decideParams: any = { mealType: pendingDecision.mealType }
+          if (source === 'CUSTOM' && typeof pendingDecision.customFoodId === 'number') {
+            decideParams.customFoodId = pendingDecision.customFoodId
+          } else {
+            decideParams.foodId = pendingDecision.foodId
+          }
+          const record = await decideFood(decideParams)
 
           // 保存本地决定
           const decision: CurrentMealDecision = {
@@ -60,7 +64,9 @@ Page({
             foodName: pendingDecision.foodName,
             category: pendingDecision.category,
             mealType: pendingDecision.mealType,
-            decidedAt: new Date().toISOString()
+            decidedAt: new Date().toISOString(),
+            source: pendingDecision.source || 'DEFAULT',
+            customFoodId: typeof pendingDecision.customFoodId === 'number' ? pendingDecision.customFoodId : undefined
           }
           try {
             wx.setStorageSync(DECISION_KEY, decision)
@@ -70,7 +76,9 @@ Page({
           app.globalData.pendingResult = {
             type: 'decision',
             foodId: pendingDecision.foodId,
-            foodName: pendingDecision.foodName || ''
+            foodName: pendingDecision.foodName || '',
+            source: pendingDecision.source || 'DEFAULT',
+            customFoodId: typeof pendingDecision.customFoodId === 'number' ? pendingDecision.customFoodId : undefined
           }
         } catch (e: any) {
           // 决定失败：保留 pendingDecision，停留登录页允许重试

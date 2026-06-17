@@ -4,6 +4,8 @@ interface PendingResult {
   type: 'blacklist' | 'decision'
   foodId: number
   foodName: string
+  source?: 'DEFAULT' | 'CUSTOM'
+  customFoodId?: number
 }
 
 interface IApp {

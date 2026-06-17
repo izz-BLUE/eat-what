@@ -38,14 +38,18 @@ public class UserCustomFoodService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "菜品名称 1-64 个字符");
         }
 
-        // 2. 校验 typeTags / cuisineTags 至少一个非空
-        boolean hasType = request.getTypeTags() != null && !request.getTypeTags().isEmpty();
-        boolean hasCuisine = request.getCuisineTags() != null && !request.getCuisineTags().isEmpty();
+        // 2. 过滤空白标签（[" "] / ["", " "] 视为空）
+        List<String> typeTags = filterBlanks(request.getTypeTags());
+        List<String> cuisineTags = filterBlanks(request.getCuisineTags());
+
+        // 3. 校验 typeTags / cuisineTags 至少一个非空
+        boolean hasType = !typeTags.isEmpty();
+        boolean hasCuisine = !cuisineTags.isEmpty();
         if (!hasType && !hasCuisine) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "typeTags 或 cuisineTags 至少填一个");
         }
 
-        // 3. 校验 mealTypes / tasteTags 非空且合法
+        // 4. 校验 mealTypes / tasteTags 非空且合法
         if (request.getMealTypes() == null || request.getMealTypes().isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "mealTypes 至少选一个");
         }
@@ -53,28 +57,28 @@ public class UserCustomFoodService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "tasteTags 至少选一个");
         }
 
-        // 4. 校验所有标签在 RecommendDict 中
-        validateTags(request.getTypeTags(), RecommendDict.TYPE_TAGS, "typeTag");
-        validateTags(request.getCuisineTags(), RecommendDict.CUISINE_TAGS, "cuisineTag");
+        // 5. 校验所有标签在 RecommendDict 中（使用过滤后的 typeTags/cuisineTags）
+        validateTags(typeTags, RecommendDict.TYPE_TAGS, "typeTag");
+        validateTags(cuisineTags, RecommendDict.CUISINE_TAGS, "cuisineTag");
         validateTags(request.getMealTypes(), RecommendDict.MEAL_TYPES, "mealType");
         validateTags(request.getTasteTags(), RecommendDict.BASE_TASTE_TAGS.stream().toList(), "tasteTag");
 
-        // 5. trim、去重、保留顺序、join 为逗号字符串
-        String typeTags = joinTags(request.getTypeTags());
-        String cuisineTags = joinTags(request.getCuisineTags());
+        // 6. trim、去重、保留顺序、join 为逗号字符串
+        String typeTagsStr = joinTags(typeTags);
+        String cuisineTagsStr = joinTags(cuisineTags);
         String mealTypes = joinTags(request.getMealTypes());
         String tasteTags = joinTags(request.getTasteTags());
 
-        // 6. 派生 category
-        String category = deriveCategory(request.getTypeTags(), request.getCuisineTags());
+        // 7. 派生 category
+        String category = deriveCategory(typeTags, cuisineTags);
 
-        // 7. 构建实体并插入
+        // 8. 构建实体并插入
         UserCustomFood entity = new UserCustomFood();
         entity.setUserId(userId);
         entity.setName(name);
         entity.setCategory(category);
-        entity.setTypeTags(typeTags);
-        entity.setCuisineTags(cuisineTags);
+        entity.setTypeTags(typeTagsStr);
+        entity.setCuisineTags(cuisineTagsStr);
         entity.setMealTypes(mealTypes);
         entity.setTasteTags(tasteTags);
         entity.setPriceLevel(request.getPriceLevel());
@@ -144,6 +148,18 @@ public class UserCustomFoodService {
             }
         }
         return "";
+    }
+
+    /**
+     * 过滤空白标签：null → 空列表，[" "] / ["", " "] → 空列表
+     */
+    private List<String> filterBlanks(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return List.of();
+        }
+        return tags.stream()
+                .filter(tag -> tag != null && !tag.trim().isEmpty())
+                .collect(Collectors.toList());
     }
 
     /**

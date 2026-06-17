@@ -90,6 +90,19 @@ class CustomFoodControllerTest {
     }
 
     @Test
+    void create_blankTypeAndCuisine_returns1001() throws Exception {
+        CustomFoodCreateRequest request = buildRequest("空白标签", List.of(" "),
+                List.of(""), List.of("午餐"), List.of("咸"), null);
+
+        mockMvc.perform(post("/api/v1/custom-foods")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(1001));
+    }
+
+    @Test
     void create_emptyName_returns1001() throws Exception {
         CustomFoodCreateRequest request = buildRequest("", List.of("快餐"),
                 List.of("家常菜"), List.of("午餐"), List.of("咸"), null);
