@@ -1026,7 +1026,9 @@ Page({
           excludeFoodIds: [],
           excludeCustomFoodIds: [],
           errorMsg: '',
-          swapExhausted: false
+          swapExhausted: false,
+          filtersCollapsed: false,
+          filtersSummary: ''
         })
       },
       fail: () => {
