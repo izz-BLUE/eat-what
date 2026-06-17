@@ -1,8 +1,29 @@
 // config/index.ts - 配置文件
 
+// ============================================================
+// 部署模式：根据小程序运行环境自动切换 baseUrl
+// - 正式版 (release) → 使用 PRODUCTION_BASE_URL
+// - 开发版/体验版 (develop/trial) → 使用本地开发地址
+//
+// 上线前只需：替换 PRODUCTION_BASE_URL 为备案 HTTPS 域名
+// ============================================================
+const PRODUCTION_BASE_URL = 'https://api.your-domain.com'  // TODO: 替换为备案域名
+
+function resolveBaseUrl(): string {
+  try {
+    const envVersion = wx.getAccountInfoSync().miniProgram.envVersion
+    if (envVersion === 'release') {
+      return PRODUCTION_BASE_URL
+    }
+  } catch {
+    // wx 不可用时 fallback 到开发地址（如自动化测试环境）
+  }
+  return 'http://localhost:8080'
+}
+
 export const config = {
-  // API 基础地址（开发环境）
-  baseUrl: 'http://localhost:8080',
+  // API 基础地址（自动切换，无需手动改开关）
+  baseUrl: resolveBaseUrl(),
 
   // 请求超时时间（毫秒）
   timeout: 10000,

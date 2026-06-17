@@ -264,8 +264,8 @@ SHOW INDEX FROM foods WHERE Key_name = 'uk_foods_name';
 ```
 
 预期：
-- V1–V9 全部 `success=1`
-- `total=73, enabled=73`
+- V1–V14 全部 `success=1`
+- `total=202, enabled=202`
 - 无重复 name
 - `uk_foods_name` 存在，`Non_unique=0`
 
@@ -306,10 +306,10 @@ docker compose -f deploy/docker-compose.prod.yml logs --tail=100 backend
 修改 `miniprogram/config/index.ts`：
 
 ```typescript
-baseUrl: 'https://api.your-domain.com',
+const PRODUCTION_BASE_URL = 'https://api.your-domain.com'  // 替换为备案域名
 ```
 
-**注意**：开发调试时可以保留 `http://localhost:8080`，通过微信开发者工具"不校验合法域名"选项切换。生产构建前必须改为 HTTPS 域名。
+正式版自动使用 `PRODUCTION_BASE_URL`，开发版/体验版自动使用 `http://localhost:8080`。无需手动切换开关。
 
 ---
 
