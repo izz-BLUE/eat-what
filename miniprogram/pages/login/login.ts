@@ -8,6 +8,13 @@ const app = getApp<IApp>()
 const DECISION_KEY = 'currentMealDecision'
 const DECISION_VERSION = 2
 
+/** 登录后允许白名单跳转的页面路径（防止任意路径注入） */
+const ALLOWED_REDIRECTS = ['/pages/custom-food/custom-food']
+
+function isValidRedirect(path: string): boolean {
+  return ALLOWED_REDIRECTS.includes(path)
+}
+
 Page({
   data: {
     loading: false,
@@ -72,6 +79,7 @@ Page({
           return
         }
         wx.showToast({ title: '登录成功', icon: 'success' })
+        app.globalData.pendingRedirect = undefined
         const pages = getCurrentPages()
         if (pages.length > 1) {
           wx.navigateBack()
@@ -97,6 +105,7 @@ Page({
           return
         }
         wx.showToast({ title: '登录成功', icon: 'success' })
+        app.globalData.pendingRedirect = undefined
         const pages = getCurrentPages()
         if (pages.length > 1) {
           wx.navigateBack()
@@ -106,13 +115,19 @@ Page({
         return
       }
 
-      // 6. 普通登录：返回上一页
+      // 6. 普通登录：优先消费 pendingRedirect，否则返回上一页
       wx.showToast({ title: '登录成功', icon: 'success' })
-      const pages = getCurrentPages()
-      if (pages.length > 1) {
-        wx.navigateBack()
+      const pendingRedirect = app.globalData.pendingRedirect
+      app.globalData.pendingRedirect = undefined
+      if (pendingRedirect && isValidRedirect(pendingRedirect)) {
+        wx.redirectTo({ url: pendingRedirect })
       } else {
-        wx.redirectTo({ url: '/pages/index/index' })
+        const pages = getCurrentPages()
+        if (pages.length > 1) {
+          wx.navigateBack()
+        } else {
+          wx.redirectTo({ url: '/pages/index/index' })
+        }
       }
     } catch (err: any) {
       this.setData({ loading: false, errorMsg: err.message || '登录失败，请重试' })
@@ -140,6 +155,7 @@ Page({
   goBack() {
     app.globalData.pendingDecision = null
     app.globalData.pendingBlacklist = null
+    app.globalData.pendingRedirect = undefined
     const pages = getCurrentPages()
     if (pages.length > 1) {
       wx.navigateBack()

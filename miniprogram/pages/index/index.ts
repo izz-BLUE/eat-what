@@ -986,6 +986,7 @@ Page({
   goToCustomFood() {
     if (!app.isLoggedIn()) {
       wx.showToast({ title: '请先登录', icon: 'none' })
+      app.globalData.pendingRedirect = '/pages/custom-food/custom-food'
       setTimeout(() => {
         wx.navigateTo({ url: '/pages/login/login' })
       }, 300)

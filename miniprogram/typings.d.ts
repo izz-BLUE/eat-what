@@ -15,6 +15,7 @@ interface IApp {
     pendingDecision: any
     pendingBlacklist: any
     pendingResult: PendingResult | null
+    pendingRedirect?: string
   }
   saveLoginInfo(data: { token: string; userId: number; nickname: string; avatarUrl: string }): void
   clearLoginInfo(): void
