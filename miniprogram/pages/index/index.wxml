@@ -46,6 +46,22 @@
       </view>
     </view>
 
+    <!-- 今日胃口 -->
+    <view class="filter-group">
+      <text class="filter-label">今日胃口</text>
+      <view class="filter-options">
+        <view
+          wx:for="{{appetiteOptions}}"
+          wx:key="value"
+          class="filter-chip-touch"
+          bindtap="selectAppetite"
+          data-value="{{item.value}}"
+        >
+          <view class="filter-chip {{item.value === selectedAppetite ? 'chip-active' : ''}}">{{item.label}}</view>
+        </view>
+      </view>
+    </view>
+
     <!-- 参考价位 -->
     <view class="filter-group">
       <text class="filter-label">参考价位</text>

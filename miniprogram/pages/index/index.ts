@@ -12,6 +12,17 @@ const app = getApp<IApp>()
 
 const VALID_MEAL_TYPES = ['早餐', '午餐', '晚餐', '夜宵']
 
+// ============ 今日胃口选项 ============
+
+const APPETITE_OPTIONS = [
+  { value: '随便来点', label: '随便来点' },
+  { value: '清爽点', label: '清爽点' },
+  { value: '重口味', label: '重口味' },
+  { value: '顶饱点', label: '顶饱点' },
+  { value: '省钱吃', label: '省钱吃' },
+  { value: '解馋点', label: '解馋点' },
+]
+
 // ============ 就餐决定本地存储 ============
 
 const DECISION_KEY = 'currentMealDecision'
@@ -265,6 +276,7 @@ Page({
   data: {
     // 选项数据（由 recommend-options 服务提供）
     options: null as RecommendOptionsData | null,
+    appetiteOptions: APPETITE_OPTIONS as DisplayOption[],
     mealTypes: [] as DisplayOption[],
     priceLevels: [] as DisplayOption[],
     tastes: [] as DisplayOption[],
@@ -276,6 +288,7 @@ Page({
 
     // 用户选择
     selectedMealType: '' as string,
+    selectedAppetite: '' as string,          // 空=未选择今日胃口
     selectedPriceLevel: '' as string,      // 空=不限
     selectedTaste: '' as string,            // 空=不限
     selectedTypeTags: [] as string[],
@@ -553,6 +566,134 @@ Page({
       recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], errorMsg: '', swapExhausted: false
     })
     this.saveFilterPreferences({ selectedTypeTags: [], selectedCuisineTags: [] })
+  },
+
+  // ============ 今日胃口 ============
+
+  selectAppetite(e: WechatMiniprogram.TouchEvent) {
+    const value = e.currentTarget.dataset.value as string
+    if (!this.data.options) return
+
+    // 点击已选中的 → 撤销该胃口设置过的筛选项
+    if (this.data.selectedAppetite === value) {
+      this.revertAppetite(value)
+      return
+    }
+
+    let newTaste = this.data.selectedTaste
+    let newPriceLevel = this.data.selectedPriceLevel
+    let newTypeTags = [...this.data.selectedTypeTags]
+    let newCuisineTags = [...this.data.selectedCuisineTags]
+
+    switch (value) {
+      case '随便来点':
+        // 放宽条件：清空 taste / priceLevel / typeTags / cuisineTags，保留 mealType
+        newTaste = ''
+        newPriceLevel = ''
+        newTypeTags = []
+        newCuisineTags = []
+        break
+      case '清爽点':
+        newTaste = '清淡'
+        break
+      case '重口味':
+        newTaste = '辣'
+        break
+      case '顶饱点':
+        newTypeTags = ['快餐', '面食']
+        newCuisineTags = ['家常菜']
+        break
+      case '省钱吃':
+        newPriceLevel = '15以内'
+        break
+      case '解馋点':
+        newTypeTags = ['小吃', '烧烤', '火锅', '甜品', '茶饮']
+        break
+    }
+
+    const display = computeDisplay(
+      this.data.options,
+      this.data.selectedMealType,
+      newPriceLevel,
+      newTaste,
+      newTypeTags,
+      newCuisineTags
+    )
+
+    this.setData({
+      selectedAppetite: value,
+      selectedPriceLevel: newPriceLevel,
+      selectedTaste: newTaste,
+      selectedTypeTags: newTypeTags,
+      selectedCuisineTags: newCuisineTags,
+      ...display,
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], errorMsg: '', swapExhausted: false
+    })
+
+    this.saveFilterPreferences({
+      selectedPriceLevel: newPriceLevel,
+      selectedTaste: newTaste,
+      selectedTypeTags: newTypeTags,
+      selectedCuisineTags: newCuisineTags
+    })
+  },
+
+  /** 撤销某个今日胃口曾设置的筛选条件 */
+  revertAppetite(appetite: string) {
+    if (!this.data.options) return
+
+    let newTaste = this.data.selectedTaste
+    let newPriceLevel = this.data.selectedPriceLevel
+    let newTypeTags = [...this.data.selectedTypeTags]
+    let newCuisineTags = [...this.data.selectedCuisineTags]
+
+    switch (appetite) {
+      case '清爽点':
+        if (newTaste === '清淡') newTaste = ''
+        break
+      case '重口味':
+        if (newTaste === '辣') newTaste = ''
+        break
+      case '省钱吃':
+        if (newPriceLevel === '15以内') newPriceLevel = ''
+        break
+      case '顶饱点':
+        newTypeTags = newTypeTags.filter(t => !['快餐', '面食'].includes(t))
+        newCuisineTags = newCuisineTags.filter(c => c !== '家常菜')
+        break
+      case '解馋点':
+        newTypeTags = newTypeTags.filter(t => !['小吃', '烧烤', '火锅', '甜品', '茶饮'].includes(t))
+        break
+      case '随便来点':
+        // 随便来点仅清空筛选，撤销时无法恢复，保持当前筛选不变
+        break
+    }
+
+    const display = computeDisplay(
+      this.data.options,
+      this.data.selectedMealType,
+      newPriceLevel,
+      newTaste,
+      newTypeTags,
+      newCuisineTags
+    )
+
+    this.setData({
+      selectedAppetite: '',
+      selectedPriceLevel: newPriceLevel,
+      selectedTaste: newTaste,
+      selectedTypeTags: newTypeTags,
+      selectedCuisineTags: newCuisineTags,
+      ...display,
+      recommendResult: null, swapCount: 0, excludeFoodIds: [], excludeCustomFoodIds: [], errorMsg: '', swapExhausted: false
+    })
+
+    this.saveFilterPreferences({
+      selectedPriceLevel: newPriceLevel,
+      selectedTaste: newTaste,
+      selectedTypeTags: newTypeTags,
+      selectedCuisineTags: newCuisineTags
+    })
   },
 
   // ============ 推荐与换一个 ============
@@ -1061,6 +1202,7 @@ Page({
         const defaultMealType = getDefaultMealType()
         this.setData({
           selectedMealType: defaultMealType,
+          selectedAppetite: '',
           selectedPriceLevel: '',
           selectedTaste: '',
           selectedTypeTags: [],
