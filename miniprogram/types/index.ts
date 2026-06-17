@@ -271,3 +271,34 @@ export interface CustomFoodResponse {
   createdAt: string        // ISO datetime
   updatedAt: string        // ISO datetime
 }
+
+/** 推荐反馈原因枚举 */
+export type RecommendationFeedbackReason =
+  | 'RECENTLY_EATEN'   // 最近吃过
+  | 'NOT_IN_MOOD'      // 今天不想吃这个
+  | 'TOO_EXPENSIVE'    // 太贵了
+  | 'TOO_HEAVY'        // 太油/太腻
+  | 'WRONG_TASTE'      // 口味不合适
+  | 'WRONG_CATEGORY'   // 类型不想吃
+  | 'OTHER'            // 其他
+
+/** 推荐反馈请求 */
+export interface RecommendationFeedbackRequest {
+  source: 'DEFAULT' | 'CUSTOM'
+  foodId?: number
+  customFoodId?: number
+  foodName: string
+  reason: RecommendationFeedbackReason
+  mealType?: string
+  priceLevel?: string
+  taste?: string
+  typeTags?: string
+  cuisineTags?: string
+}
+
+/** 推荐反馈响应 */
+export interface RecommendationFeedbackResponse {
+  id: number
+  reason: string
+  createdAt: string
+}

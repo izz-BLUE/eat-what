@@ -1,6 +1,6 @@
 // pages/index/index.ts
 
-import { getRecommend, swapRecommend, addBlacklist, decideFood, getRecord, cancelDecisionRecord } from '../../services/api'
+import { getRecommend, swapRecommend, addBlacklist, decideFood, getRecord, cancelDecisionRecord, submitRecommendationFeedback } from '../../services/api'
 import { RequestError } from '../../utils/request'
 import { RecommendData, MealType, RecommendFilterPreferences, RecommendFilterPreferencesV1, CurrentMealDecision, RecommendOptionsData, DisplayOption } from '../../types/index'
 import { config } from '../../config/index'
@@ -293,6 +293,7 @@ Page({
     excludeCustomFoodIds: [] as number[],
     swapExhausted: false,               // 换一个 2002 空状态
     maxSwapCount: config.maxSwapCount,
+    disliking: false,                   // 不喜欢反馈进行中，防重复点击
     _navigatingToRecord: false,
     _reselectionInProgress: false,
     _categoryTotalExceeded: false
@@ -955,6 +956,95 @@ Page({
       wx.showToast({ title: err.message || '操作失败', icon: 'none' })
     } finally {
       this.setData({ loading: false })
+    }
+  },
+
+  // ============ 不喜欢这次推荐 ============
+
+  handleDislikeRecommendation() {
+    if (!this.data.recommendResult) return
+    if (this.data.disliking) return
+
+    const food = this.data.recommendResult.food
+    const source = food.source || 'DEFAULT'
+    const reasonMap: Record<number, string> = {
+      0: 'RECENTLY_EATEN',
+      1: 'NOT_IN_MOOD',
+      2: 'TOO_EXPENSIVE',
+      3: 'TOO_HEAVY',
+      4: 'WRONG_TASTE',
+      5: 'WRONG_CATEGORY',
+      6: 'OTHER'
+    }
+
+    wx.showActionSheet({
+      itemList: ['最近吃过', '今天不想吃这个', '太贵了', '太油/太腻', '口味不合适', '类型不想吃', '其他'],
+      success: (res) => {
+        const reason = reasonMap[res.tapIndex]
+        this.doDislikeRecommendation(food, source, reason)
+      }
+    })
+  },
+
+  async doDislikeRecommendation(
+    food: { id: number; name: string; source?: string; customFoodId?: number | null;
+            typeTags?: string; cuisineTags?: string; tasteTags?: string; priceLevel?: number },
+    source: string,
+    reason: string
+  ) {
+    if (this.data.disliking) return
+    this.setData({ loading: true, disliking: true })
+
+    // 1. 先把当前菜加入排除列表（去重；不管提交成功与否，立刻换一个）
+    if (source === 'CUSTOM' && typeof food.customFoodId === 'number') {
+      this.data.excludeCustomFoodIds = [...new Set([...this.data.excludeCustomFoodIds, food.customFoodId])]
+    } else {
+      this.data.excludeFoodIds = [...new Set([...this.data.excludeFoodIds, food.id])]
+    }
+
+    // 2. 提交反馈（非阻塞，失败不影响换推荐）
+    try {
+      await submitRecommendationFeedback({
+        source: source as 'DEFAULT' | 'CUSTOM',
+        foodId: source === 'DEFAULT' ? food.id : undefined,
+        customFoodId: source === 'CUSTOM' && typeof food.customFoodId === 'number' ? food.customFoodId : undefined,
+        foodName: food.name,
+        reason: reason as any,
+        mealType: this.data.selectedMealType || undefined,
+        priceLevel: this.getPriceDisplay(food.priceLevel || 0),
+        taste: food.tasteTags || undefined,
+        typeTags: food.typeTags || undefined,
+        cuisineTags: food.cuisineTags || undefined
+      })
+      wx.showToast({ title: '已记录，换一个试试', icon: 'none' })
+    } catch (_e) {
+      // 反馈提交失败不阻断换一个
+      wx.showToast({ title: '已换一个', icon: 'none' })
+    }
+
+    // 3. 自动换一个
+    try {
+      const params = this.buildRequestParams()
+      if (this.data.excludeFoodIds.length > 0) {
+        params.excludeFoodIds = this.data.excludeFoodIds.join(',')
+      }
+      if (this.data.excludeCustomFoodIds.length > 0) {
+        params.excludeCustomFoodIds = this.data.excludeCustomFoodIds.join(',')
+      }
+
+      const result = await swapRecommend(params)
+      const priceDisplay = this.getPriceDisplay(result.food.priceLevel)
+      this.setData({
+        recommendResult: result,
+        priceDisplay,
+        swapCount: this.data.swapCount + 1
+      })
+    } catch (err: any) {
+      if (err instanceof RequestError && err.code === 2002) {
+        this.setData({ recommendResult: null, swapExhausted: true, errorMsg: '' })
+      }
+    } finally {
+      this.setData({ loading: false, disliking: false })
     }
   },
 

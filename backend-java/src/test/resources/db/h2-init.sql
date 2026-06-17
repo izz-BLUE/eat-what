@@ -176,3 +176,24 @@ CREATE TABLE IF NOT EXISTS user_custom_foods (
   PRIMARY KEY (id),
   UNIQUE KEY uk_user_food_name (user_id, name)
 );
+
+-- 推荐反馈表
+CREATE TABLE IF NOT EXISTS recommendation_feedbacks (
+  id             BIGINT       NOT NULL AUTO_INCREMENT,
+  user_id        BIGINT       NULL,
+  food_source    VARCHAR(16)  NOT NULL,
+  food_id        BIGINT       NULL,
+  custom_food_id BIGINT       NULL,
+  food_name      VARCHAR(100) NOT NULL,
+  reason         VARCHAR(32)  NOT NULL,
+  meal_type      VARCHAR(32)  NULL,
+  price_level    VARCHAR(32)  NULL,
+  taste          VARCHAR(32)  NULL,
+  type_tags      VARCHAR(255) NULL,
+  cuisine_tags   VARCHAR(255) NULL,
+  created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_rf_user_created (user_id, created_at),
+  KEY idx_rf_reason_created (reason, created_at),
+  KEY idx_rf_food_source_created (food_source, created_at)
+);

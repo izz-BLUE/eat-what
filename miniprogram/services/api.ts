@@ -19,7 +19,9 @@ import {
   FeedbackRequest,
   FeedbackResponse,
   CustomFoodCreateRequest,
-  CustomFoodResponse
+  CustomFoodResponse,
+  RecommendationFeedbackRequest,
+  RecommendationFeedbackResponse
 } from '../types/index'
 
 /**
@@ -187,4 +189,31 @@ export function listCustomFoods() {
  */
 export function deleteCustomFood(id: number) {
   return del<void>(`/api/v1/custom-foods/${id}`)
+}
+
+// ==================== 推荐反馈 ====================
+
+/**
+ * 提交推荐反馈（不喜欢原因）
+ *
+ * 策略参考 submitFeedback：
+ * - 有 token 时先尝试带 token 提交（记录 userId）
+ * - 收到 1003（token 过期）→ 清登录态 → 匿名重试
+ * - 无 token 时直接匿名提交（不带 Authorization header）
+ */
+export async function submitRecommendationFeedback(data: RecommendationFeedbackRequest): Promise<RecommendationFeedbackResponse> {
+  const app = getApp<IApp>()
+  if (app.globalData.token) {
+    try {
+      return await post<RecommendationFeedbackResponse>('/api/v1/recommendation-feedback', data)
+    } catch (err) {
+      if (err instanceof RequestError && err.code === 1003) {
+        // token 过期，清除后匿名重试
+        app.clearLoginInfo()
+      } else {
+        throw err
+      }
+    }
+  }
+  return post<RecommendationFeedbackResponse>('/api/v1/recommendation-feedback', data, { skipAuth: true })
 }

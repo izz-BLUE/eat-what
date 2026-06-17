@@ -227,6 +227,9 @@
       </button>
       <button class="btn-primary action-btn" bindtap="eatIt" disabled="{{loading}}">我就吃它</button>
     </view>
+    <view class="dislike-action {{disliking ? 'dislike-disabled' : ''}}" bindtap="handleDislikeRecommendation">
+      <text>{{disliking ? '处理中...' : '不喜欢这次推荐'}}</text>
+    </view>
     <view class="blacklist-action" bindtap="addToBlacklist">
       <text>加入黑名单</text>
     </view>

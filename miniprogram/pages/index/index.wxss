@@ -330,6 +330,18 @@
   font-size: 34rpx;
 }
 
+.dislike-action {
+  margin-top: 10rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #7A7468;
+  padding: 6rpx 0;
+}
+
+.dislike-disabled {
+  color: #C4BEB6;
+}
+
 .blacklist-action {
   margin-top: 10rpx;
   text-align: center;
