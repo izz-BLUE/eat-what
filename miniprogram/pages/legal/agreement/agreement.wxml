@@ -1,0 +1,45 @@
+<!--pages/legal/agreement/agreement.wxml-->
+<view class="legal-page">
+  <!-- 草稿标记 -->
+  <view class="draft-banner">
+    <text class="draft-title">[ 草稿版本 ]</text>
+    <text class="draft-desc">当前为草稿版本，正式上线前需替换运营主体、联系方式和生效日期。\n最终以微信后台「隐私保护指引」为准。</text>
+  </view>
+
+  <view class="legal-content">
+    <text class="legal-h1">用户协议</text>
+    <text class="legal-updated">最后更新日期：____年__月__日</text>
+    <text class="legal-updated">生效日期：____年__月__日</text>
+
+    <text class="legal-h2">一、服务说明</text>
+    <text class="legal-p">「今天吃啥」是一款基于规则的吃饭决策工具，帮助你从菜品库中随机推荐吃什么。</text>
+    <text class="legal-p">本小程序供个人使用，不保证推荐结果完全满足你的口味偏好。</text>
+
+    <text class="legal-h2">二、用户行为规范</text>
+    <text class="legal-p">你在使用「今天吃啥」时应遵守以下规范：</text>
+    <text class="legal-p">1. 不提交违法、违规、侵权或含有恶意代码的菜品信息。</text>
+    <text class="legal-p">2. 不利用本小程序进行任何商业推广或广告行为。</text>
+    <text class="legal-p">3. 不干扰或破坏本小程序的正常运营。</text>
+    <text class="legal-p">如违反上述规范，我们有权暂停或终止你的使用权限。</text>
+
+    <text class="legal-h2">三、免责声明</text>
+    <text class="legal-p">1. 推荐结果仅供参考，不构成任何饮食建议。如有特殊饮食需求（过敏、疾病等），请咨询专业人士。</text>
+    <text class="legal-p">2. 本小程序按"现状"提供，不保证服务不中断或无错误。</text>
+    <text class="legal-p">3. 因不可抗力（如自然灾害、网络攻击）导致的服务中断，我们不承担责任。</text>
+
+    <text class="legal-h2">四、知识产权</text>
+    <text class="legal-p">本小程序中除用户自行提交的内容外，其余内容（包括但不限于代码、文案、设计）的知识产权归运营方所有。</text>
+    <text class="legal-p">你创建的自定义菜品数据归你所有，你可以随时删除。</text>
+
+    <text class="legal-h2">五、协议变更</text>
+    <text class="legal-p">我们可能不时更新本协议。如协议发生重大变更，我们将通过小程序内公告的方式通知你。</text>
+    <text class="legal-p">继续使用本小程序即表示你同意修订后的协议。</text>
+
+    <text class="legal-h2">六、联系我们</text>
+    <text class="legal-p">如对本协议有任何疑问，请通过以下方式联系：</text>
+    <text class="legal-p">电子邮箱：________@________.com</text>
+
+    <text class="legal-hr"></text>
+    <text class="legal-p footnote">本用户协议为草稿版本，尚未正式生效。</text>
+  </view>
+</view>

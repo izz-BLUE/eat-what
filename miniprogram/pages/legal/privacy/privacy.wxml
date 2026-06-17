@@ -1,0 +1,55 @@
+<!--pages/legal/privacy/privacy.wxml-->
+<view class="legal-page">
+  <!-- 草稿标记 -->
+  <view class="draft-banner">
+    <text class="draft-title">[ 草稿版本 ]</text>
+    <text class="draft-desc">当前为草稿版本，正式上线前需替换运营主体、联系方式和生效日期。\n最终以微信后台「隐私保护指引」为准。</text>
+  </view>
+
+  <view class="legal-content">
+    <text class="legal-h1">隐私政策</text>
+    <text class="legal-updated">最后更新日期：____年__月__日</text>
+    <text class="legal-updated">生效日期：____年__月__日</text>
+
+    <text class="legal-h2">一、信息收集</text>
+    <text class="legal-p">「今天吃啥」是一款吃饭决策工具，我们仅收集必要的功能信息：</text>
+    <text class="legal-p">1. 微信登录：通过微信授权获取你的头像和昵称，用于个人中心展示。</text>
+    <text class="legal-p">2. 饮食记录：你主动提交的"我就吃它"记录（菜品名称、用餐时间、评分备注）。</text>
+    <text class="legal-p">3. 自定义菜品：你主动创建的菜品信息（菜品名称、标签分类）。</text>
+    <text class="legal-p">4. 黑名单/不想吃：你主动设置的饮食偏好。</text>
+    <text class="legal-p">5. 意见反馈：你主动提交的反馈内容，提交时会采集以下设备基础信息：设备型号、操作系统版本、平台类型、微信版本、SDK 版本。此信息仅用于排查问题，不包含个人身份信息。</text>
+
+    <text class="legal-h2">二、不收集的信息</text>
+    <text class="legal-p">我们明确不收集以下信息：</text>
+    <text class="legal-p">• 手机号码</text>
+    <text class="legal-p">• 地理位置 / GPS 定位</text>
+    <text class="legal-p">• 相册 / 相机</text>
+    <text class="legal-p">• 通讯录</text>
+    <text class="legal-p">• 麦克风</text>
+
+    <text class="legal-h2">三、信息使用目的</text>
+    <text class="legal-p">收集的信息仅用于：</text>
+    <text class="legal-p">1. 提供"今天吃啥"核心推荐服务</text>
+    <text class="legal-p">2. 根据你的饮食偏好优化推荐结果</text>
+    <text class="legal-p">3. 处理你提交的意见反馈</text>
+    <text class="legal-p">我们不会将你的信息用于广告投放、用户画像分析或与第三方共享。</text>
+
+    <text class="legal-h2">四、信息存储与安全</text>
+    <text class="legal-p">你的数据存储在____（云服务商，如：腾讯云）的中国大陆服务器上。我们采取合理的加密和访问控制措施保护你的信息安全。</text>
+    <text class="legal-p">当你注销账户时，你的个人信息将被删除或匿名化处理。</text>
+
+    <text class="legal-h2">五、你的权利</text>
+    <text class="legal-p">你可以随时：</text>
+    <text class="legal-p">• 查看、修改你的个人资料</text>
+    <text class="legal-p">• 删除自定义菜品和历史记录</text>
+    <text class="legal-p">• 管理黑名单和不想吃偏好</text>
+    <text class="legal-p">• 退出登录并停止使用本小程序</text>
+
+    <text class="legal-h2">六、联系我们</text>
+    <text class="legal-p">如对本隐私政策有任何疑问，请通过以下方式联系：</text>
+    <text class="legal-p">电子邮箱：________@________.com</text>
+
+    <text class="legal-hr"></text>
+    <text class="legal-p footnote">本隐私政策为草稿版本，尚未正式生效。</text>
+  </view>
+</view>

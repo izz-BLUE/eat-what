@@ -92,8 +92,8 @@ public class AuthService {
         try {
             userMapper.insert(user);
         } catch (DuplicateKeyException e) {
-            // 并发创建，重新查询
-            log.warn("并发创建用户，重新查询: openid={}", openid);
+            // 并发创建，重新查询（不打印 openid 避免日志泄露）
+            log.warn("并发创建用户，重新查询用户");
             user = userMapper.selectOne(wrapper);
             if (user == null) {
                 throw new RuntimeException("用户创建失败");

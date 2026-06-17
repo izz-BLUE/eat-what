@@ -92,6 +92,11 @@
   background-color: #FFF8EA;
 }
 
+/* 法律信息区域，与上方功能菜单间隔 */
+.legal-section {
+  margin-top: 24rpx;
+}
+
 .menu-text {
   flex: 1;
   font-size: 30rpx;

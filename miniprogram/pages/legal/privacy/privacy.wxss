@@ -1,0 +1,79 @@
+/* pages/legal/privacy/privacy.wxss */
+
+.legal-page {
+  min-height: 100vh;
+  background-color: #FFF8EA;
+}
+
+/* 草稿标记横幅 */
+.draft-banner {
+  background-color: #FFF3CD;
+  border-left: 6rpx solid #FFB000;
+  padding: 20rpx 28rpx;
+  margin: 24rpx 28rpx 0;
+  border-radius: 8rpx;
+}
+
+.draft-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #B8860B;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.draft-desc {
+  font-size: 24rpx;
+  color: #8B6914;
+  line-height: 1.6;
+}
+
+/* 正文区域 */
+.legal-content {
+  padding: 32rpx 36rpx;
+  padding-bottom: calc(64rpx + env(safe-area-inset-bottom));
+}
+
+.legal-h1 {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #06452F;
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.legal-updated {
+  font-size: 24rpx;
+  color: #7A7468;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.legal-h2 {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #19382D;
+  display: block;
+  margin-top: 40rpx;
+  margin-bottom: 16rpx;
+}
+
+.legal-p {
+  font-size: 28rpx;
+  color: #3A3A3A;
+  line-height: 1.8;
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.legal-hr {
+  display: block;
+  height: 1rpx;
+  background-color: #E8DFD0;
+  margin: 40rpx 0 24rpx;
+}
+
+.footnote {
+  color: #7A7468;
+  text-align: center;
+}

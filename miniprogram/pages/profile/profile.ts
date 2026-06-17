@@ -43,6 +43,14 @@ Page({
     wx.navigateTo({ url: '/pages/feedback/feedback' })
   },
 
+  goToPrivacy() {
+    wx.navigateTo({ url: '/pages/legal/privacy/privacy' })
+  },
+
+  goToAgreement() {
+    wx.navigateTo({ url: '/pages/legal/agreement/agreement' })
+  },
+
   checkLogin(): boolean {
     if (!app.isLoggedIn()) {
       if (this.data._loginRedirecting) return false

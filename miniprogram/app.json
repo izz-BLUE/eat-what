@@ -8,7 +8,9 @@
     "pages/blacklist/blacklist",
     "pages/dislike/dislike",
     "pages/feedback/feedback",
-    "pages/custom-food/custom-food"
+    "pages/custom-food/custom-food",
+    "pages/legal/privacy/privacy",
+    "pages/legal/agreement/agreement"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FFB000",
