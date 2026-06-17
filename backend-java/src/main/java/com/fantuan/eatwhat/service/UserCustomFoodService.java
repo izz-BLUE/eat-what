@@ -41,6 +41,8 @@ public class UserCustomFoodService {
         // 2. 过滤空白标签（[" "] / ["", " "] 视为空）
         List<String> typeTags = filterBlanks(request.getTypeTags());
         List<String> cuisineTags = filterBlanks(request.getCuisineTags());
+        List<String> mealTypes = filterBlanks(request.getMealTypes());
+        List<String> tasteTags = filterBlanks(request.getTasteTags());
 
         // 3. 校验 typeTags / cuisineTags 至少一个非空
         boolean hasType = !typeTags.isEmpty();
@@ -50,24 +52,24 @@ public class UserCustomFoodService {
         }
 
         // 4. 校验 mealTypes / tasteTags 非空且合法
-        if (request.getMealTypes() == null || request.getMealTypes().isEmpty()) {
+        if (mealTypes.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "mealTypes 至少选一个");
         }
-        if (request.getTasteTags() == null || request.getTasteTags().isEmpty()) {
+        if (tasteTags.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "tasteTags 至少选一个");
         }
 
-        // 5. 校验所有标签在 RecommendDict 中（使用过滤后的 typeTags/cuisineTags）
+        // 5. 校验所有标签在 RecommendDict 中（使用过滤后的变量）
         validateTags(typeTags, RecommendDict.TYPE_TAGS, "typeTag");
         validateTags(cuisineTags, RecommendDict.CUISINE_TAGS, "cuisineTag");
-        validateTags(request.getMealTypes(), RecommendDict.MEAL_TYPES, "mealType");
-        validateTags(request.getTasteTags(), RecommendDict.BASE_TASTE_TAGS.stream().toList(), "tasteTag");
+        validateTags(mealTypes, RecommendDict.MEAL_TYPES, "mealType");
+        validateTags(tasteTags, RecommendDict.BASE_TASTE_TAGS.stream().toList(), "tasteTag");
 
         // 6. trim、去重、保留顺序、join 为逗号字符串
         String typeTagsStr = joinTags(typeTags);
         String cuisineTagsStr = joinTags(cuisineTags);
-        String mealTypes = joinTags(request.getMealTypes());
-        String tasteTags = joinTags(request.getTasteTags());
+        String mealTypesStr = joinTags(mealTypes);
+        String tasteTagsStr = joinTags(tasteTags);
 
         // 7. 派生 category
         String category = deriveCategory(typeTags, cuisineTags);
@@ -79,8 +81,8 @@ public class UserCustomFoodService {
         entity.setCategory(category);
         entity.setTypeTags(typeTagsStr);
         entity.setCuisineTags(cuisineTagsStr);
-        entity.setMealTypes(mealTypes);
-        entity.setTasteTags(tasteTags);
+        entity.setMealTypes(mealTypesStr);
+        entity.setTasteTags(tasteTagsStr);
         entity.setPriceLevel(request.getPriceLevel());
         entity.setEnabled(true);
 

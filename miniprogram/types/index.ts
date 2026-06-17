@@ -172,13 +172,14 @@ export interface PendingBlacklist {
 
 /** 待决定的菜品（未登录时暂存） */
 export interface PendingDecision {
-  foodId: number
+  /** DEFAULT 来源时必填，CUSTOM 时可空 */
+  foodId?: number
   foodName: string
   category: string
   mealType: string
   /** 菜品来源 */
   source?: 'DEFAULT' | 'CUSTOM'
-  /** 自定义菜品ID */
+  /** 自定义菜品ID（source=CUSTOM 时必填） */
   customFoodId?: number
 }
 
@@ -205,7 +206,8 @@ export interface RecommendFilterPreferencesV1 {
 export interface CurrentMealDecision {
   version: number
   recordId: number
-  foodId: number
+  /** DEFAULT 来源时必填，CUSTOM 时可空 */
+  foodId?: number
   foodName: string
   category: string
   mealType: string

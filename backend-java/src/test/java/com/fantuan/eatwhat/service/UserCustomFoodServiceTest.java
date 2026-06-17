@@ -204,6 +204,44 @@ class UserCustomFoodServiceTest {
         assertEquals(ResultCode.PARAM_ERROR.getCode(), exception.getCode());
     }
 
+    @Test
+    void create_blankMealTags_throwsError() {
+        CustomFoodCreateRequest request = buildValidRequest();
+        request.setMealTypes(List.of(" "));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> userCustomFoodService.create(1L, request));
+        assertEquals(ResultCode.PARAM_ERROR.getCode(), exception.getCode());
+        assertTrue(exception.getMessage().contains("mealTypes"));
+    }
+
+    @Test
+    void create_blankTasteTags_throwsError() {
+        CustomFoodCreateRequest request = buildValidRequest();
+        request.setTasteTags(List.of(" "));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> userCustomFoodService.create(1L, request));
+        assertEquals(ResultCode.PARAM_ERROR.getCode(), exception.getCode());
+        assertTrue(exception.getMessage().contains("tasteTags"));
+    }
+
+    @Test
+    void create_mixedBlankMealAndTasteTags_stripsBlanksAndSucceeds() {
+        Long userId = 1L;
+        CustomFoodCreateRequest request = buildValidRequest();
+        request.setName("混合空白餐段口味");
+        request.setMealTypes(List.of("午餐", " "));
+        request.setTasteTags(List.of("辣", " "));
+
+        when(userCustomFoodMapper.insert(any(UserCustomFood.class))).thenReturn(1);
+
+        CustomFoodResponse response = userCustomFoodService.create(userId, request);
+        assertNotNull(response);
+        assertEquals("午餐", response.getMealTypes());   // 空白被过滤
+        assertEquals("辣", response.getTasteTags());     // 空白被过滤
+    }
+
     // ==================== list ====================
 
     @Test

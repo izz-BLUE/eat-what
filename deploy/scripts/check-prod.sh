@@ -92,13 +92,27 @@ if [ -z "$TOTAL" ]; then
   exit 1
 fi
 
-RUNNING_COUNT=$(echo "$RUNNING" | grep -c . || true)
-TOTAL_COUNT=$(echo "$TOTAL" | grep -c . || true)
+# 逐个检查关键容器，Nginx 非必须
+_has_container() {
+  docker compose -f "$COMPOSE_FILE" ps --status running "$1" 2>/dev/null | grep -q "$1"
+}
 
-if [ "$RUNNING_COUNT" -eq "$TOTAL_COUNT" ] && [ "$TOTAL_COUNT" -eq 3 ]; then
-  _pass "3/3 容器运行中"
+if _has_container mysql; then
+  _pass "MySQL 容器运行中"
 else
-  _fail "容器状态异常：${RUNNING_COUNT}/${TOTAL_COUNT} 运行中（预期 3/3）"
+  _fail "MySQL 容器未运行"
+fi
+
+if _has_container backend; then
+  _pass "Backend 容器运行中"
+else
+  _fail "Backend 容器未运行"
+fi
+
+if _has_container nginx; then
+  _pass "Nginx 容器运行中"
+else
+  _warn "Nginx 容器未运行（备案/HTTPS 未完成前可忽略）"
 fi
 
 docker compose -f "$COMPOSE_FILE" ps 2>/dev/null || true

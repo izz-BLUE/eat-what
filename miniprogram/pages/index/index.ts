@@ -42,8 +42,15 @@ function sanitizeMealDecision(raw: unknown): CurrentMealDecision | null {
   const recordId = typeof d.recordId === 'number' ? d.recordId : Number(d.recordId)
   if (!(Number.isInteger(recordId) && recordId > 0)) return null
 
-  const foodId = typeof d.foodId === 'number' ? d.foodId : Number(d.foodId)
-  if (!(Number.isInteger(foodId) && foodId > 0)) return null
+  // 按来源分支校验：CUSTOM 要求 customFoodId，DEFAULT 要求 foodId
+  const source = d.source === 'CUSTOM' ? 'CUSTOM' as const : undefined
+  if (source === 'CUSTOM') {
+    const customFoodId = typeof d.customFoodId === 'number' ? d.customFoodId : Number(d.customFoodId)
+    if (!(Number.isInteger(customFoodId) && customFoodId > 0)) return null
+  } else {
+    const foodId = typeof d.foodId === 'number' ? d.foodId : Number(d.foodId)
+    if (!(Number.isInteger(foodId) && foodId > 0)) return null
+  }
 
   if (typeof d.foodName !== 'string' || !d.foodName.trim()) return null
 
@@ -54,6 +61,9 @@ function sanitizeMealDecision(raw: unknown): CurrentMealDecision | null {
 
   const decidedAt = typeof d.decidedAt === 'string' ? d.decidedAt : ''
   if (!decidedAt || isNaN(Date.parse(decidedAt))) return null
+
+  // foodId：DEFAULT 必填，CUSTOM 可选
+  const foodId = typeof d.foodId === 'number' && Number.isInteger(d.foodId) && d.foodId > 0 ? d.foodId : undefined
 
   return {
     version: DECISION_VERSION,
@@ -69,7 +79,7 @@ function sanitizeMealDecision(raw: unknown): CurrentMealDecision | null {
     tasteTags: typeof d.tasteTags === 'string' && d.tasteTags.trim() ? d.tasteTags.trim() : undefined,
     priceLevel: typeof d.priceLevel === 'number' && Number.isInteger(d.priceLevel) && d.priceLevel >= 1 && d.priceLevel <= 4 ? d.priceLevel : undefined,
     // 自定义菜字段：缺失按 DEFAULT，不清缓存
-    source: d.source === 'CUSTOM' ? 'CUSTOM' as const : undefined,
+    source,
     customFoodId: typeof d.customFoodId === 'number' && Number.isInteger(d.customFoodId) && d.customFoodId > 0 ? d.customFoodId : undefined
   }
 }
@@ -354,8 +364,8 @@ Page({
       app.globalData.pendingResult = null
       if (result.type === 'blacklist') {
         this.setData({ recommendResult: null, swapCount: 0, swapExhausted: false })
-        if (!this.data.excludeFoodIds.includes(result.foodId)) {
-          this.data.excludeFoodIds.push(result.foodId)
+        if (typeof result.foodId === 'number' && !this.data.excludeFoodIds.includes(result.foodId)) {
+          this.data.excludeFoodIds.push(result.foodId!)
         }
         wx.showToast({ title: '已加入黑名单', icon: 'success' })
       } else if (result.type === 'decision') {
@@ -920,13 +930,14 @@ Page({
         if (!res.confirm) return
 
         if (!app.isLoggedIn()) {
+          const source = food.source || 'DEFAULT'
           app.globalData.pendingDecision = {
-            foodId: food.id,
+            foodId: source === 'CUSTOM' ? undefined : food.id,
             foodName: food.name,
             category: food.category,
             mealType: this.data.selectedMealType || '',
-            source: food.source || 'DEFAULT',
-            customFoodId: typeof food.customFoodId === 'number' ? food.customFoodId : undefined
+            source,
+            customFoodId: source === 'CUSTOM' && typeof food.customFoodId === 'number' ? food.customFoodId : undefined
           }
           app.globalData.pendingBlacklist = null
           wx.navigateTo({ url: '/pages/login/login' })
@@ -956,7 +967,7 @@ Page({
       const decision: CurrentMealDecision = {
         version: DECISION_VERSION,
         recordId: result.id,
-        foodId: food.id,
+        foodId: source === 'CUSTOM' ? undefined : food.id,
         foodName: food.name,
         category: food.category,
         mealType: this.data.selectedMealType || '',
@@ -966,7 +977,7 @@ Page({
         tasteTags: food.tasteTags,
         priceLevel: food.priceLevel,
         source: source as 'DEFAULT' | 'CUSTOM',
-        customFoodId: typeof food.customFoodId === 'number' ? food.customFoodId : undefined
+        customFoodId: source === 'CUSTOM' && typeof food.customFoodId === 'number' ? food.customFoodId : undefined
       }
       this.saveMealDecision(decision)
       this.setData({

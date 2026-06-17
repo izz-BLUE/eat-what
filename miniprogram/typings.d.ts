@@ -2,7 +2,8 @@
 
 interface PendingResult {
   type: 'blacklist' | 'decision'
-  foodId: number
+  /** DEFAULT 来源时必填，CUSTOM 时可空 */
+  foodId?: number
   foodName: string
   source?: 'DEFAULT' | 'CUSTOM'
   customFoodId?: number

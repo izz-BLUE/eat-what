@@ -60,7 +60,7 @@ Page({
           const decision: CurrentMealDecision = {
             version: DECISION_VERSION,
             recordId: record.id,
-            foodId: pendingDecision.foodId,
+            foodId: source === 'CUSTOM' ? undefined : pendingDecision.foodId,
             foodName: pendingDecision.foodName,
             category: pendingDecision.category,
             mealType: pendingDecision.mealType,
@@ -75,7 +75,7 @@ Page({
           // 写入 pendingResult 供首页 onShow 消费
           app.globalData.pendingResult = {
             type: 'decision',
-            foodId: pendingDecision.foodId,
+            foodId: source === 'CUSTOM' ? undefined : pendingDecision.foodId,
             foodName: pendingDecision.foodName || '',
             source: pendingDecision.source || 'DEFAULT',
             customFoodId: typeof pendingDecision.customFoodId === 'number' ? pendingDecision.customFoodId : undefined

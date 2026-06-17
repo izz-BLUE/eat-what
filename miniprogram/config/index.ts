@@ -2,8 +2,8 @@
 
 // ============================================================
 // 部署模式：根据小程序运行环境自动切换 baseUrl
-// - 正式版 (release) → 使用 PRODUCTION_BASE_URL
-// - 开发版/体验版 (develop/trial) → 使用本地开发地址
+// - 开发版 (develop) → 使用本地开发地址 http://localhost:8080
+// - 体验版/正式版 (trial/release) → 使用 PRODUCTION_BASE_URL
 //
 // 上线前只需：替换 PRODUCTION_BASE_URL 为备案 HTTPS 域名
 // ============================================================
@@ -12,9 +12,11 @@ const PRODUCTION_BASE_URL = 'https://api.your-domain.com'  // TODO: 替换为备
 function resolveBaseUrl(): string {
   try {
     const envVersion = wx.getAccountInfoSync().miniProgram.envVersion
-    if (envVersion === 'release') {
-      return PRODUCTION_BASE_URL
+    if (envVersion === 'develop') {
+      return 'http://localhost:8080'
     }
+    // trial 和 release 都使用生产地址
+    return PRODUCTION_BASE_URL
   } catch {
     // wx 不可用时 fallback 到开发地址（如自动化测试环境）
   }
