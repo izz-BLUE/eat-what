@@ -201,6 +201,19 @@ deploy/nginx/certs/
 
 ## 七、启动服务
 
+### 7.1 一键部署（推荐）
+
+```bash
+cd eat-what
+
+# 首次或日常更新均可用
+bash deploy/scripts/deploy-prod.sh
+```
+
+脚本自动执行：`.env` 检查 → `git pull --ff-only` → 构建后端镜像 → 启动全部服务 → 显示容器状态。
+
+### 7.2 手动部署
+
 ```bash
 cd eat-what
 
@@ -215,6 +228,36 @@ docker compose -f deploy/docker-compose.prod.yml ps
 ```
 
 预期输出：三个容器均为 `Up` 状态（healthy）。
+
+### 7.3 部署后健康检查
+
+```bash
+bash deploy/scripts/check-prod.sh
+```
+
+自动检查以下 6 项：
+1. 容器状态（MySQL + Backend + Nginx 共 3 个）
+2. 后端健康接口（`/api/health` → `"status":"UP"`）
+3. Flyway 迁移记录（success=1，最新 version=14）
+4. foods 数据完整性（total=202，enabled=202，无重复菜名）
+5. Nginx 配置语法
+6. 系统资源（CPU / MEM / 磁盘）
+
+输出清晰 `[PASS]` / `[FAIL]` / `[WARN]` 文案，退出码非 0 表示有问题。
+
+### 7.4 日常更新
+
+```bash
+cd eat-what
+
+# 拉取代码并重新部署
+bash deploy/scripts/deploy-prod.sh
+
+# 部署后验证
+bash deploy/scripts/check-prod.sh
+```
+
+**注意**：脚本不会删除数据库 volume（`mysql_data`），数据持久保留。如果新版本有新增 Flyway 迁移，后端启动时自动执行。
 
 ### 内存用量估算（4GB 单机）
 
@@ -244,7 +287,17 @@ curl "https://api.your-domain.com/api/v1/recommend"
 
 ## 八、数据验证
 
-Flyway 迁移由后端启动时自动执行。手动验证：
+### 8.1 自动化检查（推荐）
+
+```bash
+bash deploy/scripts/check-prod.sh
+```
+
+脚本第 3、4 步自动完成以下 SQL 验证，无需手动进 MySQL 容器。
+
+### 8.2 手动验证（参考）
+
+Flyway 迁移由后端启动时自动执行。如需手动验证：
 
 ```bash
 # 进入 MySQL 容器
@@ -263,7 +316,7 @@ SELECT name, COUNT(*) c FROM foods GROUP BY name HAVING c > 1;
 SHOW INDEX FROM foods WHERE Key_name = 'uk_foods_name';
 ```
 
-预期：
+当前预期（V14）：
 - V1–V14 全部 `success=1`
 - `total=202, enabled=202`
 - 无重复 name
