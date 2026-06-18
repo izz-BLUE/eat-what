@@ -67,6 +67,8 @@ if [ -z "$DB_USER" ]; then
 fi
 DB_USER="${DB_USER:-eatwhat}"
 
+DB_NAME="eat_what"
+
 DB_PASSWORD=$(grep -E '^DB_PASSWORD=' "$ENV_FILE" | cut -d'=' -f2-)
 if [ -z "$DB_PASSWORD" ]; then
   DB_PASSWORD=$(grep -E '^SPRING_DATASOURCE_PASSWORD=' "$ENV_FILE" | cut -d'=' -f2-)
@@ -141,32 +143,37 @@ echo ""
 echo "--- 3. Flyway 迁移 ---"
 
 run_mysql() {
-  MYSQL_PWD="$DB_PASSWORD" docker compose -f "$COMPOSE_FILE" exec -T mysql \
-    mysql -u "${DB_USER}" eat_what -N -B -e "$1" 2>/dev/null || true
+  local sql="$1"
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T mysql \
+    mysql \
+      -u"$DB_USER" \
+      --password="$DB_PASSWORD" \
+      -N -B "$DB_NAME" \
+      -e "$sql" 2>/dev/null
 }
 
 if docker compose -f "$COMPOSE_FILE" ps --status running mysql 2>/dev/null | grep -q mysql; then
   # 检查所有 migration 是否成功
   FAILED_MIGRATIONS=$(run_mysql \
-    "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;" || echo "ERROR")
+    "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;") || true
 
-  if [ "$FAILED_MIGRATIONS" = "0" ]; then
+  if [ -z "$FAILED_MIGRATIONS" ]; then
+    _fail "Flyway failed-migration 查询无结果"
+  elif [ "$FAILED_MIGRATIONS" = "0" ]; then
     _pass "所有 Flyway 迁移 success=1"
-  elif [ "$FAILED_MIGRATIONS" = "ERROR" ]; then
-    _fail "无法查询 flyway_schema_history（表可能不存在）"
   else
     _fail "$FAILED_MIGRATIONS 条 Flyway 迁移失败"
   fi
 
   # 检查最新版本
   LATEST_VERSION=$(run_mysql \
-    "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;" || echo "N/A")
+    "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;") || true
 
   EXPECTED_VERSION="15"
-  if [ "$LATEST_VERSION" = "$EXPECTED_VERSION" ]; then
+  if [ -z "$LATEST_VERSION" ]; then
+    _fail "Flyway 最新版本查询无结果"
+  elif [ "$LATEST_VERSION" = "$EXPECTED_VERSION" ]; then
     _pass "Flyway 最新版本 = ${EXPECTED_VERSION}"
-  elif [ "$LATEST_VERSION" = "N/A" ]; then
-    _fail "无法获取 Flyway 版本"
   else
     _fail "Flyway 最新版本 = ${LATEST_VERSION}（预期 ${EXPECTED_VERSION}）"
   fi
@@ -181,36 +188,42 @@ echo ""
 echo "--- 4. foods 数据 ---"
 
 if docker compose -f "$COMPOSE_FILE" ps --status running mysql 2>/dev/null | grep -q mysql; then
+  EXPECTED_FOODS="202"
+  FOODS_QUERY_OK=true
+
   # 菜品总数
   FOODS_COUNT=$(run_mysql \
-    "SELECT COUNT(*) AS total FROM foods WHERE enabled=1;" || echo "0")
+    "SELECT COUNT(*) FROM foods WHERE enabled=1;") || true
 
-  EXPECTED_FOODS="202"
-  if [ "$FOODS_COUNT" = "$EXPECTED_FOODS" ]; then
+  if [ -z "$FOODS_COUNT" ]; then
+    _fail "foods 总数查询无结果"
+    FOODS_QUERY_OK=false
+  elif [ "$FOODS_COUNT" = "$EXPECTED_FOODS" ]; then
     _pass "foods 总数 = ${EXPECTED_FOODS}"
-  elif [ "$FOODS_COUNT" = "0" ]; then
-    _fail "foods 表为空或无法查询"
   else
     _fail "foods 总数 = ${FOODS_COUNT}（预期 ${EXPECTED_FOODS}）"
+    FOODS_QUERY_OK=false
   fi
 
-  # enabled 数
-  ENABLED_COUNT=$(run_mysql \
-    "SELECT COUNT(*) FROM foods WHERE enabled=1;" || echo "0")
-  if [ "$ENABLED_COUNT" = "$EXPECTED_FOODS" ]; then
-    _pass "foods enabled=1 共 ${EXPECTED_FOODS} 道"
-  elif [ "$ENABLED_COUNT" != "$FOODS_COUNT" ]; then
-    _warn "foods 总数=${FOODS_COUNT}, enabled=${ENABLED_COUNT}（部分未启用）"
+  # enabled 数（仅在总数查询成功时检查）
+  if [ "$FOODS_QUERY_OK" = true ]; then
+    ENABLED_COUNT=$(run_mysql \
+      "SELECT COUNT(*) FROM foods WHERE enabled=1;") || true
+    if [ -z "$ENABLED_COUNT" ]; then
+      _fail "foods enabled 查询无结果"
+    elif [ "$ENABLED_COUNT" != "$FOODS_COUNT" ]; then
+      _warn "foods 总数=${FOODS_COUNT}, enabled=${ENABLED_COUNT}（部分未启用）"
+    fi
   fi
 
   # 重复菜名
   DUPLICATES=$(run_mysql \
-    "SELECT COUNT(*) FROM (SELECT name, COUNT(*) c FROM foods GROUP BY name HAVING c > 1) AS dup;" || echo "ERROR")
+    "SELECT COUNT(*) FROM (SELECT name, COUNT(*) c FROM foods GROUP BY name HAVING c > 1) AS dup;") || true
 
-  if [ "$DUPLICATES" = "0" ]; then
+  if [ -z "$DUPLICATES" ]; then
+    _fail "重复菜名查询无结果"
+  elif [ "$DUPLICATES" = "0" ]; then
     _pass "无重复菜名"
-  elif [ "$DUPLICATES" = "ERROR" ]; then
-    _fail "无法检查重复菜名"
   else
     _fail "${DUPLICATES} 个重复菜名（预期 0）"
   fi
