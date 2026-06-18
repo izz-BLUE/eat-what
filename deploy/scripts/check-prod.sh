@@ -141,14 +141,14 @@ echo ""
 echo "--- 3. Flyway 迁移 ---"
 
 run_mysql() {
-  docker compose -f "$COMPOSE_FILE" exec -T mysql \
-    mysql -u "${DB_USER}" -p"${DB_PASSWORD}" eat_what -N -B -e "$1" 2>&1 || true
+  MYSQL_PWD="$DB_PASSWORD" docker compose -f "$COMPOSE_FILE" exec -T mysql \
+    mysql -u "${DB_USER}" eat_what -N -B -e "$1" 2>/dev/null || true
 }
 
 if docker compose -f "$COMPOSE_FILE" ps --status running mysql 2>/dev/null | grep -q mysql; then
   # 检查所有 migration 是否成功
   FAILED_MIGRATIONS=$(run_mysql \
-    "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;" 2>/dev/null || echo "ERROR")
+    "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;" || echo "ERROR")
 
   if [ "$FAILED_MIGRATIONS" = "0" ]; then
     _pass "所有 Flyway 迁移 success=1"
@@ -160,9 +160,9 @@ if docker compose -f "$COMPOSE_FILE" ps --status running mysql 2>/dev/null | gre
 
   # 检查最新版本
   LATEST_VERSION=$(run_mysql \
-    "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;" 2>/dev/null || echo "N/A")
+    "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;" || echo "N/A")
 
-  EXPECTED_VERSION="14"
+  EXPECTED_VERSION="15"
   if [ "$LATEST_VERSION" = "$EXPECTED_VERSION" ]; then
     _pass "Flyway 最新版本 = ${EXPECTED_VERSION}"
   elif [ "$LATEST_VERSION" = "N/A" ]; then
@@ -183,7 +183,7 @@ echo "--- 4. foods 数据 ---"
 if docker compose -f "$COMPOSE_FILE" ps --status running mysql 2>/dev/null | grep -q mysql; then
   # 菜品总数
   FOODS_COUNT=$(run_mysql \
-    "SELECT COUNT(*) AS total FROM foods WHERE enabled=1;" 2>/dev/null || echo "0")
+    "SELECT COUNT(*) AS total FROM foods WHERE enabled=1;" || echo "0")
 
   EXPECTED_FOODS="202"
   if [ "$FOODS_COUNT" = "$EXPECTED_FOODS" ]; then
@@ -196,7 +196,7 @@ if docker compose -f "$COMPOSE_FILE" ps --status running mysql 2>/dev/null | gre
 
   # enabled 数
   ENABLED_COUNT=$(run_mysql \
-    "SELECT COUNT(*) FROM foods WHERE enabled=1;" 2>/dev/null || echo "0")
+    "SELECT COUNT(*) FROM foods WHERE enabled=1;" || echo "0")
   if [ "$ENABLED_COUNT" = "$EXPECTED_FOODS" ]; then
     _pass "foods enabled=1 共 ${EXPECTED_FOODS} 道"
   elif [ "$ENABLED_COUNT" != "$FOODS_COUNT" ]; then
@@ -205,7 +205,7 @@ if docker compose -f "$COMPOSE_FILE" ps --status running mysql 2>/dev/null | gre
 
   # 重复菜名
   DUPLICATES=$(run_mysql \
-    "SELECT COUNT(*) FROM (SELECT name, COUNT(*) c FROM foods GROUP BY name HAVING c > 1) AS dup;" 2>/dev/null || echo "ERROR")
+    "SELECT COUNT(*) FROM (SELECT name, COUNT(*) c FROM foods GROUP BY name HAVING c > 1) AS dup;" || echo "ERROR")
 
   if [ "$DUPLICATES" = "0" ]; then
     _pass "无重复菜名"
