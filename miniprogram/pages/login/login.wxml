@@ -8,7 +8,7 @@
   <!-- 内容区 -->
   <view class="login-body">
     <view class="login-title">今天吃啥</view>
-    <view class="login-desc">登录后可以保存你的口味偏好和吃过记录</view>
+    <view class="login-desc">登录后你的选择会被记住，下次打开直接用</view>
 
     <button
       class="btn-primary btn-login"
@@ -22,7 +22,7 @@
 
     <!-- 返回首页 -->
     <view class="back-section">
-      <text class="back-link" bindtap="goBack">暂不登录，返回首页</text>
+      <text class="back-link" bindtap="goBack">跳过，先看看 →</text>
     </view>
   </view>
 

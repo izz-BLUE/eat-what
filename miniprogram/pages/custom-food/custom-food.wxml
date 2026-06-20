@@ -103,13 +103,15 @@
 
   <!-- 1. 加载中 -->
   <view class="loading" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
     <text>加载中...</text>
   </view>
 
   <!-- 2. 未登录 -->
   <view class="empty-state" wx:elif="{{notLoggedIn}}">
     <image class="empty-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
-    <text class="empty-text">请先登录后管理自定义菜品</text>
+    <text class="empty-text">登录后才能添加自定义菜品哦</text>
+    <text class="empty-sub">登录后可以保存你的专属菜品，下次推荐优先考虑。</text>
     <button class="btn-primary" bindtap="goToLogin" style="margin-top: 32rpx;">去登录</button>
   </view>
 

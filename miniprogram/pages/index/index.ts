@@ -712,18 +712,18 @@ Page({
 
   computeFiltersSummary(): string {
     const parts: string[] = []
-    if (this.data.selectedAppetite) parts.push(`今日胃口：${this.data.selectedAppetite}`)
-    if (this.data.selectedMealType) parts.push(`餐段：${this.data.selectedMealType}`)
+    if (this.data.selectedMealType) parts.push(this.data.selectedMealType)
+    if (this.data.selectedAppetite) parts.push(this.data.selectedAppetite)
     if (this.data.selectedPriceLevel) {
       const priceLabel: Record<string, string> = {
         '15以内': '15元内', '15-25': '15-25元', '25-40': '25-40元', '40以上': '40元以上'
       }
-      parts.push(`价位：${priceLabel[this.data.selectedPriceLevel] || this.data.selectedPriceLevel}`)
+      parts.push(priceLabel[this.data.selectedPriceLevel] || this.data.selectedPriceLevel)
     }
-    if (this.data.selectedTaste) parts.push(`口味：${this.data.selectedTaste}`)
-    if (this.data.selectedTypeTags.length > 0) parts.push(`类型：${this.data.selectedTypeTags.join('、')}`)
-    if (this.data.selectedCuisineTags.length > 0) parts.push(`菜系：${this.data.selectedCuisineTags.join('、')}`)
-    return parts.length > 0 ? parts.join(' | ') : '未设置筛选条件'
+    if (this.data.selectedTaste) parts.push(this.data.selectedTaste)
+    if (this.data.selectedTypeTags.length > 0) parts.push(this.data.selectedTypeTags.join('/'))
+    if (this.data.selectedCuisineTags.length > 0) parts.push(this.data.selectedCuisineTags.join('/'))
+    return parts.length > 0 ? parts.join(' · ') : '未设置筛选条件'
   },
 
   toggleFiltersCollapsed() {

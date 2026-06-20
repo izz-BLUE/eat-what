@@ -21,6 +21,14 @@
   color: #7A7468;
 }
 
+.empty-sub {
+  font-size: 24rpx;
+  color: #7A7468;
+  margin-top: 8rpx;
+  text-align: center;
+  padding: 0 48rpx;
+}
+
 /* ========== 表单卡片 ========== */
 
 .add-block {

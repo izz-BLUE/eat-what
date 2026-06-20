@@ -159,6 +159,7 @@
 
   <!-- 加载状态 -->
   <view class="loading" wx:if="{{loading && !recommendResult && !mealDecision}}">
+    <view class="loading-spinner"></view>
     <text>正在为你推荐...</text>
   </view>
 
@@ -260,7 +261,7 @@
       <text>{{disliking ? '处理中...' : '不喜欢这次推荐'}}</text>
     </view>
     <view class="blacklist-action" bindtap="addToBlacklist">
-      <text>加入黑名单</text>
+      <text>再也不想吃这个</text>
     </view>
   </block>
 

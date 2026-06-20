@@ -2,6 +2,7 @@
 <view class="history-page">
   <!-- 1. 加载中 -->
   <view class="loading" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
     <text>加载中...</text>
   </view>
 

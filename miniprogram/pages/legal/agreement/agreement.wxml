@@ -1,15 +1,9 @@
 <!--pages/legal/agreement/agreement.wxml-->
 <view class="legal-page">
-  <!-- 草稿标记 -->
-  <view class="draft-banner">
-    <text class="draft-title">[ 草稿版本 ]</text>
-    <text class="draft-desc">当前为草稿版本，正式上线前需替换运营主体、联系方式和生效日期。\n最终以微信后台「隐私保护指引」为准。</text>
-  </view>
-
   <view class="legal-content">
     <text class="legal-h1">用户协议</text>
-    <text class="legal-updated">最后更新日期：____年__月__日</text>
-    <text class="legal-updated">生效日期：____年__月__日</text>
+    <text class="legal-updated">最后更新日期：2026年06月18日</text>
+    <text class="legal-updated">生效日期：2026年06月18日</text>
 
     <text class="legal-h2">一、服务说明</text>
     <text class="legal-p">「今天吃啥」是一款基于规则的吃饭决策工具，帮助你从菜品库中随机推荐吃什么。</text>
@@ -37,9 +31,9 @@
 
     <text class="legal-h2">六、联系我们</text>
     <text class="legal-p">如对本协议有任何疑问，请通过以下方式联系：</text>
-    <text class="legal-p">电子邮箱：________@________.com</text>
+    <text class="legal-p">电子邮箱：2277281992@qq.com</text>
 
     <text class="legal-hr"></text>
-    <text class="legal-p footnote">本用户协议为草稿版本，尚未正式生效。</text>
+    <text class="legal-p footnote">运营主体：个人开发者</text>
   </view>
 </view>

@@ -2,6 +2,7 @@
 <view class="record-page">
   <!-- 加载详情中 -->
   <view class="loading" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
     <text>加载中...</text>
   </view>
 
