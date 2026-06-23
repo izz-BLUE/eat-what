@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "今天吃啥",
+  "navigationBarBackgroundColor": "#F5DA81",
   "enablePullDownRefresh": false
 }

@@ -4,8 +4,8 @@
 
 .page-container {
   padding: 0 32rpx;
-  /* bar-top(20) + btn-min-h(96) + bar-bot(20) + safe-area + extra(24) = 160 + safe, +24 safety */
-  padding-bottom: calc(184rpx + env(safe-area-inset-bottom));
+  /* 固定底栏高度估算：btn-bar(136) + dislike(48) + blacklist(48) + padding(40) + safe-area ≈ 272 + safe */
+  padding-bottom: calc(280rpx + env(safe-area-inset-bottom));
 }
 
 /* 结果锚点（零高度，仅作为滚动目标） */
@@ -19,7 +19,7 @@
 .brand-header {
   display: flex;
   align-items: center;
-  padding: 16rpx 0 16rpx;
+  padding: 20rpx 0 20rpx;
 }
 
 .brand-avatar {
@@ -36,31 +36,31 @@
 }
 
 .brand-title {
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: #06452F;
   display: block;
 }
 
 .brand-subtitle {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #7A7468;
   display: block;
-  margin-top: 2rpx;
+  margin-top: 4rpx;
 }
 
 .profile-entry {
-  font-size: 26rpx;
-  color: #06452F;
+  font-size: 24rpx;
+  color: #7A7468;
   flex-shrink: 0;
   margin-left: 16rpx;
-  padding: 0 22rpx;
-  height: 52rpx;
-  line-height: 52rpx;
-  border: 2rpx solid #06452F;
+  padding: 0 20rpx;
+  height: 48rpx;
+  line-height: 48rpx;
+  border: 1rpx solid #E8DFD0;
   border-radius: 999rpx;
   background-color: #FFFFFF;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* ========== 筛选面板 ========== */
@@ -127,6 +127,23 @@
   display: block;
 }
 
+/* 今日胃口：比普通筛选项更醒目 */
+.filter-group-appetite {
+  background-color: #FFF9EC;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx 12rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid #F3D89B;
+}
+
+.filter-label-appetite {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #06452F;
+  margin-bottom: 12rpx;
+  display: block;
+}
+
 .filter-hint {
   font-size: 22rpx;
   color: #7A7468;
@@ -166,6 +183,12 @@
 }
 
 .filter-chip.chip-active {
+  background-color: #06452F;
+  color: #fff;
+}
+
+/* 今日胃口 chip 选中态保留暖橙，与主按钮呼应 */
+.filter-group-appetite .filter-chip.chip-active {
   background-color: #F24A0D;
   color: #fff;
 }
@@ -178,6 +201,11 @@
 /* 重置按钮 */
 .filter-reset-row {
   text-align: right;
+}
+
+/* 筛选展开末尾留白，防固定底栏遮挡最后一组 chip */
+.filter-end-spacer {
+  height: 160rpx;
 }
 
 .reset-link {
@@ -193,21 +221,33 @@
 /* ========== 推荐结果 / 已决定 ========== */
 
 .result-area {
-  margin-bottom: 16rpx;
+  margin-bottom: 8rpx;
 }
 
 .result-block {
   background-color: #FFFFFF;
   border-radius: 16rpx;
-  padding: 32rpx 28rpx;
+  padding: 36rpx 32rpx;
   border: 1rpx solid #E8DFD0;
 }
 
+.result-recommend-label {
+  display: inline-block;
+  font-size: 22rpx;
+  color: #F24A0D;
+  background-color: #FFF9EC;
+  border: 1rpx solid #F3D89B;
+  border-radius: 20rpx;
+  padding: 4rpx 16rpx;
+  margin-bottom: 16rpx;
+  letter-spacing: 1rpx;
+}
+
 .result-food-name {
-  font-size: 40rpx;
+  font-size: 44rpx;
   font-weight: 700;
   color: #06452F;
-  margin-bottom: 14rpx;
+  margin-bottom: 16rpx;
   word-break: break-all;
 }
 
@@ -267,14 +307,14 @@
   color: #06452F;
   font-weight: 600;
   display: block;
-  margin-bottom: 8rpx;
+  margin-bottom: 10rpx;
 }
 
 .result-reason-item {
   font-size: 26rpx;
   color: #19382D;
   display: block;
-  line-height: 1.7;
+  line-height: 1.8;
 }
 
 /* ========== 已决定状态 ========== */
@@ -282,7 +322,7 @@
 .decision-block {
   background-color: #FFFFFF;
   border-radius: 16rpx;
-  padding: 32rpx 28rpx;
+  padding: 36rpx 32rpx;
   border: 1rpx solid #E8DFD0;
   text-align: center;
 }
@@ -292,9 +332,9 @@
   background-color: #06452F;
   color: #fff;
   font-size: 24rpx;
-  padding: 6rpx 24rpx;
+  padding: 8rpx 28rpx;
   border-radius: 24rpx;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
 }
 
 .decision-food-name {
@@ -366,8 +406,17 @@
   flex: 1;
   min-width: 0;
   white-space: nowrap;
-  font-size: 26rpx;
+  font-size: 28rpx;
   padding: 12rpx 24rpx;
+}
+
+/* 推荐结果：换一个（次主按钮）= 38%，我就吃它（主按钮）= 62% */
+.action-btn-swap {
+  flex: 0 0 38%;
+}
+
+.action-btn-eat {
+  flex: 0 0 62%;
 }
 
 .action-btn-left {
@@ -380,16 +429,18 @@
 
 .btn-single-action {
   width: 100%;
-  height: 96rpx;
-  font-size: 34rpx;
+  height: 104rpx;
+  font-size: 36rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
 }
 
 .dislike-action {
-  margin-top: 14rpx;
+  margin-top: 18rpx;
   text-align: center;
   font-size: 24rpx;
   color: #7A7468;
-  padding: 12rpx 0;
+  padding: 10rpx 0;
 }
 
 .dislike-disabled {
@@ -397,18 +448,18 @@
 }
 
 .blacklist-action {
-  margin-top: 10rpx;
+  margin-top: 6rpx;
   text-align: center;
   font-size: 24rpx;
   color: #7A7468;
-  padding: 12rpx 0;
+  padding: 10rpx 0;
 }
 
 /* ========== 自定义菜品入口 ========== */
 
 .custom-food-entry {
   text-align: center;
-  margin-bottom: 4rpx;
+  margin-bottom: 12rpx;
   min-height: 56rpx;
   display: flex;
   align-items: center;
@@ -418,12 +469,12 @@
 .custom-food-entry text {
   display: inline-block;
   font-size: 24rpx;
-  color: #06452F;
+  color: #7A7468;
   font-weight: 500;
   padding: 0 24rpx;
-  height: 56rpx;
-  line-height: 56rpx;
-  background-color: #FFF8EA;
+  height: 52rpx;
+  line-height: 52rpx;
+  background-color: #FFFFFF;
   border: 1rpx solid #E8DFD0;
   border-radius: 999rpx;
 }

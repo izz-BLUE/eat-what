@@ -22,10 +22,10 @@
   <view class="brand-header">
     <image class="brand-avatar brand-avatar-entrance" src="/assets/images/brand-avatar.png" mode="aspectFit" />
     <view class="brand-center">
-      <text class="brand-title">今天想吃什么？</text>
-      <text class="brand-subtitle">挑好条件，我来选</text>
+      <text class="brand-title">今天吃什么？</text>
+      <text class="brand-subtitle">纠结的时候，帮你快点决定</text>
     </view>
-    <text class="profile-entry" bindtap="goToProfile">我的 ›</text>
+    <text class="profile-entry" bindtap="goToProfile">我的</text>
   </view>
 
   <!-- 筛选条件面板 -->
@@ -56,8 +56,8 @@
     </view>
 
     <!-- 今日胃口 -->
-    <view class="filter-group">
-      <text class="filter-label">今日胃口</text>
+    <view class="filter-group filter-group-appetite">
+      <text class="filter-label filter-label-appetite">⚡ 今日胃口</text>
       <view class="filter-options">
         <view
           wx:for="{{appetiteOptions}}"
@@ -149,18 +149,20 @@
     <view class="filter-reset-row">
       <text class="reset-link" bindtap="handleReset">重置筛选</text>
     </view>
+    <!-- 防底部固定栏遮挡 -->
+    <view class="filter-end-spacer"></view>
     </view>
   </view>
 
   <!-- 添加自定义菜入口 -->
   <view class="custom-food-entry" bindtap="goToCustomFood">
-    <text>没找到想吃的？添加自定义菜 ›</text>
+    <text>✨ 没找到想吃的？添加自定义菜 ›</text>
   </view>
 
   <!-- 加载状态 -->
   <view class="loading" wx:if="{{loading && !recommendResult && !mealDecision}}">
     <view class="loading-spinner"></view>
-    <text>正在为你推荐...</text>
+    <text>正在帮你想吃什么...</text>
   </view>
 
   <!-- 错误状态 -->
@@ -175,7 +177,7 @@
   <!-- 已决定状态 -->
   <view class="result-area fade-up-in" wx:if="{{mealDecision}}">
     <view class="decision-block">
-      <view class="decision-status">今天就吃</view>
+      <view class="decision-status">🍽️ 今天就吃</view>
       <view class="decision-food-name">
         {{mealDecision.foodName}}
         <text wx:if="{{mealDecision.source === 'CUSTOM'}}" class="custom-badge">自定义</text>
@@ -202,6 +204,7 @@
   <!-- 推荐结果（无决定时） -->
   <view class="result-area fade-up-in" wx:elif="{{recommendResult}}">
     <view class="result-block">
+      <text class="result-recommend-label">🍜 为你推荐</text>
       <view class="result-food-name">
         {{recommendResult.food.name}}
         <text wx:if="{{recommendResult.food.source === 'CUSTOM'}}" class="custom-badge">自定义</text>
@@ -226,7 +229,7 @@
 
       <!-- 推荐理由：后端 reasons 数组逐条展示 -->
       <view class="result-reasons" wx:if="{{recommendResult.reasons.length > 0}}">
-        <text class="result-reason-label">推荐理由</text>
+        <text class="result-reason-label">💡 推荐理由</text>
         <text wx:for="{{recommendResult.reasons}}" wx:key="*this" class="result-reason-item">{{item}}</text>
       </view>
     </view>
@@ -234,8 +237,8 @@
 
   <!-- 换一个已耗尽（2002）：独立空状态卡片 -->
   <view class="exhausted-card fade-up-in" wx:if="{{swapExhausted && !mealDecision}}">
-    <text class="exhausted-title">当前条件没有更多合适菜品</text>
-    <text class="exhausted-desc">可以放宽筛选条件或重新开始</text>
+    <text class="exhausted-title">😅 当前条件没有更多合适菜品</text>
+    <text class="exhausted-desc">放宽筛选条件，或者重置后重新开始吧</text>
   </view>
 </view>
 
@@ -252,10 +255,10 @@
   <!-- 推荐结果 -->
   <block wx:elif="{{recommendResult}}">
     <view class="action-buttons">
-      <button class="btn-secondary action-btn" bindtap="swapRecommend" disabled="{{swapCount >= maxSwapCount || loading}}">
+      <button class="btn-secondary action-btn action-btn-swap" bindtap="swapRecommend" disabled="{{swapCount >= maxSwapCount || loading}}">
         {{swapCount >= maxSwapCount ? '换不动了' : '换一个' + (swapCount > 0 ? '(' + swapCount + '/' + maxSwapCount + ')' : '')}}
       </button>
-      <button class="btn-primary action-btn" bindtap="eatIt" disabled="{{loading}}">我就吃它</button>
+      <button class="btn-primary action-btn action-btn-eat" bindtap="eatIt" disabled="{{loading}}">我就吃它</button>
     </view>
     <view class="dislike-action {{disliking ? 'dislike-disabled' : ''}}" bindtap="handleDislikeRecommendation">
       <text>{{disliking ? '处理中...' : '不喜欢这次推荐'}}</text>
@@ -276,7 +279,7 @@
   <!-- 未推荐 / 加载中 / 错误：单个主按钮 -->
   <block wx:else>
     <button class="btn-primary btn-single-action" bindtap="getRecommend" disabled="{{loading}}">
-      {{loading ? '推荐中...' : '帮我选一个'}}
+      {{loading ? '正在帮你想...' : '帮我选一个'}}
     </button>
   </block>
 </view>

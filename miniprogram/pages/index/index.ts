@@ -723,7 +723,7 @@ Page({
     if (this.data.selectedTaste) parts.push(this.data.selectedTaste)
     if (this.data.selectedTypeTags.length > 0) parts.push(this.data.selectedTypeTags.join('/'))
     if (this.data.selectedCuisineTags.length > 0) parts.push(this.data.selectedCuisineTags.join('/'))
-    return parts.length > 0 ? parts.join(' · ') : '未设置筛选条件'
+    return parts.length > 0 ? parts.join(' · ') : '选个胃口，马上帮你决定'
   },
 
   toggleFiltersCollapsed() {
@@ -792,7 +792,7 @@ Page({
           return
         }
         if (err.code === 2002) {
-          this.setData({ errorMsg: '当前条件没有合适菜品，请调整筛选条件', recommendResult: null })
+          this.setData({ errorMsg: '这个组合有点刁钻，换个条件试试？', recommendResult: null })
         } else if (err.code === 1003) {
           this.setData({ errorMsg: '登录已过期，请重新登录后享受个性化推荐' })
         } else {
@@ -895,7 +895,7 @@ Page({
     } catch (err: any) {
       if (err instanceof RequestError) {
         if (err.code === 2002) {
-          this.setData({ errorMsg: '当前条件没有合适菜品，请调整筛选条件' })
+          this.setData({ errorMsg: '这个组合有点刁钻，换个条件试试？' })
         } else {
           this.setData({ errorMsg: err.message || '推荐失败，请重试' })
         }
