@@ -92,5 +92,18 @@ Page({
     } catch (err: any) {
       this.setData({ submitting: false, errorMsg: err.message || '提交失败，请稍后再试' })
     }
+  },
+
+  onShareAppMessage() {
+    return {
+      title: '饭团今天吃什么，帮你快速决定今天吃啥',
+      path: '/pages/index/index'
+    }
+  },
+
+  onShareTimeline() {
+    return {
+      title: '饭团今天吃什么，帮你快速决定今天吃啥'
+    }
   }
 })
