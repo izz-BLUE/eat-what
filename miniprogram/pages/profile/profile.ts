@@ -12,7 +12,7 @@ Page({
 
   onShow() {
     this.setData({
-      nickname: app.globalData.nickname || '未设置昵称',
+      nickname: app.globalData.nickname || '饭团用户',
       avatarUrl: app.globalData.avatarUrl || '',
       isLoggedIn: app.isLoggedIn(),
       _loginRedirecting: false
