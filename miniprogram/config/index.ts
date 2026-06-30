@@ -7,7 +7,7 @@
 //
 // 上线前只需：替换 PRODUCTION_BASE_URL 为备案 HTTPS 域名
 // ============================================================
-const PRODUCTION_BASE_URL = 'https://api.your-domain.com'  // TODO: 替换为备案域名
+const PRODUCTION_BASE_URL = 'https://api.jintianchi.cn'  // 生产域名（HTTPS）
 
 function resolveBaseUrl(): string {
   try {
