@@ -357,6 +357,13 @@ Page({
   },
 
   onShow() {
+    // 显式启用分享菜单（部分微信版本仅定义 onShareAppMessage 不够）
+    wx.showShareMenu({
+      withShareTicket: false,
+      menus: ['shareAppMessage', 'shareTimeline']
+    })
+    console.log('[share-check] index page loaded, onShareAppMessage enabled')
+
     this.setData({ _navigatingToRecord: false, _reselectionInProgress: false })
 
     const result = app.globalData.pendingResult
