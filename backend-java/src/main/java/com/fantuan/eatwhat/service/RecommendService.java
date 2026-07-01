@@ -37,6 +37,13 @@ public class RecommendService {
     private final UserCustomFoodService userCustomFoodService;
 
     /**
+     * 非主餐 typeTags：当用户指定了餐段（早/午/晚/夜宵）时，
+     * 排除这些类型的食物，避免甜品/茶饮混入主餐推荐。
+     * mealType 为空（不限）时不过滤。
+     */
+    private static final Set<String> SIDE_ITEM_TYPE_TAGS = Set.of("甜品", "茶饮");
+
+    /**
      * 推荐一个菜品
      *
      * @param request 推荐请求参数
@@ -82,6 +89,11 @@ public class RecommendService {
             if (StringUtils.hasText(request.getMealType())) {
                 customCandidates = customCandidates.stream()
                         .filter(f -> matchesCustomMealType(f, request.getMealType()))
+                        .collect(Collectors.toList());
+
+                // 指定餐段时排除甜品/茶饮等非主餐类型
+                customCandidates = customCandidates.stream()
+                        .filter(f -> !isSideItemType(f.getTypeTags()))
                         .collect(Collectors.toList());
             }
 
@@ -172,6 +184,11 @@ public class RecommendService {
         if (StringUtils.hasText(request.getMealType())) {
             candidates = candidates.stream()
                     .filter(f -> matchesMealType(f, request.getMealType()))
+                    .collect(Collectors.toList());
+
+            // 指定餐段时排除甜品/茶饮等非主餐类型
+            candidates = candidates.stream()
+                    .filter(f -> !isSideItemType(f.getTypeTags()))
                     .collect(Collectors.toList());
         }
 
@@ -343,6 +360,15 @@ public class RecommendService {
     private boolean matchesMealType(Food food, String mealType) {
         Set<String> mealTypes = FoodTaxonomy.parseTags(food.getMealTypes());
         return mealTypes.contains(mealType);
+    }
+
+    /**
+     * 判断食物是否为非主餐类型（甜品、茶饮等）。
+     * 仅在用户指定了餐段时调用，避免甜品/茶饮混入主餐推荐。
+     */
+    private boolean isSideItemType(String typeTags) {
+        Set<String> tags = FoodTaxonomy.parseTags(typeTags);
+        return tags.stream().anyMatch(SIDE_ITEM_TYPE_TAGS::contains);
     }
 
     /**

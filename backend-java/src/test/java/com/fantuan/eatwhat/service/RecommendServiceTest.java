@@ -1501,6 +1501,100 @@ class RecommendServiceTest {
                 "评分偏好不能覆盖餐段硬过滤，早餐不应返回火锅");
     }
 
+    // ==================== 甜品/茶饮主餐推荐排除 ====================
+
+    @Test
+    void recommend_dessertExcludedWhenMealTypeSpecified() {
+        // 指定餐段"午餐"时，甜品不应被推荐
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setUserId(null);
+
+        Food dessert = createFood(1L, "蛋糕", "甜品", "甜品", "", "午餐,晚餐,夜宵", "甜", 2);
+        Food porkRice = createFood(2L, "猪脚饭", "快餐", "快餐", "", "午餐,晚餐", "咸,香", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(dessert, porkRice));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(2L, response.getFood().getId(),
+                "指定餐段时不应推荐甜品");
+    }
+
+    @Test
+    void recommend_teaDrinkExcludedWhenMealTypeSpecified() {
+        // 指定餐段"晚餐"时，茶饮不应被推荐
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(null);
+
+        Food tea = createFood(1L, "百香果茶", "茶饮", "茶饮", "", "午餐,晚餐,夜宵", "甜,酸", 2);
+        Food hotpot = createFood(2L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        when(foodService.listAllEnabled()).thenReturn(List.of(tea, hotpot));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(2L, response.getFood().getId(),
+                "指定餐段时不应推荐茶饮");
+    }
+
+    @Test
+    void recommend_dessertAllowedWhenNoMealType() {
+        // 不指定餐段时，甜品可以被推荐
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("");
+        request.setUserId(null);
+
+        Food dessert = createFood(1L, "蛋糕", "甜品", "甜品", "", "午餐,晚餐,夜宵", "甜", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(dessert));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertEquals(1L, response.getFood().getId(),
+                "不指定餐段时甜品应正常推荐");
+    }
+
+    @Test
+    void recommend_normalFoodNotAffectedBySideItemFilter() {
+        // 正常主餐不应被 side-item 过滤影响
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("晚餐");
+        request.setUserId(null);
+
+        Food food1 = createFood(1L, "火锅", "火锅", "火锅", "", "晚餐", "辣,麻", 4);
+        Food food2 = createFood(2L, "寿司", "日料", "", "日料", "午餐,晚餐", "清淡,鲜", 3);
+        when(foodService.listAllEnabled()).thenReturn(List.of(food1, food2));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNotNull(response);
+        assertTrue(response.getFood().getId() == 1L || response.getFood().getId() == 2L,
+                "正常主餐不应被 side-item 过滤影响");
+    }
+
+    @Test
+    void recommend_onlyDessertsAndTeaAvailableWithMealType_returnsNull() {
+        // 指定餐段但候选池只有甜品和茶饮时，应返回 null（触发 2002）
+        RecommendRequest request = new RecommendRequest();
+        request.setMealType("午餐");
+        request.setUserId(null);
+
+        Food dessert = createFood(1L, "蛋糕", "甜品", "甜品", "", "午餐,晚餐,夜宵", "甜", 2);
+        Food tea = createFood(2L, "百香果茶", "茶饮", "茶饮", "", "午餐,晚餐,夜宵", "甜,酸", 2);
+        when(foodService.listAllEnabled()).thenReturn(List.of(dessert, tea));
+        when(eatRecordService.getRecentEatenFoodMap(null)).thenReturn(Map.of());
+
+        RecommendResponse response = recommendService.recommend(request);
+
+        assertNull(response, "候选池全是甜品/茶饮且指定餐段时应返回 null");
+    }
+
     // ==================== 工具方法 ====================
 
     private int invokeDeduction(long hours, long minutes) throws Exception {
